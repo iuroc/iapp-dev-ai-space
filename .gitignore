@@ -1,0 +1,7 @@
+android-sync
+.superpowers
+__pycache__/
+*.pyc
+/dist/
+# 从设备拉下的 APK / dex 产物（152M，需要时重新 pull）
+docs/artifacts/
