@@ -4,7 +4,7 @@
 
 iApp 编辑器以内存中的工程为准。点运行 / 保存 / 退出保存都会把旧内存写回磁盘。
 
-**做法**：外部改源码前先 `am force-stop <iApp 包名>`（或人在 iApp 里关掉工程），push 完再重新打开。
+**做法**：外部改源码前先 `am force-stop com.iapp.app`（或人在 iApp 里关掉工程），push 完再重新打开。
 
 ## 2. bind mount 对应用不可见（Android 9，sdcardfs）
 
@@ -13,11 +13,11 @@ iApp 编辑器以内存中的工程为准。点运行 / 保存 / 退出保存都
   - 应用 namespace 由 zygote 派生，后加的挂载不传播
   - 验证方法：`grep <目标目录> /proc/<iApp pid>/mountinfo`；或 `cat /proc/<pid>/root/...`
 
-**做法**：用 adb push。工程很小，push 成本极低。
+**做法**：有共享目录/同步盘就改共享目录；没有或核不上 md5 时再用 `adb push`。不要用 bind mount。
 
 ## 3. Git Bash 改写路径
 
-`adb shell ls /storage/...` 会被 MSYS 改写成 `D:/Program Files/Git/storage/...`。
+`adb shell ls /storage/...` 会被 MSYS 改写成 `C:/Program Files/Git/storage/...`（Git for Windows 的默认安装盘；装在别处按实际）。
 
 **做法**：`export MSYS_NO_PATHCONV=1`。
 
@@ -40,10 +40,21 @@ iApp 编辑器以内存中的工程为准。点运行 / 保存 / 退出保存都
 
 ## 7. 自定义类控件（Material / androidx）
 
-- ppt 里直接写完整类名 → `findViewById` 拿到**影子实例**，`addView`/`setPadding` 静默无效（同一 Activity、同一棵树，`children` 仍为 0）
-- 设计器组件树显示“未知” → 在 `build.xml` 的 `<newControl>` 里登记（子项标签是 `itme`）
-- 组合控件（TextInputLayout + TextInputEditText）不要用 `did` 嵌套：iApp 会套一层 `FrameLayout`，导致浮标/hint 重叠
-- 正确姿势：ppt 放普通 `LinearLayout` 占位，组件全部 mjava 动态创建
+- **依赖子控件 Context/背景的组件（典型是 `TextInputLayout`）在 ppt 里外观会退化**：子控件由 iApp 用 activity Context 构造，拿不到 `til.getContext()` 那层 Material 主题覆盖 → 输入框看起来是普通 EditText（API 34 实测，2026-10-27）。Button / Card / Chip 等不依赖子控件 Context 的组件不受影响
+- ppt 建的实例本身**是真的**：`findViewById` 返回的就是屏幕上那个（hash 与视图树一致）、`attached=true`、`addView` 生效。API 28 的“影子实例”旧结论按版本差异对待 ⚠
+- **TIL 盒子默认不画**：Material 1.13 把盒子贴成 EditText 的 background，ppt 子控件自带原生背景 → 被跳过（`boxBackgroundApplied=false`）。修复必须挂在 `loading`（`loadingComplete` 会让首帧先画出无盒子的页面）：从 `new TextInputEditText(til.getContext())` 抄回字号/内边距，再 `et.setBackground(null)` + `til.updateEditTextBoxBackgroundIfNeeded()`
+- 修复后与 mjava 动态创建一致；完整配方见 `md-components-guide.md` 的「ppt 声明的 TIL：盒子默认不画（修复配方）」
+- `TextInputLayout` 内部那层 `FrameLayout` 是它自己的 `inputFrame`（内含 `StartCompoundLayout`/`EndCompoundLayout`），**不是 iApp 套的**；旧记录归因错误
+- 组合控件：**ppt 里声明父容器与子控件**（这是默认做法，实例真实可写）；TIL 按下面的 `loading` 配方修复，其它组件只补运行期内容。不要为了“保险”改成 mjava 整页动态创建
+- **写完整类名（`type=` 含点号）的那一刻就登记**：`build.xml` 的 `<newControl>`，子项标签是 `itme`。设计器显示“未知”说明已经漏了；新建工程的登记不继承
+- **设计器崩溃（根因：`SearchBar` + 序列化器空 tag）**：`SearchBar` 写进 ppt 后，点运行/保存/切代码页等**触发设计器自动保存**时抛 `NullPointerException: Attempt to read from null array`（`VisualDesigner.T0:54`，2026-10-27），iApp 进程被杀
+  - 根因（R8 反编译）：`T0` 把 `view.getTag()` 当 `Object[]` 读（约定 `[type,ppt,event]`）；`id >= 1` 的控件**跳过 tag 空检查**，直接 `aget-object` → NPE。`SearchBar` 构造里 inflate `mtrl_search_bar`，内部子 View 带资源 id 但没有 tag → 递归到它时崩
+  - 触发条件是**保存/序列化动作**（`S0`→`R0`→`T0`），不是“打开设计器”；`S0` 有 2 秒防抖（`D8` 在 Activity 构造时赋值），刚重开时第一次保存会被跳过，看起来像“第一次正常、之后崩”
+  - 与 `build.xml` 登记无关：`type` 含点号时 `if0.q` 直接反射实例化；只登记不声明连续 3 次正常，不登记只声明仍崩
+  - 做法：**不要 ppt 声明 `SearchBar`**，改 mjava 动态创建（运行期不经过序列化器）；动态创建的控件也不用登记
+  - 原清单里的 `TabLayout`（短名/全类名/登记与否）、`ChipGroup`（含 `Chip` 子项）、`MaterialDivider` 已实测单独 ppt 声明**不崩**，全部排除
+  - 未登记的完整类名一般只让组件树显示“未知”（`TabLayout` 探针工程能开、无报错）；`SearchBar` 显示“未知”也照样会崩
+  - 泛化：任何“构造时自建带资源 id 子 View”的第三方控件都可能触发同一缺陷，不止 `SearchBar`
 
 ## 8. BeanShell 解析不到某些继承方法
 
@@ -68,14 +79,17 @@ W/System.err: call killProcess callstack! pid=3039
 - **`catch (Throwable)` 接不住**，异常穿透匿名接口代理，iApp 直接 killProcess
 - 同一回调里排在它前面的 `getActionMasked/getActionIndex/getPointerId/findPointerIndex/getX(int)` 都正常
 - 做法：只用无参 `getHistorySize()`（对应 pointer 0）；要按指针取历史点就另想办法
-- 证据：`docs/evidence.md` 2026-10-26「课堂黑板 BB-P1」
+- API 28 实测（2026-10-26）
+- 同类签名：在匿名 `Runnable` / 接口回调里对 **null 数组取下标**（如 `((Object[]) view.getTag())[0]`），
+  BeanShell 抛 `Typed variable declaration : Not an array`，穿成 `UndeclaredThrowableException` 并杀进程，
+  `catch(Throwable)` 接不住（2026-10-27，API 34）
 
 ## 9. 把短类名当成“去包名”
 
 `type="Switch"` 设计器显示“未知”——`Switch` 不在内置短名表里，运行时可能正常，但设计器不认识。
 
-- 已确认可用短名：`TextView`、`Button`、`EditText`、`CheckBox`、`LinearLayout`、`ScrollView`、`WebView`
-- 其它类写完整类名（`android.widget.Switch`）并在 `build.xml` 的 `<newControl>` 登记
+- 短名清单以 `builtin-controls.md` 为准，不要维护第二份
+- 其它类写完整类名（如 `android.widget.Switch`）并在 `build.xml` 的 `<newControl>` 登记
 - 判据：设计器显示“未知”就是短名不存在或未登记
 
 ## 10. 竖向布局“堆在顶部”，不铺满
@@ -188,7 +202,7 @@ java.lang.IllegalArgumentException: View=... not attached to window manager
 
 这是 iApp 拆预览悬浮窗的噪音，与本工程代码无关，不要当 crash 查。
 
-## 15. `downkey` 不传 `st_kC` 就不知道按了哪个键
+## 17. `downkey` 不传 `st_kC` 就不知道按了哪个键
 
 `downkey/upkey` 事件体有三个内置变量：`st_kC`（键码）、`st_eA`（动作）、`st_eR`（重复计数）。
 只写 `call(null,"mjava","x.y")` 也会触发，但 mjava 拿不到键码。
@@ -199,36 +213,37 @@ java.lang.IllegalArgumentException: View=... not attached to window manager
 
 同时挂 `setOnKeyListener` 会双触发，需要按 `(键码, 120ms)` 去抖。
 
-## 16. 动画收尾不要用 `AnimatorListenerAdapter`
+## 18. 动画收尾不要用 `AnimatorListenerAdapter`
 
 它是**抽象类**，BeanShell 只能匿名实现接口，写 `new AnimatorListenerAdapter(){...}` 会让模块失效。
 用 `view.postDelayed(new Runnable(){ public void run(){ nextStep(); } }, 120)` 收尾。
 详见 `animation-guide.md`。
 
-## 17. 动态视图跨 `call` 会“丢”
+## 19. 动态视图跨 `call` 会“丢”
 
 模块变量在每次 `call` 都重置，`ArrayList<View>` 这类字段存不住。
 动态加的视图用 `setTag("tile:"+idx)`，之后遍历 `getChildCount()/getChildAt(k)` 按 tag 找。
 
-## 18. `getFilesDir()` 是多工程共用的
+## 20. `getFilesDir()` 是多工程共用的
 
-它指向 iApp 宿主 `com.iapp.app` 的私有目录，不是当前工程目录。
-存档文件名带工程前缀（如 `game2048.save`），否则不同工程会互相覆盖。
+开发模式下它指向 iApp 宿主 `com.iapp.app` 的私有目录，不是当前工程目录；
+打包后是打包应用自己的私有目录。
+开发模式存档文件名要带工程前缀（如 `game2048.save`），否则不同工程会互相覆盖；
 反例：把存档写成 `save.txt`，两个工程一起跑就串了。
 
-## 19. 1×1 占位图 = 纯蓝方块
+## 21. 1×1 占位图 = 纯蓝方块
 
 早期 `create_project.py` 写的 70 字节 `icon.png` 注释是“透明”，实际像素是
 RGBA `00 00 FF 7F`（半透明蓝）。启动器把它拉满整个图标，所有工程都是蓝方块。
 
 - 判据：`icon.png` 只有几十字节、尺寸 1×1
-- 做法：用 `docs/scripts/make_icon.py` 生成 512×512 真图标
+- 做法：用 `scripts/make_icon.py` 生成 512×512 真图标
 - iApp 打包时把 `icon.png` 原样塞进 `res/mipmap-*/img_iapp.png`，没有多密度切图
 - 桌面图标有缓存，换图后要重新打包安装才看得到
 
 详见 `icon-guide.md`。
 
-## 20. 跨模块调用前没 `i.fn`
+## 22. 跨模块调用前没 `i.fn`
 
 新一次 `call` 是新的 BeanShell 解释器，上一次加载的模块**不在了**。
 在 `importAll()` 之前调用 `u_st()` 这类子模块方法：
@@ -248,7 +263,7 @@ Called from method: layout
 - 不要先做 `if (u_st(...))` 再加载
 - 详见 `modularization-guide.md`
 
-## 21. `i.d.f` 只在开发模式可用，交付用 `i.fn`
+## 23. `i.d.f` 只在开发模式可用，交付用 `i.fn`
 
 开发模式 `i.d.f("x.mjava")` 能按文件名导入；打包 APK 后：
 
@@ -268,7 +283,7 @@ b_hello();
 
 - 详见 `modularization-guide.md`
 
-## 22. 外部 AAR 的 R 全是 0，构造里就要资源 → 必须自己链资源
+## 24. 外部 AAR 的 R 全是 0，构造里就要资源 → 必须自己链资源
 
 AAR 里的 `R.txt` 全是 `0x0`（真实 ID 在宿主 App 链接时才分配）。如果库在**构造期**
 就用 `R.layout.*`（sora-editor 的 `CodeEditor` 构造 → `EditorTextActionWindow` →
@@ -278,7 +293,7 @@ AAR 里的 `R.txt` 全是 `0x0`（真实 ID 在宿主 App 链接时才分配）�
 Resources$NotFoundException: Resource ID #0x0
 ```
 
-做法（完整脚本见工作区 `docs/scripts/build_sora_dex.py`）：
+做法（完整脚本见 `scripts/build_sora_dex.py`）：
 
 1. `aapt2 compile --dir res -o compiled.zip`
 2. `aapt2 link -I <framework-res.apk> --package-id 0x80 --java gen …`
@@ -288,7 +303,7 @@ Resources$NotFoundException: Resource ID #0x0
 3. `javac --release 11` 编译生成的 `R.java`，打进 dex（**先剥掉 AAR 自带的 `R*.class`**）
 4. 运行时 `activity.getAssets().addAssetPath(资源apk路径)`（反射，hidden API，实测可用）
 
-## 23. `DexClassLoader` 父加载器别给宿主 loader
+## 25. `DexClassLoader` 父加载器：宿主自带同名库时给 `null`
 
 ```java
 // ❌ 宿主 APK 里若自带同名类，父优先委派会先命中它
@@ -296,6 +311,8 @@ new DexClassLoader(dex, cacheDir, null, activity.getClassLoader());
 // ✅ 只用 boot classpath + 自己的 dex
 new DexClassLoader(dex, cacheDir, null, null);
 ```
+
+反过来，编译类依赖 `androidx.*` 或宿主已有类型时，父加载器要给宿主 loader（见 `external-library-guide.md` 的「编译类进 dex」）。
 
 实测：宿主 `com.iapp.app` 的 APK **自带一份混淆过的 sora-editor**
 （`base.vdex` 里能看到 `io.github.rosemoe.sora.widget.CodeEditor.p3`）。
@@ -312,7 +329,7 @@ new DexClassLoader(dex, cacheDir, null, null);
 打包版没有宿主干扰，所以同一份 dex 一切正常——**排查时先比较「开发 vs 打包」**。
 自检写法：`ce.getDeclaredMethod("setTextSizePx", new Class[]{Float.TYPE})` 能找到 = 用的是自己的。
 
-## 24. 重载族不能只靠「参数类型 + 返回类型」定位
+## 26. 重载族不能只靠「参数类型 + 返回类型」定位
 
 方法名不可信时（见 #23 之外的场景），按签名匹配看似可行，但对同签名族会错位：
 
@@ -323,7 +340,7 @@ new DexClassLoader(dex, cacheDir, null, null);
 **正解：把 glue 编译成 dex 里的桥接类**，编译期解析方法引用；mjava 只跟桥接类打交道，
 而且只用两种入口——构造函数（按参数类型取）和框架方法（`View.setTag` / `View.getTag`）。
 
-## 25. Android 14+：动态加载的 dex 必须是只读文件
+## 27. Android 14+：动态加载的 dex 必须是只读文件
 
 targetSdk ≥ 34 的应用在 Android 14（API 34）及以上，`DexClassLoader` 加载的
 dex/jar/apk **必须是只读文件**，否则系统直接抛异常（行为变更「Safer dynamic code loading」）。
@@ -354,7 +371,7 @@ new DexClassLoader(d.getAbsolutePath(), …);
 - 官方推荐「先设只读再写」，而不是写完再改权限（消除竞态）
 - 同一个 dex 既要被开发模式又要被打包模式加载时，两条路都要经过这套流程
 
-## 26. 多开模拟器：`emulator-5554` 会指向错误的设备
+## 28. 多开模拟器：`emulator-5554` 会指向错误的设备
 
 两套**独立安装**的雷电（如 `LDPlayer9` + `LDPlayer14`）各自只有 `index=0`，VM NAT 规则都是
 `adb,tcp,,5555,,5555`，同时运行就抢宿主机 5555——**后启动的那台赢**。

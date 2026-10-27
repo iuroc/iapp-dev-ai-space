@@ -1,6 +1,6 @@
 # 工程结构与新建工程
 
-版本前提：iApp 5.0.1013、裕 3 模式（`<yuv>3</yuv>`）。本工作区只做裕 3，不碰 lua/js。
+版本前提：iApp 5.0.1013、裕 3 模式（`<yuv>3</yuv>`）。本技能只覆盖裕 3 + mjava。
 
 ## 初始结构（新建后第一次运行前 → 运行后）
 
@@ -78,7 +78,7 @@ sdk/iapp.sdk        # 默认 SDK 列表
 
 ## `build.xml` 与自定义控件
 
-- `build.xml` 是工程设置，**不要手改**（唯一例外：给完整类名的控件补 `<newControl>` 登记）
+- `build.xml` 由 iApp 管理，**不要手改**；唯一允许手写的是 `<newControl>`（控件登记）
 - 登记格式（✅ 从 dex 解析代码确认，子项标签是 `itme`，原文拼写如此）：
 
 ```xml
@@ -86,14 +86,13 @@ sdk/iapp.sdk        # 默认 SDK 列表
 ```
 
 - `title` 进设计器组件树显示，`info` 是说明，`class` 才会进 `.iyu`
-- `type` 优先用内置短类名（`TextView`、`LinearLayout`…）；短名不需要登记
+- **触发判据是 `type` 的语法，不是“类算不算自定义”**：`type` 写内置短名（不含点号）不用登记；写完整类名（含点号）必须登记
+- **每个工程独立**：`build.xml` 随工程走。新建工程（含每轮探针工程）的 `<newControl>` 是空的，旧工程的登记不会继承，新页里用完整类名就要重新登记
 - **短名不是“安卓类名去包名”那么简单**：完整清单见 `builtin-controls.md`。`Switch` 不是短名（开关用 `SwitchCompat`）；`GifView`/`RoundImageView`/`VerticalViewPager` 是 iApp 封装
-- 清单内的短名不需要登记；清单外写完整类名并登记
-- 判据：设计器组件树里显示“未知”= 没有该短名 / 没有登记；运行时可能仍正常，但设计器不可用
-- 内置表里没有的类（尤其 `androidx.*`）写**完整类名**，并在 `<newControl>` 里登记 `title` / `info` / `class`；只有 `class` 会进 `.iyu`
-- 不登记：运行时通常没事，但设计器展开组件树会**闪退**
+- 判据：设计器组件树里显示“未知”= 没有该短名 / 完整类名没登记；运行时可能仍正常，但设计器组件树展开可能**闪退**
 - 登记只让设计器认识它，**不代表类可用**——类还要能从 `sdk/iapp.sdk` 或外部库加载
 - 登记项可能被 iApp 重建时清掉
+- 自查：`grep -n 'type="[^"]*\.' src/*.iyu` 列出全部完整类名，逐个确认 `build.xml` 里有同 `class` 的 `<itme>`
 
 ## `sdk/iapp.sdk`
 
@@ -109,8 +108,8 @@ iApp 首次打开工程时生成，默认包含 appcompat / material / constrain
 生成方式（离线、纯标准库）：
 
 ```bash
-python docs/scripts/make_icon.py --project-dir <工程目录>
-python docs/scripts/make_icon.py --all <ProjectApp 目录>
+python scripts/make_icon.py --project-dir <工程目录>
+python scripts/make_icon.py --all <ProjectApp 目录>
 ```
 
 `create_project.py` 不传 `--icon` 时会自动生成。详见 `icon-guide.md`。
@@ -119,3 +118,5 @@ python docs/scripts/make_icon.py --all <ProjectApp 目录>
 
 `.project` + `AndroidManifest.xml` + `src/mian.iyu` + `icon.png`（`files/`、`res/` 可空）。
 `build.xml` / `sdk/` / `<包名>/` 由 iApp 首次打开时补。
+
+**首次打开后补登记**：若 `src/*.iyu` 的 `type=` 里有完整类名（含点号），此时 `build.xml` 里是空 `<newControl>`，必须补登记——新工程不继承任何旧工程登记。探针工程每轮新建，最容易漏这一步。

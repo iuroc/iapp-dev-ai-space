@@ -2083,3 +2083,1283 @@ BB P2 raw=2 masked=2 cnt=1 ai=0 id=0 idx=0 x=1084 y=317 hist=2
 ```
 
 结论：MuMu 菜单与默认路径 ✅ 官方文档；BlueStacks 路径 ⚠ 版本差异大，需实机核对。
+
+---
+
+## 2026-10-27 TIL ppt 父控件探针（com.demo.tilprobe）
+
+环境：iApp 5.0.1013 / **Android 14（API 34，emulator-5556）**，不是 CLAUDE.md 里记的 API 28 那台。
+
+探针矩阵（同一页）：A 短名 TIL + 短名 EditText；B 全类名 TIL + 短名 EditText；C 短名 TIL + 全类名 TIET；E 全类名 TIL + 全类名 TIET；D mjava 动态创建基线。
+
+**原始读数（09:48:15~16，logcat tag ygs / TILP）**
+
+```
+TILP A-short id=10 cls=com.google.android.material.textfield.TextInputLayout hash=111293832 attached=true parent=android.widget.LinearLayout children=1
+TILP A-short mode=2 hint=A-短名-TIL
+TILP A-short addChild-ok children=2
+TILP B-full id=20 cls=com.google.android.material.textfield.TextInputLayout attached=true children=1
+TILP C-short-tieet id=30 cls=com.google.android.material.textfield.TextInputLayout attached=true children=1
+TILP E-full-full id=50 cls=com.google.android.material.textfield.TextInputLayout attached=true children=1
+TILP D created children=1 mode=2
+```
+
+视图树节选：
+
+```
+TextInputLayout id=10 n=2
+ └ FrameLayout n=3
+    ├ EditText id=11 ctx=com.iapp.app.run.mian
+    ├ StartCompoundLayout n=2
+    └ EndCompoundLayout n=3
+```
+
+- 短名 `TextInputLayout` 与全类名**都**解析为 `com.google.android.material.textfield.TextInputLayout`（"短名指向 support 包"的怀疑被推翻）
+- ppt 建的四个 TIL 全部 `attached=true`、hash 与树一致、`addView` 后 children 1→2 → **本机不是影子实例**（与 `cases/11` 的 API 28 结论冲突，疑为版本差异 ⚠）
+- FrameLayout 内含 `StartCompoundLayout`/`EndCompoundLayout` → 是 TIL 自带 `inputFrame`，**不是 iApp 套的**；`cases/11` 的归因需修正
+- 子控件 ctx 全为 `com.iapp.app.run.mian`（activity）；动态 D 用 `til.getContext()`，外观差异待屏幕确认
+- 页面上的「X」是探针里影子测试加的 TextView，不是控件本身
+
+**屏幕现象（用户回报）**：D 动态 TIL 为正常 M3；各组件之间出现单行 X（探针产物）。
+
+**09:50:26 第二轮（已去掉 X 与树 dump）**
+
+```
+TILP A-short id=10 cls=…TextInputLayout hash=215373446 attached=true children=1
+TILP B-full id=20 cls=…TextInputLayout hash=121887559 attached=true children=1
+TILP C-short-tieet id=30 cls=…TextInputLayout hash=77475700 attached=true children=1
+TILP E-full-full id=50 cls=…TextInputLayout hash=25672861 attached=true children=1
+TILP D created children=1 mode=2
+```
+
+屏幕现象（用户回报）：**A/B/C/E 看起来都是普通 EditText，只有 D 是 Material 3**。
+
+判定：ppt 建 TIL 的实例是真的（attached、hash 与树一致、可 addView），但子控件固定用 activity Context，拿不到 `til.getContext()` 的 Material 主题覆盖 → 外观退化为原生。**M3 外观只能 mjava 动态创建**。短名/全类名、子控件短名/全类名四种组合结果一致。
+
+**本轮顺带实测的失败签名**
+
+```
+[09:39:31] MJavaErr: Command not found: importAll() : at Line: 1
+            ← importAll() 写在文件顶层；它只能写在方法体内
+[09:45:57] MJavaErr: Class: View not found in namespace : at Line: 51
+            ← 缺少 import；删 importAll() 不能连带删 import
+```
+
+**投递**：工程打开期间，宿主机改 `src/*.iyu|*.mjava`，设备端读到旧缓存（md5 不一致）；关闭工程后自动刷新对齐。本轮全程未 push。
+
+---
+
+## 2026-10-27 custom.iyu 自定义控件边界（com.demo.m3showcase，API 34）
+
+页面：pp t 里用**全类名**声明 13 个 Material 控件（`mian.iyu` 的 mjava 版保留不动）。读数 tag `CUST`（10:11:15）。
+
+```
+CUST btn id=100 cls=…MaterialButton att=true
+CUST card id=110 cls=…MaterialCardView att=true n=1
+CUST til-outline id=120 cls=…TextInputLayout att=true n=1
+CUST til-outline mode=2 hint=TIL-全类名-outline
+CUST tiet-outline id=121 cls=…TextInputEditText att=true
+CUST til-filled id=130 cls=…TextInputLayout att=true n=1
+CUST til-filled mode=2 hint=TIL-全类名-filled
+CUST checkbox id=140 cls=…MaterialCheckBox att=true
+CUST radiogroup id=141 cls=android.widget.RadioGroup att=true n=2
+CUST switch id=150 cls=…SwitchMaterial att=true
+CUST chip id=160 cls=…Chip att=true
+CUST chip checkable=false checked=false
+CUST slider id=170 cls=…Slider att=true / value=0.0
+CUST linear id=180 / circular id=181 / fab id=190 att=true
+CUST toggle id=200 cls=…MaterialButtonToggleGroup att=true n=2
+```
+
+- 全类名声明全部渲染成功、`attached=true`；`MaterialCardView` / `MaterialButtonToggleGroup` 用 `did` 挂子控件成功
+- `st_setChecked=true`（Chip）**无效**：`checkable=false checked=false` → `st_` 桥不认布尔字符串
+- 两个 TIL 都 `mode=2`（`st_setBoxBackgroundMode` 未设的 130 也是 2 → 默认即 outline），但**盒子没画**；hint 已浮起
+- 子控件 `TextInputEditText` ctx=`com.iapp.app.run.mian`（activity），焦点态显示原生粉色下划线
+- 组件 ctx 分组：MaterialButton / Chip / FAB / TIL = `ContextThemeWrapper`（组件自身主题覆盖）；MaterialCardView / CheckBox / Radio / Switch / Slider / Progress / ToggleGroup = `com.iapp.app.run.mian`
+- 截图：`docs/artifacts/m3-custom.png`
+
+**待验**：运行时对 120/130 重新调用 `setBoxBackgroundMode`，看盒子是否出现（判断是否为 ppt 属性应用时机问题）。
+
+**10:26 / 10:30 修复轮**
+
+```
+CUST clearbg 120
+CUST F afterfix-120 boxBackgroundApplied = true
+CUST clearbg 130
+CUST F afterfix-130 boxBackgroundApplied = true
+CUST cmp ppt size=54.0 pad=12/30 color=-14935264
+CUST cmp ctl size=48.0 pad=48/51 color=-14935264
+```
+
+- 修复：`et.setBackground(null)` + `til.updateEditTextBoxBackgroundIfNeeded()` → 盒子出现（屏幕确认）
+- 修复前 ppt 实例 `boxBackgroundApplied=false`，对照 true；字节码确认 `updateEditTextBoxBackgroundIfNeeded` 在 `editText.getBackground()!=null` 时直接 return
+- 修复后仍差在子控件排版：ppt 54px / 内边距 12,30；对照 48px / 48,51（颜色相同）
+- 截图：`docs/artifacts/m3-custom-fixed2.png`
+- 待确认：盒子出现有约 1s 延迟（已加 `requestLayout()`+`invalidate()`，效果待复测）
+
+**10:43 / 10:49 最终轮：修复移到 `loading` + 抄内置字号/内边距**
+
+```
+CUST early                    10:43:55.832
+CUST fixOne 120 ok            10:43:55.885   ← 首帧前修好
+CUST begin (loadingComplete)  10:43:56.402
+CUST F before-120 boxBackgroundApplied = true
+CUST bg t100 ImplApi18 1048x136 et=1048x136 att=true
+```
+
+```
+CUST fixOne 130 ok size=48.0 pad=48/51
+CUST fixOne 120 ok size=48.0 pad=48/51
+CUST cmp ppt size=48.0 pad=48/51 color=-14935264
+CUST cmp ctl size=48.0 pad=48/51 color=-14935264
+CUST bg t100 ImplApi18 1048x167 et=1048x167 att=true
+```
+
+- 结论：修复必须挂在 `loading`；`loadingComplete` 会让首帧先画出无盒子状态（观感延迟）
+- 字号/内边距从 `new TextInputEditText(til.getContext())` 抄，等价使用组件内置样式
+- 屏幕：盒子首帧即有、文字内边距正常（用户确认"完美"）
+
+---
+
+## 2026-10-27 多 .iyu 跳转 / 栈 / 返回（NAV-1，com.demo.navprobe，API 34）
+
+**工程**：`android-sync/ProjectApp/com.demo.navprobe`（A=`mian.iyu`、B=`p_b.iyu`、C=`p_c.iyu`，模块 `nav.mjava`）
+**链路**：宿主 `android-sync/ProjectApp/<ID>` ↔ 设备 `/storage/emulated/0/Pictures/ProjectApp/<ID>`；4 个源文件 md5 一致，未 push
+**设备**：emulator-5556，Android 14 / API 34，iApp 5.0.1013
+**原始读数**：`docs/artifacts/nav1/logcat.txt`（757 行）、`docs/artifacts/nav1/dumpsys-activities.txt`
+**logcat 命令**：`adb logcat -d -v time 'ygs:V' 'System.err:V' '*:S'`
+
+探针：每页 `loading` 打 `NAV-ENTER`（activity 身份哈希 / 标题控件身份哈希 / sameAct / sameView / cls / taskId / pid / 上一页），`loadingComplete` 打 `NAV-READY`，`start/resume/pause/stop/destroy` 打 `NAV-LIFE`，跳转打 `NAV-GO`，返回键打 `NAV-KEY`。
+
+**操作**：A 载入 → A→B → B→C → 在 C 连按系统返回 17 次 → 从外部弹出（非按键、非 uigo）→ 再弹 B → 再弹 A。
+
+```
+10-27 10:14:20.806 NAV-ENTER page=A n=1 act=156645770 sameAct=false view=243508003 sameView=false cls=com.iapp.app.run.mian task=7 pid=1140 last=null
+10-27 10:14:20.825 NAV-LIFE page=A ev=start act=156645770
+10-27 10:14:21.236 NAV-READY page=A act=156645770 view=243887875
+10-27 10:14:22.922 NAV-GO from=A to=p_b.iyu flag=0 act=156645770
+10-27 10:14:22.930 NAV-GO-RET to=p_b.iyu flag=0
+10-27 10:14:22.941 NAV-LIFE page=A ev=pause act=156645770
+10-27 10:14:23.034 NAV-ENTER page=B n=1 act=105583167 sameAct=false view=233482897 sameView=false cls=com.iapp.app.run.mian task=7 pid=1140 last=A
+10-27 10:14:23.055 NAV-LIFE page=B ev=start act=105583167
+10-27 10:14:23.376 NAV-READY page=B act=105583167 view=189877886
+10-27 10:14:23.736 NAV-LIFE page=A ev=stop act=156645770
+10-27 10:14:31.228 NAV-GO from=B to=p_c.iyu flag=0 act=105583167
+10-27 10:14:31.243 NAV-GO-RET to=p_c.iyu flag=0
+10-27 10:14:31.267 NAV-LIFE page=B ev=pause act=105583167
+10-27 10:14:31.350 NAV-ENTER page=C n=1 act=18828245 sameAct=false view=15131297 sameView=false cls=com.iapp.app.run.mian task=7 pid=1140 last=B
+10-27 10:14:31.368 NAV-LIFE page=C ev=start act=18828245
+10-27 10:14:31.712 NAV-READY page=C act=18828245 view=28776009
+10-27 10:14:32.036 NAV-LIFE page=B ev=stop act=105583167
+10-27 10:14:51.723 NAV-KEY page=C kc=4 act=18828245
+10-27 10:14:54.718 NAV-KEY page=C kc=4 act=18828245
+...（kc=4 共 17 次，10:14:51 ~ 10:15:08，页面始终停在 C）
+10-27 10:15:11.718 NAV-KEY page=C kc=113 act=18828245
+10-27 10:15:11.758 NAV-KEY page=C kc=29 act=18828245
+10-27 10:15:12.104 NAV-KEY page=C kc=31 act=18828245
+10-27 10:15:57.345 NAV-LIFE page=C ev=pause act=18828245
+10-27 10:15:57.368 NAV-LIFE page=B ev=start act=105583167
+10-27 10:15:57.376 NAV-LIFE page=B ev=resume act=105583167
+10-27 10:15:58.040 NAV-LIFE page=C ev=stop act=18828245
+10-27 10:15:58.048 NAV-LIFE page=C ev=destroy act=18828245
+10-27 10:15:59.809 NAV-LIFE page=B ev=pause act=105583167
+10-27 10:15:59.819 NAV-LIFE page=A ev=start act=156645770
+10-27 10:15:59.827 NAV-LIFE page=A ev=resume act=156645770
+10-27 10:16:00.481 NAV-LIFE page=B ev=stop act=105583167
+10-27 10:16:00.491 NAV-LIFE page=B ev=destroy act=105583167
+10-27 10:16:01.440 NAV-LIFE page=A ev=pause act=156645770
+10-27 10:16:02.056 NAV-LIFE page=A ev=stop act=156645770
+10-27 10:16:02.063 NAV-LIFE page=A ev=destroy act=156645770
+10-27 10:16:04.303 W/System.err( 1140): java.lang.IllegalArgumentException: View=android.widget.RelativeLayout{...} not attached to window manager
+```
+
+**读数**
+
+| # | 现象 | 判定 |
+|---|---|---|
+| N1 | 三页 activity 身份哈希各不相同（A=156645770 / B=105583167 / C=18828245），类名均为 `com.iapp.app.run.mian`，`task=7`、`pid=1140` 不变 | ✅ `uigo` 每页新建一个 Activity 实例，同进程同任务 |
+| N2 | 前进时序：旧页 `pause` → 新页 `loading`(NAV-ENTER) → `start` → `loadingComplete`(NAV-READY) → 旧页 `stop` | ✅ |
+| N3 | C 已绑 `downkey`，返回键 17 次全部只进事件（`kc=4`），页面一次不弹 | ✅ 绑 `downkey` 会吞掉返回键 |
+| N4 | 从外部弹掉 C 后：C `pause` → B `start`/`resume` → C `stop`/`destroy`；B 的 act 仍是 105583167，**没有 NAV-ENTER** | ✅ 弹栈回旧页 = 复用原 Activity，不重建、`loading` 不重跑 |
+| N5 | 弹掉 B 回到 A 同样复用 156645770；A 最后 `pause`→`stop`→`destroy` 回到编辑器 | ✅ |
+| N6 | 100 次按键里 `kc=113/29/31` 也进 `downkey`（音量下 / A / C） | ✅ 与既有结论一致：非方向键同样进事件 |
+| N7 | 10:16:04 `IllegalArgumentException: … not attached to window manager` | ⚠ 发生在全部页面 destroy 之后，疑为 iApp 调试悬浮窗清理；与本课题无关，未深究 |
+
+**未验证**：不绑 `downkey` 时返回键是否正常弹栈；`loading` 之外的 `restart` 事件（本页未绑，故 10:15:57 只看到 start/resume）；4 个 flag 的语义。
+
+## 2026-10-27 多 .iyu 跳转 / 栈 / 返回（NAV-2，com.demo.navprobe，API 34）
+
+NAV-1 的后续轮次。改动：C 页 `downkey` 改为 `nav.back`（判 `kc==4` 后 `activity.finish()`）；三页补绑 `restart`。
+**原始读数**：`docs/artifacts/nav2/logcat.txt`
+
+### 段一：finish() 当返回 + 默认返回键（10:19:35 ~ 10:19:54）
+
+```
+10-27 10:19:35.649 NAV-ENTER page=A n=1 act=188376684 sameAct=false view=251004189 sameView=false cls=com.iapp.app.run.mian task=9 pid=4042 last=null
+10-27 10:19:37.503 NAV-LIFE page=A ev=pause act=188376684
+10-27 10:19:37.608 NAV-ENTER page=B n=1 act=104209952 sameAct=false ... last=A
+10-27 10:19:38.012 NAV-READY page=B act=104209952 view=19766467
+10-27 10:19:38.338 NAV-LIFE page=A ev=stop act=188376684
+10-27 10:19:40.024 NAV-LIFE page=B ev=pause act=104209952
+10-27 10:19:40.121 NAV-ENTER page=C n=1 act=233137950 sameAct=false ... last=B
+10-27 10:19:40.905 NAV-LIFE page=B ev=stop act=104209952
+10-27 10:19:42.916 NAV-BACK page=C kc=4 act=233137950          ← 按返回
+10-27 10:19:42.926 NAV-BACK-FINISH page=C                       ← activity.finish()
+10-27 10:19:42.935 NAV-LIFE page=C ev=pause act=233137950
+10-27 10:19:42.947 NAV-LIFE page=B ev=restart act=104209952      ← 旧页复用，无 NAV-ENTER
+10-27 10:19:42.958 NAV-LIFE page=B ev=start act=104209952
+10-27 10:19:42.967 NAV-LIFE page=B ev=resume act=104209952
+10-27 10:19:43.596 NAV-LIFE page=C ev=stop act=233137950
+10-27 10:19:43.605 NAV-LIFE page=C ev=destroy act=233137950
+10-27 10:19:49.713 NAV-LIFE page=B ev=pause act=104209952      ← B 未绑 downkey，按返回
+10-27 10:19:49.721 NAV-LIFE page=A ev=restart act=188376684
+10-27 10:19:49.729 NAV-LIFE page=A ev=start act=188376684
+10-27 10:19:49.737 NAV-LIFE page=A ev=resume act=188376684
+10-27 10:19:50.380 NAV-LIFE page=B ev=stop act=104209952
+10-27 10:19:50.387 NAV-LIFE page=B ev=destroy act=104209952
+10-27 10:19:53.497 NAV-LIFE page=A ev=pause act=188376684      ← A 未绑，按返回
+10-27 10:19:54.123 NAV-LIFE page=A ev=stop act=188376684
+10-27 10:19:54.132 NAV-LIFE page=A ev=destroy act=188376684
+```
+
+### 段二：A→A 自跳（10:19:59 ~ 10:20:16）
+
+```
+10-27 10:19:59.294 NAV-ENTER page=A n=1 act=112367454 ...
+10-27 10:20:01.296 NAV-GO from=A to=mian.iyu flag=0 act=112367454
+10-27 10:20:01.310 NAV-LIFE page=A ev=pause act=112367454
+10-27 10:20:01.391 NAV-ENTER page=A n=2 act=100162897 sameAct=false ... last=A   ← 新实例
+10-27 10:20:01.757 NAV-READY page=A act=100162897
+10-27 10:20:02.084 NAV-LIFE page=A ev=stop act=112367454                          ← 旧 A 进后台
+10-27 10:20:04.076 NAV-LIFE page=A ev=pause act=100162897                          ← 按返回
+10-27 10:20:04.084 NAV-LIFE page=A ev=restart act=112367454                        ← 回到旧 A
+10-27 10:20:04.093 NAV-LIFE page=A ev=start act=112367454
+10-27 10:20:04.100 NAV-LIFE page=A ev=resume act=112367454
+10-27 10:20:04.715 NAV-LIFE page=A ev=stop act=100162897
+10-27 10:20:04.724 NAV-LIFE page=A ev=destroy act=100162897
+10-27 10:20:16.336 NAV-LIFE page=A ev=pause act=112367454
+10-27 10:20:16.962 NAV-LIFE page=A ev=stop act=112367454
+10-27 10:20:16.968 NAV-LIFE page=A ev=destroy act=112367454
+```
+
+**读数**
+
+| # | 现象 | 判定 |
+|---|---|---|
+| N8 | C 绑 `downkey` 后判 `kc==4` 调 `activity.finish()`：C pause → B **restart/start/resume** → C stop/destroy，B 的 act 仍是 104209952 且无 NAV-ENTER | ✅ `finish()` 就是"返回"，且旧页复用 |
+| N9 | B、A 未绑 `downkey`，按返回直接弹栈（B→A→destroy 回编辑器） | ✅ 不绑 downkey 时返回键走默认 Activity 栈 |
+| N10 | 回到停过的页面事件顺序是 `restart → start → resume`（NAV-1 因未绑 restart 只看到 start） | ✅ |
+| N11 | A→A 自跳：新 A 是**另一个 Activity 实例**（100162897），旧 A（112367454）pause→stop 留在栈里；返回回到旧 A 且 `restart/start/resume`，无 NAV-ENTER | ✅ 同名页也照样压栈，不做去重 |
+| N12 | 用户屏幕观察：返回旧 A 后，旧 A 的数据完全没动过，"仿佛页面一直在后台" | ✅ 与 N11 一致 |
+
+**未验证**：4 个 flag（536870912 / 67108864 / 268435456 / 1073741824）的语义。
+
+## 2026-10-27 flag 536870912（NAV-3 分段一，com.demo.navprobe，API 34）
+
+**原始读数**：`docs/artifacts/nav3/logcat-sofar.txt`
+
+操作：A 页连点「A→B（flag 536870912）」共 10 次，每次间隔几百毫秒。屏幕始终停在 A，无任何跳转。
+
+```
+10-27 10:24:25.042 NAV-GO from=A to=p_b.iyu flag=536870912 act=182819623
+10-27 10:24:25.059 NAV-GO-RET to=p_b.iyu flag=536870912
+10-27 10:24:25.067 NAV-LIFE page=A ev=pause act=182819623
+10-27 10:24:25.075 NAV-LIFE page=A ev=resume act=182819623
+...（同一模式重复 10 次，act 恒为 182819623，无 NAV-ENTER）
+10-27 10:24:57.057 NAV-LIFE page=A ev=pause act=182819623
+10-27 10:24:57.723 NAV-LIFE page=A ev=stop act=182819623
+10-27 10:24:57.737 NAV-LIFE page=A ev=destroy act=182819623
+```
+
+| # | 现象 | 判定 |
+|---|---|---|
+| N13 | `uigo("p_b.iyu", 536870912)` 每次：`NAV-GO` → `NAV-GO-RET` → 当前页 `pause` → 当前页 `resume`（同一 act），**不新建页面、不换页、不重跑 loading** | ✅ 536870912 在当前页上是 no-op |
+| N14 | 手册称该值用于"内存中存在且正在显示时复用该界面"，但此处目标页 B 根本不在栈里，照样不跳 | ✅ 推翻手册页级语义 |
+
+**解释（⚠ 推测）**：536870912 = `FLAG_ACTIVITY_SINGLE_TOP`(0x20000000)。所有 `.iyu` 共用同一个 Activity 组件 `com.iapp.app.run.mian`，栈顶永远"同类"，于是 Intent 被投递给栈顶实例（`onNewIntent`），而 iApp 的 `onNewIntent` 不换页 → 观感是"点了没反应"。行为特征（pause/resume 一次、不重建）与 SINGLE_TOP 命中完全吻合。
+
+### NAV-3 分段二：其余 flag（10:27:46 ~ 10:30:14）
+
+**原始读数**：`docs/artifacts/nav3/logcat-run2.txt`
+
+```
+10-27 10:27:46.955 NAV-ENTER page=A n=1 act=42157520 ... task=9 pid=4042
+10-27 10:27:53.887 NAV-ENTER page=B n=1 act=25552376 ...
+10-27 10:28:01.954 NAV-GO from=B to=p_b.iyu flag=536870912 act=25552376
+10-27 10:28:01.976 NAV-LIFE page=B ev=pause act=25552376
+10-27 10:28:01.982 NAV-LIFE page=B ev=resume act=25552376      ← 同页也是 no-op
+10-27 10:29:04.041 NAV-GO from=B to=p_b.iyu flag=268435456 act=42157520
+10-27 10:29:04.197 NAV-ENTER page=B n=2 act=177500752 ... task=9   ← task 不变
+10-27 10:30:01.871 NAV-GO from=B to=p_b.iyu flag=0 act=42157520
+10-27 10:30:02.003 NAV-ENTER page=B n=3 act=10549461 ... task=9
+10-27 10:30:14.629 JavaErr：
+10-27 10:30:14.629 Method go( java.lang.String, java.lang.Long ) not found in bsh scripted object: global
+```
+
+| # | 现象 | 判定 |
+|---|---|---|
+| N15 | `B→B(536870912)` 同页：B pause → B resume（act 不变），不新建 | ✅ 536870912 同页也是 no-op，手册"复用该界面"在观感上等于"什么都不做" |
+| N16 | `268435456`：正常新建 B 实例（act=177500752），**task 仍是 9**，与普通跳转无可见差异 | ✅ NEW_TASK 在本场景不产生新任务（同 affinity 已有任务） |
+| N17 | `1073741824` 点击后界面无反应，logcat 报 `Method go( java.lang.String, java.lang.Long ) not found` | ✅ 2³⁰ 的 yul 字面量以 **Long** 传入 mjava，签名 `(String,int)` 匹配失败、静默中断 |
+| N18 | 返回 A 后点 `268435456` 按钮，`NAV-GO from=B`（实际在 A） | ✅ 返回不重跑 `loading`，探针的 `nav.page` 停在旧值 —— 反过来再次佐证"返回复用" |
+
+**对照数据**：同一轮里 `0` / `268435456`(2²⁸) / `536870912`(2²⁹) 都是 `Integer`，只有 `1073741824`(2³⁰) 是 `Long`。
+
+### NAV-3 分段三：Long 修复后复测（10:32:57 ~ 10:34:25）
+
+**原始读数**：`docs/artifacts/nav3/logcat-run3.txt`
+
+```
+10-27 10:33:06.105 NAV-GO from=B to=p_c.iyu flag=1073741824 raw=java.lang.Long act=190984069
+10-27 10:33:06.214 NAV-ENTER page=C n=1 act=58374498 ... last=B          ← 修复后能跳了
+10-27 10:33:23.242 NAV-BACK page=C kc=4 act=58374498
+10-27 10:33:23.276 NAV-LIFE page=B ev=restart act=190984069              ← 返回落 B
+10-27 10:33:48.936 NAV-LIFE page=A ev=restart act=107700030              ← 再返回到 A
+-------- 第二次：CLEAR_TOP --------
+10-27 10:34:00.667 NAV-ENTER page=B n=2 act=233715948 ...
+10-27 10:34:03.470 NAV-ENTER page=C n=2 act=104811828 ...
+10-27 10:34:12.023 NAV-GO from=C to=mian.iyu flag=67108864 raw=java.lang.Integer act=104811828
+10-27 10:34:12.106 NAV-ENTER page=A n=2 act=71043199 ... last=C           ← 新 A 实例
+10-27 10:34:12.802 NAV-LIFE page=C ev=stop act=104811828
+10-27 10:34:12.809 NAV-LIFE page=C ev=destroy act=104811828                 ← 只有 C 被销毁
+10-27 10:34:23.561 NAV-LIFE page=B ev=restart act=233715948                 ← 返回落 B（B 没被清）
+10-27 10:34:24.303 NAV-LIFE page=A ev=restart act=107700030                 ← 再返回到栈底 A
+```
+
+| # | 现象 | 判定 |
+|---|---|---|
+| N19 | `1073741824` 经修复后正常跳到 C；C 绑 downkey 按返回 → B → A | ✅ 能跳；"不排在内存中"的区分性效果**尚未测到**（按返回弹栈本身不区分） |
+| N20 | 栈 `[A1, B, C]` 在 C 点 `C→A(67108864)`：**新 A2 压上来、只有 C 被销毁、B 原样保留**；返回依次 A2→B→A1 | ✅ CLEAR_TOP 没有清中间页 |
+
+**统一解释（⚠ 推测，与 N13/N16 吻合）**：所有 `.iyu` 共用同一个 Activity 组件 `com.iapp.app.run.mian`，Android 的 Activity flag 是按**组件**匹配的，不是按页面文件匹配：
+
+- `CLEAR_TOP` 命中的"已存在的目标实例"就是栈顶自己（C）→ 关掉 C、再起一个新的 run.mian（A），中间页不受影响
+- `SINGLE_TOP` 同理永远命中栈顶 → 变成 no-op
+- `NEW_TASK` 按 affinity 找任务，iApp 任务本来就在 → 同一 task
+
+**结论：uigo 的 flag 不能用来做"页面级"栈控制。**
+
+### NAV-3 分段四：NO_HISTORY 区分性测试（10:36:35 ~ 10:37:15）
+
+**原始读数**：`docs/artifacts/nav3/logcat-run4.txt`
+
+```
+10-27 10:36:35.030 NAV-ENTER page=B n=1 act=218604471 ...
+10-27 10:36:39.366 NAV-GO from=B to=p_c.iyu flag=1073741824 raw=java.lang.Long
+10-27 10:36:39.444 NAV-ENTER page=C n=1 act=37357758 ... last=B
+10-27 10:36:40.134 NAV-LIFE page=B ev=stop act=218604471            ← 普通页：只 stop
+10-27 10:36:47.829 NAV-ENTER page=A n=2 act=799168 ... last=C
+10-27 10:36:48.569 NAV-LIFE page=C ev=stop act=37357758
+10-27 10:36:48.576 NAV-LIFE page=C ev=destroy act=37357758          ← NO_HISTORY 页：离开即 destroy
+10-27 10:36:51.187 NAV-LIFE page=B ev=restart act=218604471         ← 返回直接落到 B
+10-27 10:37:08.479 NAV-LIFE page=A ev=restart act=185890349         ← 再返回落到栈底 A
+```
+
+| # | 现象 | 判定 |
+|---|---|---|
+| N21 | 用 `1073741824` 进的 C，在 `C→A` 之后**立即** `stop → destroy`；返回时跳过 C 落到 B | ✅ NO_HISTORY 生效 |
+| N22 | 同一次运行里普通页 B 只 `stop` 不 `destroy`（对照锚点） | ✅ 差别来自 flag，不是页面本身 |
+
+## 2026-10-27 页面间传参 / 返回结果（NAV-5 分段一，com.demo.navprobe，API 34）
+
+**操作**：A→B（i.sss 传参）→ B 显示参数；B→A（带回结果）→ A 显示结果；A→B（Intent extra 传参）→ 报错。
+**读数**：用户屏幕 + 调试工具日志（`NAVPROBE`/`NAV-`）
+
+```
+10:50:58.523 NAV-PARAM-SET value=hello-from-A
+10:50:58.672 NAV-ENTER page=B n=2 act=105686534 ...           ← B 载入，第 2 行显示 hello-from-A
+10:51:12.807 NAV-RESULT-SET page=B value=res-from-B
+10:51:12.925 NAV-LIFE page=A ev=restart act=99399440
+10:51:13.005 NAV-LIFE page=A ev=resume act=99399440           ← A 回来，第 4 行读到 res-from-B
+10:51:41.082 NAV-EXTRA-ERR java.lang.ClassNotFoundException: com.iapp.app.run.mian
+    at java.lang.Class.forName(Class.java:485)
+    at bsh.Reflect.invokeStaticMethod(Unknown Source:17)
+    ...
+```
+
+| # | 现象 | 判定 |
+|---|---|---|
+| N23 | `i.sss` 设参数 → 目标页 `loading` 里读到 `hello-from-A` | ✅ `i.sss` 是跨页传参的可用通道 |
+| N24 | B 里写 `i.sss("nav.result", ...)` 再 `finish()` → A 的 `resume` 读到 `res-from-B` | ✅ "返回结果"用 `i.sss` + 在 `resume` 里读，成立 |
+| N25 | `Class.forName("com.iapp.app.run.mian")` 抛 `ClassNotFoundException`，而同一对象的 `getClass().getName()` 就是它 | ✅ mjava 的 BeanShell 解释器**看不见宿主类**（只能解析 boot class 如 `android.*`）；按名字取宿主 Class 不可行 |
+
+**推断（⚠）**：不能按名字加载宿主类 → BeanShell 解释器用的是隔离（无父）类加载器。要拿 Class 只能从已有对象 `getClass()`，或者用 `i`/`activity` 直接反射调用。
+
+**待办**：改用 `activity.getClass()` 重测自建 Intent 传参；自定义转场未回报。
+
+### NAV-5 分段二：自建 Intent / 转场（10:53:45 ~ 10:54:39）
+
+```
+10-27 10:53:45.989 NAV-EXTRA-GO to=p_b.iyu k1=extra-from-A pkg=com.demo.navprobe open=mian.iyu
+10-27 10:54:21.214 NAV-ANIM-GO to=p_b.iyu
+10-27 10:54:21.234 NAV-ANIM-APPLIED
+10-27 10:54:27.424 NAV-ENTER page=B n=3 act=254792838 ...        ← 转场页正常载入
+```
+
+| # | 现象 | 判定 |
+|---|---|---|
+| N26 | 用 `activity.getClass()` 自建 Intent（带 `ProjectPackageName` / `OpenFilexmlui` / 自定义 `k1`）→ `startActivity` 成功，B 页第 3 行读到 `extra-from-A` | ✅ 可以自己塞 extra 传参 |
+| N27 | `uigo` 之后调用 `activity.overridePendingTransition(slide_in_left, slide_out_right)` → 用户观感"有区别" | ✅ mjava 可接管转场 |
+| N28 | 重开工程后 A 第 4 行（`i.sss 结果`）为 `null` | ✅ 符合 `i.sss` 每次运行重置；非 bug |
+
+**静态对照**：`uigo` 字节码只做 `new Intent` → `putExtras(fj.D(file))` → `startActivity`；`fj.D` 只放 `ProjectPackageName` + `OpenFilexmlui` 两个键；宿主里 `overridePendingTransition` 仅有一处字符串字面量，无原生调用。
+
+## 2026-10-27 打包模式复验（NAV-6，com.demo.navprobe.apk，API 34）
+
+**包**：`android-sync/ProjectApp/com.demo.navprobe/bin/com.demo.navprobe.apk`（4910350 B）
+`versionCode=100001`（=100000+versionint）、`versionName=NAV-1`、`targetSdk=36`、启动 Activity `com.iapp.app.run.mian` ✅ 与既有打包结论一致
+**安装**：`adb install -r` 成功，包名 `com.demo.navprobe`（与开发模式宿主 com.iapp.app 并存）
+**原始读数**：`docs/artifacts/nav5/logcat-packaged.txt`
+
+操作：桌面图标启动 → A→B（普通）→ 返回 → A→B（i.sss 传参）→ B→A（带回结果）→ A→B（Intent extra 传参）→ 返回 → A→B（自定义转场）
+
+```
+11:04:03.537 I/NAVPROBE: NAV-ENTER page=A n=1 act=228792239 ... cls=com.iapp.app.run.mian task=16 pid=7211
+11:04:42.248 I/NAVPROBE: NAV-PARAM-SET value=hello-from-A
+11:04:56.667 I/NAVPROBE: NAV-RESULT-SET page=B value=res-from-B
+11:05:05.030 I/NAVPROBE: NAV-EXTRA-GO to=p_b.iyu k1=extra-from-A pkg=null open=null
+11:05:06.347 I/NAVPROBE: NAV-ENTER page=B n=3 act=89880000 ... task=16
+11:05:28.811 I/NAVPROBE: NAV-ANIM-GO to=p_b.iyu
+11:05:29.009 I/NAVPROBE: NAV-ANIM-APPLIED
+11:05:30.137 I/NAVPROBE: NAV-ENTER page=B n=4 act=264052886 ... task=16
+```
+
+| # | 现象 | 判定 |
+|---|---|---|
+| N29 | 打包后 A→B 正常，`NAV-ENTER` 显示每页新的 act、cls=`com.iapp.app.run.mian`、task=16 | ✅ 打包模式仍是"每页一个 Activity 实例" |
+| N30 | `i.sss` 传参 `hello-from-A`、返回结果 `res-from-B` 均到达（用户屏幕确认） | ✅ 打包后 `i.sss` 与生命周期语义一致 |
+| N31 | 自建 Intent 传 `k1` 成功，但当前 Intent 的 `ProjectPackageName` / `OpenFilexmlui` 都是 **null** | ✅ 打包模式不依赖这两个内部键；自建 Intent 仍可用 |
+| N32 | `overridePendingTransition` 在打包版同样有可见效果 | ✅ |
+| N33 | `ygs` 通道 **0 行**，`I/NAVPROBE`（`android.util.Log`）**61 行** | ✅ 打包只关 `i.syso`，标准 Log 正常 |
+
+## 2026-10-27 lan / addv（NAV-7 分段一，com.demo.navprobe，API 34）
+
+**背景**：用户提醒手册里还有跳转动画与"界面替换"入口，复查手册发现漏了 `lan` / `end` / `addv`。
+
+**手册原文（`docs/reference/iyu-helpV3.0.txt`）**
+- 【lan 跳转界面动画】2441：`uigo("abc.iyu")` + `lan(6)`，模式 0~11（6=右往左推出）
+- 【end 结束界面】1306：`end()` 结束当前界面并返回原界面，没有原界面则退出应用
+- 【addv 加载界面】2106：`addv(id, "a.iyu")` 把界面载入指定控件；支持 `a.iyu|b.iyu` 侧滑/滑动窗体
+- uigo 段落（1222）**只有 4 个 flag**，没有"清栈/替换当前页"的模式
+
+**本轮读数**
+
+| # | 现象 | 判定 |
+|---|---|---|
+| N34 | `i.uigo(file)` 后 `i.lan(6)`：转场为**向左平移**；对照 `activity.overridePendingTransition(slide_in_left, slide_out_right)` 为**向右平移** | ✅ `lan` 可用，且与 override 是两套入口 |
+| N35 | `i.addv(Integer.valueOf(20), "p_b.iyu")` → 返回 `null`，容器 `children=0`，无异常 | ❌ id 形式不生效 |
+| N36 | `addv` 字节码：第一参不是 `View` 时走 `u(obj, String.valueOf(obj))` 解析，解析不到直接 `return null`；普通容器分支按后缀做 `endsWith` 过滤后才载入 | ✅ 解释了 N35 |
+
+**待复测**：`i.addv(activity.findViewById(20), "p_b.iyu")`（直传 View）是否能把 `.iyu` 载入容器。
+
+### NAV-7 分段二：addv 传 View（11:36:05）
+
+```
+NAV-EMBED-GO file=p_b.iyu
+NAV-EMBED-RET file=p_b.iyu view=android.widget.LinearLayout ret=null children=0
+```
+
+| # | 现象 | 判定 |
+|---|---|---|
+| N37 | 直传容器 View 给 `i.addv` 仍返回 `null`、无子控件、无异常 | ❌ mjava 侧 `i.addv` 对 `.iyu` 无效 |
+
+下一步：在同一页对比「iyu 里直接 `addv(20,"p_b.iyu")`」与「mjava `i.addv`」。
+
+### NAV-7 分段三：addv 只能写在 iyu（11:39:06 ~ 11:39:31）
+
+```
+11:39:07.502 NAV-ENTER page=C ...
+11:39:1x     （点「内嵌 B（iyu 直接 addv）」→ 容器里出现 B，无任何 NAV-ENTER）
+11:39:16.775 NAV-UNEMBED before=1 after=0
+11:39:17.398 NAV-EMBED-RET file=p_b.iyu view=android.widget.LinearLayout ret=null children=0 icls=com.iapp.app.Aid_javaCode
+```
+
+| # | 现象 | 判定 |
+|---|---|---|
+| N38 | `.iyu` 里直接 `addv(20, "p_b.iyu")` → B 的界面出现在容器里；mjava `i.addv(view, file)` → `ret=null`、`children=0`，而 `i.getClass().getName()` 就是 `com.iapp.app.Aid_javaCode` | ✅ `addv` 是 **yul 层专属**，`Aid_javaCode.addv` 走不通 |
+| N39 | 内嵌过程中没有 `NAV-ENTER` / 生命周期事件；容器子控件数 1（目标页被包了一层 LinearLayout） | ✅ 内嵌只是塞控件树，不是新页面 |
+| N40 | mjava 侧对容器 `removeAllViews()`：`before=1 after=0` | ✅ 内嵌内容可由 mjava 清理 |
+
+**结论**：`addv` 是"一个 Activity 里换页"的官方通道，但调用点必须在 `.iyu`（白名单本来就只允许 iyu 写 `addv`）。uigo 是"每页一个 Activity"的另一套。
+
+---
+
+## 2026-10-27 Material 1.13 包支持扫描（静态）
+
+- 工程 `sdk/iapp.sdk` 内置 `com.google.android.material:material:1.13.0`
+- APK 内 `com/google/android/material/` 类共 490 个
+- `docs/scripts/material_scan.py docs/artifacts/base.apk`：主要 widget 全部具备
+  `(Landroid/content/Context;)V` 构造（MaterialButton / MaterialCardView / Chip / ChipGroup /
+  Slider / RangeSlider / 两个 Progress / LoadingIndicator / FAB / ExtendedFAB / MaterialSwitch /
+  SwitchMaterial / CheckBox / RadioButton / 各 TextField / TabLayout / 各 AppBar / 各 Navigation /
+  SearchBar / SearchView / Carousel / MaskableFrameLayout / ShapeableImageView / MaterialDivider /
+  MaterialSplitButton / MaterialButtonToggleGroup）
+- 运行时扫描页：`com.demo.m3showcase/src/material.iyu` + `matsupport.mjava`（日志 tag `MAT`）
+- 规范落点：`references/material-components.md`、`SKILL.md` 控件类型一节、`builtin-controls.md`
+
+### NAV-8：内嵌页事件 / 原生查找 / 多页 addv（12:05:28 ~ 12:07:20）
+
+```
+12:05:36.429 NAV-ENTER page=D n=1 act=9901789 ...
+12:05:49.440 NAV-EMBEDDED-CLICK n=1 act=9901789
+...（共 16 次 NAV-EMBEDDED-CLICK）
+12:06:25.887 NAV-FIND act9001=false(null) c20find=false(null) c20n=1 c21n=0
+12:07:16.523 NAV-CLEAR c20=1->0 c21=2->0
+12:07:20.062 NAV-FIND act9001=false(null) c20find=false(null) c20n=0 c21n=0
+```
+
+| # | 现象 | 判定 |
+|---|---|---|
+| N41 | 内嵌页 E 的按钮被点 16 次，`clicki` 全部进到 mjava（`NAV-EMBEDDED-CLICK n=1..16`，act 与宿主相同） | ✅ **内嵌页的事件绑定正常工作** |
+| N42 | `activity.findViewById(9001)` 与 `c20.findViewById(9001)` 都拿不到（`false`），但容器 `c20` 有 1 个子控件 | ✅ 内嵌时控件 id **被重新分配**，原生按原 id 查不到（这解释了手册为何用 `ug(a.2,…)` 点号寻址） |
+| N43 | 按钮里执行 `addv(21, "p_e.iyu|p_b.iyu")`：界面无变化，但随后 `NAV-CLEAR c21=2->0` 显示 ViewPager 里确有 2 个子控件 | ⚠ 多页 addv 塞进了子控件但 ViewPager 不显示（缺 adapter / 时机不对） |
+| N44 | 内嵌页面的 `setText(9003)` 无效 → "没点击"文案没变 | ✅ 与 N42 同因；事件本身是通的 |
+
+**下一步**：dump 内嵌控件树的真实 id；把多页 addv 挪到 `loading` 事件里（手册的用法）。
+
+### NAV-9：内嵌控件 id 偏移 +10000（12:09:34 ~ 12:11:25）
+
+**原始读数**：`docs/artifacts/nav5/logcat-nav9.txt`
+
+```
+12:09:34.406 NAV-ENTER page=D n=1 act=109640244 ...
+12:10:08.360 NAV-TREE-START c20n=1
+12:10:08.377 NAV-TREE android.widget.LinearLayout id=20              ← 容器
+12:10:08.384 NAV-TREE   android.widget.LinearLayout id=19000         ← E 的根（原 9000）
+12:10:08.399 NAV-TREE     android.widget.TextView id=19001 text=E-内嵌页（id 9000 段）
+12:10:08.423 NAV-TREE     android.widget.Button id=19002 text=E 按钮（点我）
+12:10:08.424 NAV-TREE     android.widget.TextView id=19003 text=未点击
+12:11:25.124 NAV-FIND raw9001=false act19001=true(E-内嵌页（id 9000 段）) c20find19001=true(...) c20n=1
+```
+
+| # | 现象 | 判定 |
+|---|---|---|
+| N45 | 内嵌页控件树：原 id 9000/9001/9002/9003 → 实际 **19000/19001/19002/19003**（+10000），且外层包了一层 id=20 的容器（页面根挂在容器下） | ✅ **内嵌时控件 id 统一 +10000** |
+| N46 | `activity.findViewById(19001)` 与 `c20.findViewById(19001)` 都能拿到，`getText()` 是原页文案 | ✅ 内嵌页可用**原生 findViewById** 访问 |
+| N47 | 用 `setText(19003, …)` 改内嵌页文案成功（用户确认"变了"）；内嵌页按钮 `clicki` 每次都能进 mjava | ✅ 内嵌页"事件 + 原生读写"两条都通 |
+| N43（续） | 多页 `addv(21, "p_e.iyu|p_b.iyu")` 到 ViewPager：容器里有 2 个子控件但界面空白、不能滑 | ❓ ViewPager 不渲染；单页 addv 到普通容器完全可用 |
+
+**未验**：多层内嵌时偏移是否叠加（10000×层数）。
+
+## 2026-10-27 Material 包运行时扫描（material.iyu / matsupport）
+
+```
+MAT total=35 ok=34
+MAT ok-ctx com.google.android.material.button.MaterialButton view
+MAT ok-ctx com.google.android.material.textfield.TextInputLayout group
+...
+MAT no-ctx  com.google.android.material.carousel.Carousel java.lang.NoSuchMethodException
+MAT no-ctor com.google.android.material.carousel.Carousel java.lang.NoSuchMethodException
+```
+
+- 35 个候选里 34 个可用 `(Context)` 构造实例化（view/group 已标注）
+- `Carousel` 失败是**类被裁剪**：dex 里 `Carousel` 只有 5 个 getter（getCarouselAlignment /
+  getContainerHeight / getContainerWidth / getItemCount / isHorizontal），没有 `<init>`
+- 第一次扫描 35 个全部 `lookup-fail`：`Class.forName(name)` 在 BeanShell 里看不到应用类；
+  改用 `activity.getClassLoader().loadClass(name)` 后正常
+- 交付插曲：共享目录把 `matsupport.mjava` 同步成截断文件（4190/4222 字节），
+  iApp 报 `Parse error ... <EOF>`；`adb push` 后 md5 对齐
+
+### NAV-10：多页 addv / 二级内嵌（12:15:47 ~ 12:16:53）
+
+**原始读数**：`docs/artifacts/nav5/logcat-nav10.txt`
+
+```
+12:15:47 NAV-TREE fr.castorflex.android.verticalviewpager.VerticalViewPager id=31
+12:15:47 NAV-TREE   android.widget.LinearLayout id=19000        ← E（9000 + 10000）
+12:15:47 NAV-TREE     ... 19001 / 19002 / 19003
+12:15:47 NAV-TREE   android.widget.LinearLayout id=20001        ← B（1 + 20000）
+12:15:47 NAV-TREE     ... 20002 / 20003 / 20004 / 20005 / 20006 / 20010 / 20011 / 20012
+12:15:47 NAV-TREE androidx.drawerlayout.widget.DrawerLayout id=32   （子控件与 31 相同：19000 + 20001）
+12:16:53 NAV-TREE android.widget.LinearLayout id=20
+12:16:53 NAV-TREE   android.widget.LinearLayout id=38000        ← F（8000 + 30000）
+12:16:53 NAV-TREE     android.widget.TextView id=38001 text=F-中间页（id 8000 段）
+12:16:53 NAV-TREE     android.widget.LinearLayout id=38002
+```
+
+| # | 现象 | 判定 |
+|---|---|---|
+| N48 | 同一 `addv` 调用里的多页，按顺序分配号段：第 1 页 +10000、第 2 页 +20000（E→19000，B→20001） | ✅ 号段按"页序"分配 |
+| N49 | 另一个页面（H）里首次内嵌 `p_f.iyu`，得到 **+30000**（8000→38000），而同进程里再次内嵌的 E 仍是 +10000 | ✅ 号段是 **按界面文件、进程级**分配，不是按容器、不是按层级 |
+| N50 | `VerticalViewPager` 容器：子控件（E、B）都在树里，但界面无内容 | ❌ 与 ViewPager 同 |
+| N51 | `DrawerLayout` 容器：有内容（第 1 页 E 显示），第 2 页 B 是抽屉、收起状态，滑不出来 | ⚠ 子控件齐全，只是抽屉需要程序打开 |
+| N52 | H 页用硬编码 `addv(18002, "p_e.iyu")` 无效（F 的容器实际是 38002） | ✅ 印证 N49，不能按 +10000 硬编码 |
+
+**修正 N45**：内嵌 id 不是固定 +10000，而是**每个界面文件在进程内独占一个 10000 号段，按首次内嵌顺序递增**。
+
+## 2026-10-27 组件画廊上屏（gallery.iyu / gallery.mjava）
+
+```
+GAL total=20 ok=20
+GAL add/ok <20 个 Material 全类名>（逐条 ok，无 fail）
+```
+
+- 20 个待验证项全部构造并 attach 成功，页面无崩溃、无重叠
+- 默认可见 10 个：MaterialSwitch、RangeSlider（单 thumb）、LoadingIndicator、
+  ExtendedFloatingActionButton（胶囊底）、BottomAppBar、BottomNavigationView（空底栏）、
+  TabLayout（基线）、SearchBar（胶囊+图标）、MaterialDivider（细线）、BottomSheetDragHandleView
+- 默认空白 10 个（需内容/属性）：MaterialSplitButton、ChipGroup、MaterialAutoCompleteTextView、
+  MaterialToolbar、CollapsingToolbarLayout、NavigationRailView、NavigationView、SearchView、
+  MaskableFrameLayout、ShapeableImageView
+- 截图：`docs/artifacts/m3-gallery.png`（上半）、`m3-gallery-mid.png`、`m3-gallery-bottom.png`
+- 实现方式：反射 `activity.getClassLoader().loadClass` + `(Context)` 构造，逐项 try/catch，
+  失败项红字上屏（本轮无失败）
+
+### NAV-11：原生找容器 + 抽屉（13:03:23 ~ 13:04:25）
+
+**原始读数**：`docs/artifacts/nav5/logcat-nav11.txt`
+
+```
+13:03:23.195 NAV-FBOX id=18002 cls=android.widget.LinearLayout      ← 原生找到 F 的容器
+13:03:32.819 NAV-TREE android.widget.LinearLayout id=20
+13:03:32.835 NAV-TREE   android.widget.LinearLayout id=18000         ← F 占第 1 段（+10000）
+13:03:32.851 NAV-TREE     android.widget.LinearLayout id=18002
+13:03:32.851 NAV-TREE       android.widget.LinearLayout id=29000     ← 嵌套的 E 占第 2 段（+20000）
+13:03:32.852 NAV-TREE         ... 29001 / 29002 / 29003
+13:04:10.455 NAV-DRAWER-ERR java.lang.IllegalArgumentException: No drawer view found with gravity LEFT
+```
+
+| # | 现象 | 判定 |
+|---|---|---|
+| N53 | mjava 沿树找到 F 的容器 `18002`，把**控件对象**交给 yul 的 `addv` → E 成功内嵌到 F 内部（树里出现 29000 段） | ✅ **addv 第一参可以直接传 View**，用来做"原生定位 + 内嵌" |
+| N54 | 本次运行 F 先嵌 → +10000；E 后嵌 → +20000（同一进程内顺序分配） | ✅ 印证 N49：号段按"文件首次内嵌顺序"递增，不能硬编码 |
+| N55 | `DrawerLayout.openDrawer(Gravity.START)` 抛 `No drawer view found with gravity LEFT` | ✅ 内嵌子控件没有 drawer gravity，DrawerLayout 不认 |
+
+**推论**：内嵌控件的 id 无法预先知道 → 正确做法是**用原生遍历找控件/容器**，再交给 `addv`（N53）。
+
+**MaterialSplitButton 空白的机制（13:05 补充）**
+
+```
+Class descriptor : 'Lcom/google/android/material/button/MaterialSplitButton;'
+Superclass       : 'Lcom/google/android/material/button/MaterialButtonGroup;'
+REQUIRED_BUTTON_COUNT : 2
+```
+
+- 它是按钮组容器，必须挂恰好 2 个 `MaterialButton` 子按钮；画廊里只 `new` 了容器 → 空组空白
+- 属预期行为，不是加载失败；矩阵里归 ⚪（需内容）
+
+### NAV-12：DrawerLayout 抽屉打通（13:14:19 ~ 13:14:29）
+
+```
+13:14:19.617 NAV-DRAWERFIX child=1 lpcls=androidx.drawerlayout.widget.DrawerLayout$LayoutParams gravity=8388611
+13:14:19.632 NAV-DRAWER scheduled id=32
+13:14:20.049 NAV-DRAWER open-later id=32 vis=0 w=540
+13:14:20.066 NAV-DRAWER open-later-done isOpen=false
+13:14:27.264 NAV-DSTATE container=32 me w=540 h=540 n=2 isOpen=true
+13:14:27.318 NAV-DSTATE  child0 LinearLayout w=540 h=540 left=0 x=0.0 vis=0
+13:14:27.319 NAV-DSTATE  child1 LinearLayout w=348 h=540 left=0 x=0.0 vis=0
+```
+
+| # | 现象 | 判定 |
+|---|---|---|
+| N56 | 改第二个子控件 `DrawerLayout.LayoutParams.gravity=0x800003` 后，延后 400ms `openDrawer(START)`：子控件从 `vis=4 / x=-348` 变为 `vis=0 / x=0`，`isDrawerOpen=true`，屏幕出现 B 页 | ✅ **DrawerLayout 是可用的多页容器**（内容页 + 抽屉页） |
+| N57 | 立刻调 `openDrawer` 时 `isOpen=false`、`x=-348`、`vis=4`；延后调用才生效 | ✅ 必须等布局完成（`postDelayed` 400ms） |
+| N58 | 用户反馈：32 高度太小、上方 31 空白占位，页面需要滚动 | ✅ 长页面改 `ScrollView` 根 + 内层 LinearLayout（`id=1` ScrollView / `id=2` 容器，其余 `did=2`） |
+
+### NAV-13：ScrollView 结构复验（13:16 ~ 13:20）
+
+| # | 现象 | 判定 |
+|---|---|---|
+| N59 | G 页改成 `ScrollView(id=1)` + 内层 `LinearLayout(id=2, height=-2)` 后：能上下滚动、32 号 DrawerLayout（320dp）完整可见；`addv → 32` 后抽屉页 B 直接可见；改 gravity + 延迟 openDrawer 仍正常 | ✅ 长页面统一用 ScrollView 根；DrawerLayout 在滚动容器里也正常 |
+| N60 | D 页同样改滚动结构后可以滚到 21 号 ViewPager | ✅ |
+
+**未验**：打包模式下 `addv` / `DrawerLayout` / `ScrollView` 的行为（本课题全部 addv 结论均来自开发模式）。
+
+### NAV-14：打包版内嵌页事件复验（13:32:05 ~ 13:32:26）
+
+```
+13:32:16.805 I/NAVPROBE: NAV-ENTER page=H n=1 act=5518808 ...
+13:32:20.389 I/NAVPROBE: NAV-FBOX id=18002 cls=android.widget.LinearLayout
+13:32:22.264 I/NAVPROBE: NAV-EMBEDDED-CLICK n=1 act=5518808
+...（共 8 次，act 全部是 H 页）
+```
+
+| # | 现象 | 判定 |
+|---|---|---|
+| N61 | **打包版**里二级内嵌页（E 在 F 里）的按钮被点 8 次，`clicki` 全部触发并进到 mjava | ✅ 二级内嵌的事件绑定在打包模式下正常 |
+| N62 | 用户观感"点了没反应"：实际是探针处理函数写死 `setText(19003, …)`，而本次 E 位于第 2 号段（29000），写错了控件 | ✅ **探针缺陷**，不是平台行为；已改为按文字前缀找控件 |
+| N63 | 用户反馈：打包与开发环境表现一致（除日志通道） | ✅ 与 NAV-6 结论一致 |
+
+**覆盖缺口（本轮补测）**：内嵌到 DrawerLayout 第 2 页（抽屉里的 B）的控件事件尚未验。
+
+### NAV-15：抽屉页事件 / 二级内嵌写回（13:4x）
+
+| # | 现象 | 判定 |
+|---|---|---|
+| N64 | 二级内嵌的 E 按钮点击后文案正确变化（处理函数改按文字前缀查找后） | ✅ 二级内嵌的事件 + 原生写回都成立 |
+| N65 | DrawerLayout 抽屉里（第 2 页 B）的「B → C」按钮点击后正常跳转到 C 页 | ✅ **抽屉页的控件事件正常**，内嵌到抽屉的页面是可交互的 |
+
+**内嵌事件覆盖闭环**：一级 ✅ / 二级 ✅ / 抽屉页 ✅。
+
+### NAV-16：打包版 DrawerLayout / ScrollView（13:39 ~ 13:50）
+
+```
+13:50:26.106 I/NAVPROBE: NAV-DRAWER-ERR ... No drawer view found with gravity LEFT   ← 未改 gravity 前，符合预期
+13:50:28.160 I/NAVPROBE: NAV-DRAWERFIX child=1 ... gravity=8388611
+13:50:28.615 I/NAVPROBE: NAV-DRAWER open-later id=32 vis=0 w=960
+```
+
+| # | 现象 | 判定 |
+|---|---|---|
+| N66 | 打包版 G 页（ScrollView 根 + DrawerLayout 320dp）：能滚动、`addv` 双页、改 gravity + 延迟 `openDrawer` 后抽屉正常滑出 | ✅ 打包模式与开发模式一致 |
+
+**本课题打包模式覆盖**：uigo 多页 / 传参 / 返回结果 / 自建 Intent / 转场 / addv 二级内嵌事件 / DrawerLayout / ScrollView —— 全部一致。
+
+## 2026-10-27 设计器崩溃（showcase.iyu，API 34）
+
+```
+FATAL EXCEPTION: main
+java.lang.NullPointerException: Attempt to read from null array
+  at com.iapp.app.VisualDesigner.T0(...:54)
+  at com.iapp.app.VisualDesigner.T0(...:128) ×5
+  at com.iapp.app.VisualDesigner.R0/S0/onClick
+```
+
+- 日志里没有任何 `SHOW fix` → 页面未运行，崩在设计器构建控件树/预览阶段
+- 嫌疑：本轮新进 ppt 的 `ChipGroup` / `TabLayout` / `SearchBar` / `MaterialDivider`（及它们的 build.xml 登记）
+- 处理：四类改为 mjava 动态创建、并从 `build.xml` 移除登记 → 页面可打开运行
+- 未逐个隔离具体是哪一类触发
+
+## 2026-10-27 XUI 1.1.9 试用（批次 XUI-P1 / P2，API 34）
+
+目的：用「带资源的第三方 AAR」验证 SKILL 的外部库链路够不够用。
+
+### 构件
+
+| 项 | 值 |
+|---|---|
+| 库 | XUI 1.1.9（jitpack `com.github.xuexiangjys:XUI:1.1.9`），1025 个类 / 275 个资源文件 |
+| 代码依赖 | calligraphy3 3.1.1、viewpump 2.0.3（XUI 类直接 implements `HasTypeface`，缺了类加载就失败） |
+| 资源依赖 | appcompat 1.3.1（XUI 的 values 引用 `colorAccent`、`Theme.AppCompat.*`、`Widget.AppCompat.Spinner`） |
+| 产物 | `xui.dex` 1 636 900 B + `xui-res.apk` 749 721 B（包 ID `0x80`） |
+| 工程 | `android-sync/ProjectApp/com.demo.xui`（`apk/assets/` 放上面两件） |
+
+### 打包链路上的读数
+
+| # | 现象 | 判定 |
+|---|---|---|
+| X1 | `aapt2 link` 只喂 XUI 自己的 `res/`：`resource attr/colorAccent not found`、`style/Theme.AppCompat.*`、`Widget.AppCompat.Spinner` 全部 not found | ✅ 库的资源**不自足** |
+| X2 | 加 `-I <宿主 base.apk>`（149 MB，带 0x7f 的 appcompat/material）无效，同样的 not found；最小复现（1 个 style 继承 `Theme.AppCompat.Light.Dialog`）同样失败 | ✅ `-I` 不能当资源依赖来源 |
+| X3 | 把 appcompat 1.3.1 的 `res/` 和 XUI 的 `res/` 一起编进**同一个包**（`--package-id 0x80`）后通过 | ✅ 依赖资源必须同包链接 |
+| X4 | 再加 material 1.13.0，报 `resource 'styleable/SearchView' has a conflicting value`；改 `-R` overlay 后又因 appcompat 的 attr 在 overlay 里不可见而连环失败 | ✅ 依赖版本必须对齐（appcompat 1.3.1 ↔ material 1.4.x 那一代） |
+| X5 | material 走不通后只剩一个缺口：`style/Theme.Design.Light.BottomSheetDialog`（XUI 的 `XUITheme.BottomSheetDialog` 父样式） | ✅ 补桩样式即可 |
+| X6 | appcompat 1.3.1 的 `res/color/*` 用了 `app:alpha`，但它自己的 `R.txt` 里没有 `attr/alpha` | ✅ 需补 `<attr name="alpha" format="float"/>` |
+| X7 | XUI 的 `classes.jar` 里**没有** R 类（1025 个类全非 R），生成的 R 直接顶上 | ✅ 不存在重复类问题 |
+
+补桩文件（链接期专用，随产物一起编进 0x80）：
+
+```xml
+<resources>
+    <style name="Theme.Design.Light.BottomSheetDialog" parent="Theme.AppCompat.Light.Dialog"/>
+    <attr name="alpha" format="float"/>
+</resources>
+```
+
+### 运行期读数（P1：11 PASS / 6 FAIL）
+
+```
+XUI ROOT /storage/emulated/0/Android/data/com.iapp.app/files/iApp/ProjectApp/com.demo.xui
+XUI RES-MOUNT ret=7 path=.../apk/assets/xui-res.apk
+XUI DCL-DIRECT-ERR java.lang.SecurityException: Writable dex file '.../apk/assets/xui.dex' is not allowed.
+XUI DEX-COPY len=1636900
+XUI DCL-CACHE ok
+XUI XUI-INIT ok
+XUI THEME-ID=0x800d01cb
+XUI PASS ButtonView / CountDownButton / SmoothCheckBox / SwitchIconView / CircleProgressView /
+         HorizontalProgressView / RadiusImageView / FlowTagLayout / AutoMoveTextView /
+         MultipleStatusView / TabSegment
+XUI FAIL TitleBar :: java.lang.UnsupportedOperationException: Failed to resolve attribute at index 3:
+         TypedValue{t=0x2/d=0x800304c4 a=7}
+XUI FAIL ShadowButton :: ... index 37: TypedValue{t=0x2/d=0x800304f0 a=7}
+XUI FAIL ClearEditText :: ... index 68: TypedValue{t=0x2/d=0x8003051d a=7}
+XUI FAIL MaterialSearchView :: InflateException ... line #36 ... TypedValue{t=0x2/d=0x800303a0 a=-1}
+XUI FAIL RippleView :: Resources$NotFoundException: Resource ID #0x800500cd
+XUI FAIL ShadowTextView :: Resources$NotFoundException: Resource ID #0x800600c3
+XUI SELFTEST ok=11 fail=6
+```
+
+ID 反查（用生成的 `R.java`）：`0x800500cd=color/xui_config_color_white`、`0x800600c3=dimen/default_sd_shadow_radius`、
+`0x800303a0=attr/search_view_actionbar_height`、`0x800304c4=attr/xui_actionbar_height`、`0x800304f0=attr/xui_btn_view_height`、
+`0x8003051d=attr/xui_config_size_edittext_left_padding`。
+
+| # | 结论 | 判定 |
+|---|---|---|
+| X8 | 直接加载工程目录里的 dex 被 Android 14 拒绝（`Writable dex file … is not allowed`），cache + 先 `setReadOnly` 再写的兜底成功 | ✅ 与 SKILL 既有结论一致 |
+| X9 | `addAssetPath` 返回 7（非 0），`getIdentifier("XUITheme","style","com.xuexiang.xui")` 得到 `0x800d01cb` | ✅ 资源包挂载成功 |
+| X10 | 6 个 FAIL 分两组原因，**互不相关** | ✅ |
+| X11 | 组 A（4 个 attr 失败）：XUI 的尺寸类 attr 只定义在 `XUITheme.Phone` / `XUITheme.Tablet.*`，光用 `XUITheme` 时 `obtainStyledAttributes` 解析 `?attr/xui_actionbar_height` 失败 | ✅ |
+| X12 | 组 B（2 个 NotFound）：`ResUtils.getResources()` = `XUI.getContext().getResources()`，即 **Application** 的 Resources；只把路径挂到 Activity 的 AssetManager 时 Application 看不见 | ✅（字节码 `XUI.getContext().getResources()`） |
+
+### 运行期读数（P2：17 PASS / 0 FAIL）
+
+改成 `ContextThemeWrapper(activity, XUITheme.Phone)` + 两个 AssetManager 都 `addAssetPath` 之后：
+
+```
+XUI RES-MOUNT[act] ret=7
+XUI RES-MOUNT[app] ret=7
+XUI PROBE-ID color=0x800500cd dimen=0x800600c3
+XUI PROBE-ACT color=0xffffffff  dimen=24
+XUI PROBE-APP color=0xffffffff  dimen=24
+XUI XUI-INIT ok
+XUI THEME-NAME XUITheme.Phone id=0x800d01cf
+XUI SELFTEST ok=17 fail=0
+XUI TOTAL ms=634
+```
+
+屏幕现象：TitleBar 用 XUI 自己的蓝色（`colorPrimary`）+ 返回箭头图标渲染；ShadowTextView / ButtonView /
+CountDownButton / AutoMoveTextView / ClearEditText / 进度条全部上屏；检查框与开关图标类控件因为没设图标不可见（行为正常）。
+→ 资源包里的 drawable / color / dimen / style / attr 在 iApp 里都能正常解析。
+
+### 部署链路的两个现场事实
+
+- `VisualDesigner.a9` 给出的工程根是 `/storage/emulated/0/Android/data/com.iapp.app/files/iApp/ProjectApp/<项目ID>`；
+  该目录是指向 `/storage/emulated/0/Pictures/ProjectApp` 的**符号链接**，与共享目录是同一份文件（`md5` 一致）
+- 宿主机改**已存在**的 `src/xui.mjava` 后：`/mnt/shared/Pictures/...`（vboxsf 直挂）已是新内容，
+  `/sdcard/Pictures/...`（FUSE 视图）仍是旧内容（8312 vs 10836 字节），iApp 跑的是旧代码；
+  `adb push` 该文件后两侧 md5 一致。新建文件（`__marker.txt`）则两侧立刻可见
+
+### 复现命令（`scripts/build_aar_dex.py`）
+
+```bash
+export BUILD_TOOLS=<build-tools 目录>; export JDK_BIN=<jdk bin 目录>
+python build_aar_dex.py \
+  --aar XUI-1.1.9.aar --aar calligraphy3-3.1.1.aar --aar viewpump-2.0.3.aar \
+  --res-aar appcompat-1.3.1.aar \
+  --stub-res stub/res \
+  --framework-res framework-res.apk \
+  --manifest-package com.xuexiang.xui --name xui --out out/
+```
+
+- 产物与手工链路一致：`xui.dex` 1 636 952 B / `xui-res.apk` 749 817 B（手工版 1 636 900 / 749 721，
+  差在一个 viewpump 的 res 文件和 zip 时间戳）；**脚本产物未再上机复跑**，工程里跑的是手工链路那一版
+- 下载源：XUI 走 jitpack（`https://jitpack.io/com/github/xuexiangjys/XUI/1.1.9/XUI-1.1.9.aar`），
+  calligraphy3 / viewpump / appcompat 走阿里云（central / google）
+
+---
+
+## 2026-10-27 API-A1 com.oyp.pytx 后端接口可用性普查（宿主机 curl/urllib，非设备探针）
+
+**对象**：`gede.5read.com`（超星歌德借阅机），`gedeid=84751638`；旧配置 `http://ouyangpeng.top/urls.json`
+
+**原始读数**（HTTP 状态 / 返回体首段）：
+
+```
+GET /apis/touchBook/books.jspx?cataid=123&pageSize=-1&gedeid=84751638
+  → 200 {"result":0,"errorMsg":"没有获取到数据"}            # 图书「精品推荐」已空
+GET /apis/touchBook/books.jspx?cataid=124&pageSize=-1&gedeid=84751638
+  → 200 {"result":1,"msg":{"allCount":466,"list":[...]}}    # 其余 11 个分类全部有数据
+GET /apis/magazine/magazines.jspx?cataid=6&pageSize=-1&gedeid=84751638
+  → 200 {"result":1,"msg":{"allCount":54,...}}              # 期刊 7 个分类全部有数据（3/4/5/6/8/9/10）
+GET /apis/magazine/magazineItems.jspx?magazineid=MZ11000014
+  → 200 {"result":0,"errorMsg":"magazineid不能为空或参数不正确"}
+GET /apis/magazine/magazineItems.jspx?magazineid=25
+  → 200 {"result":1,"msg":{"magazine":{...},"itemList":[95 期]}}   # 只认数字 id
+GET /apis/touchBook/books.jspx?keyword=%E8%AF%BB%E8%80%85&page=2&pageSize=5&gedeid=84751638
+  → 200 {"result":1,"msg":{"pageCount":575,"allCount":2871,...}}   # 站内搜索可用
+GET /apis/magazine/magazines.jspx?keyword=...（name/q/searchName/searchKey 同样试过）
+  → 200 {"result":0,"errorMsg":"未获取到数据"}                     # 期刊无 keyword 搜索
+GET /other/epub_epubRead_read.jspx?...sid=MZ12038766&from=5&detailUrl=...
+  → HTTP 500（旧期刊阅读路径失效）
+GET https://gede.5read.com/o/a.h?a=GEDE:gede.5read.com%2Fg%2F89949779.h
+  → 301 → 200，页面内 InitData：{sid:'MZ12038766', from:'5', detailUrl:'<160 字符密文>', url:'BORROWMACHINE:...'}
+GET /other/epub_epubRead_readNew.jspx?psize=10000&sid=MZ12038766&ucatalog=true&ctype=3&fsize=20&from=5&detailUrl=<密文>
+  → 200 {"result":1,"msg":{"contents":[218],"catalogs":[30],"pageAll":218}}
+  # 同一流程换图书 surl：contents=333, catalogs=9, pageAll=333；不带 cookie 也可用
+GET http://ouyangpeng.top/urls.json
+  → 302 Location: https://ai.ouyangpeng.top/jump.js（站点已改作跳转，搜索配置源失效）
+```
+
+**结论**：列表接口基本全活；期刊「挂了」是**阅读接口换代**（`epub_epubRead_read.jspx` → `readNew` + 密文 token）；
+搜索原依赖的外部配置域名已失效，站内 `books.jspx?keyword=` 可替代；图书「精品推荐」分类 123 已无数据。
+
+**复现**：上述均为宿主机直连，不依赖设备；密文 `detailUrl` 需先取 `/o/a.h` 页面。
+
+---
+
+## 2026-10-27 M3-D1 com.demo.m3demo 组件样张首轮（API 34 / iApp 5.0.1013）
+
+**探针**：全新工程 `com.demo.m3demo`，8 组 Material 组件全部 ppt 声明，`loading` → `call(null,"mjava","m3.init")`；
+mjava 只做配色、TIL 修复、tab/滑块/进度值与 FAB 图标。
+
+**原始报错**（用户控制台原文，第一次运行）：
+
+```
+JavaErr：
+Error in method invocation: Method setStrokeColor( int ) not found in class
+'com.google.android.material.button.MaterialButton' : at Line: 76 :
+... outlined.setStrokeColor(Color.parseColor("#717973"))
+Called from method: paintButtons : at Line: 36 ...
+Called from method: init : at Line: -1 ...
+```
+
+**屏幕现象（第一次）**：按钮组停在默认主题色；卡片、Chip、两个输入框、选择、滑块/进度、Tabs、反馈区
+**全部没有执行初始化**；04 组两个 `TextInputLayout` 都没有盒子。
+
+**修复**：`setStrokeColor(ColorStateList.valueOf(color))`（该类在该版本没有 int 重载）；
+`init()` 里每段 `try/catch(Throwable)` 并 `i.syso("M3 fail xxx: "+t)`。
+
+**第二次运行**：两个输入框盒子恢复，后续区块依次初始化（用户实机确认）。logcat 未见 `M3 fail` 输出。
+
+**归因（✅）**：输入框盒子一直在代码里，是按 `md-components-guide.md` 的 `loading` 配方修的；
+第一次运行根本**没跑到 `paintFields()`**——`paintButtons()` 里的方法不存在抛错，中断了整个 `loading` 事件。
+所以「输入框没盒子」只是更早一处 Material API 重载写错的下游表现。
+
+**复现**：MaterialButton 1.13.0 的 `setStrokeColor` 只有 `ColorStateList` 重载；int 会抛上述错误。
+
+**第二轮补充读数**（2026-10-27 20:00:57，同一工程）：
+
+```
+10-27 19:51:22.503 Method setIndicatorColor( int ) not found ... LinearProgressIndicator   # 单值 int 中断
+10-27 20:00:57.356 V/ygs: M3 init done                                                   # 改传 int[] 后整段跑完
+```
+
+- `setIndicatorColor(new int[]{color})` 被 BeanShell 接受 ✅，此后 `paintValue` / `paintFab` 均执行
+- 每段 `try/catch` 没有输出（`M3 fail …` 一条都没有）→ 证实方法不存在的中断 `catch(Throwable)` 接不住
+
+## 2026-10-27 设计器崩溃隔离 P1（批次 tabdesigner-p1，API 34）
+
+目的：`pitfalls.md` #7 的 `VisualDesigner.T0` NPE 只隔离 `TabLayout`——短名 / Material 全类名 / `build.xml` 登记，三者谁触发。
+
+### 探针（每工程只改一个变量；最小页 = LinearLayout 根 + 标签 TextView）
+
+| 工程 | 页面 `type=` | `build.xml` 登记 | 用户观察 |
+|---|---|---|---|
+| `com.demo.tabprobe1` | `TabLayout`（短名） | 无 | 设计器正常 |
+| `com.demo.tabprobe2` | `com.google.android.material.tabs.TabLayout` | 有 | 设计器正常 |
+| `com.demo.tabprobe3` | `com.google.android.material.tabs.TabLayout` | 无 | 组件树显示“未知”，能开，无报错 |
+| `com.demo.tabprobe4` | 页面无 TabLayout（仅 TextView） | 有（TabLayout） | 正常；登记项不出现在页面，无报错 |
+
+源码归档：`android-sync/iapp-demo/tabdesigner-p1/`
+
+### 原始读数（logcat，2026-10-27 20:21–20:24，`emulator-5556`）
+
+```text
+# 崩溃标记计数（FATAL EXCEPTION / VisualDesigner.T0 / Attempt to read from null array / killProcess）
+0
+```
+
+只出现已知噪音（`pitfalls.md` #16）：
+
+```text
+W/System.err: java.lang.IllegalArgumentException: View=android.widget.ImageView{...} not attached to window manager
+  at tj.B(...)
+  at com.iapp.app.VisualDesigner.onCreate(...:133)
+```
+
+`VisualDesigner` 每次都能 `Displayed com.iapp.app/.VisualDesigner ... +178~195ms`；iApp 进程（pid 9106）全程存活，未被杀。
+
+### 结论
+
+- ✅ **`TabLayout`（短名与 Material 全类名）在 ppt 声明不会让设计器崩溃**；登记/不登记都不崩
+- ✅ 未登记的完整类名 → 设计器组件树显示“未知”，但工程能打开、无报错（未验证展开“未知”节点）
+- ✅ 仅登记、页面不声明 → 不崩；页面也不渲染该控件（符合预期）
+- ❌ 推翻上一轮“四类都可能崩”的粗判：`TabLayout` 排除，真凶在 `ChipGroup` / `SearchBar` / `MaterialDivider`
+- 下一步：批次 `tabdesigner-p2` 逐类隔离剩余三类
+
+## 2026-10-27 设计器崩溃隔离 P2（批次 tabdesigner-p2，API 34）
+
+目的：`tabdesigner-p1` 排除 `TabLayout` 后，逐个隔离 `ChipGroup` / `SearchBar` / `MaterialDivider`。
+
+### 探针（每工程只放一类；全类名 + `build.xml` 登记）
+
+| 工程 | 页面内容 | 登记 | 用户观察 |
+|---|---|---|---|
+| `com.demo.tabprobe5` | `ChipGroup` + 2×`Chip` | ChipGroup / Chip | 正常 |
+| `com.demo.tabprobe6` | `SearchBar` | SearchBar | **闪退**；重复多次偶尔能进（能进时页面正常），多数闪退 |
+| `com.demo.tabprobe7` | `MaterialDivider` | MaterialDivider | 正常（文字下方一条线，符合预期） |
+
+源码归档：`android-sync/iapp-demo/tabdesigner-p2/`
+
+### 原始读数（logcat，2026-10-27 20:26:54–20:27:56，`emulator-5556`）
+
+三次 FATAL，栈完全相同，全部发生在 P6（SearchBar）打开设计器时，iApp 进程被杀：
+
+```text
+E/AndroidRuntime( 9644): FATAL EXCEPTION: main
+E/AndroidRuntime( 9644): java.lang.NullPointerException: Attempt to read from null array
+E/AndroidRuntime( 9644): 	at com.iapp.app.VisualDesigner.T0(...:54)
+E/AndroidRuntime( 9644): 	at com.iapp.app.VisualDesigner.T0(...:128)
+E/AndroidRuntime( 9644): 	at com.iapp.app.VisualDesigner.T0(...:128)
+W/System.err( 9644): java.lang.Exception: call killProcess callstack! pid=9644
+I/ActivityManager(  339): Process com.iapp.app (pid 9644) has died: fg  TOP
+```
+
+- 三次时间/pid：20:27:26（9644）、20:27:41（9939）、20:27:55（10068）
+- P5 / P7 时段无 `FATAL EXCEPTION`、无 `VisualDesigner.T0`、无进程被杀
+
+### 结论
+
+- ✅ **`SearchBar` 是设计器崩溃的确认触发源**：页面只放 `com.google.android.material.search.SearchBar`（全类名 + 登记）即可复现
+- ⚠ 崩溃是**概率性**的：多数打开闪退，少数能进；能进时页面正常
+- ✅ `ChipGroup`（含 `Chip` 子项）、`MaterialDivider` 单独 ppt 声明**不崩**，从嫌疑清单排除
+- ✅ 运行期 mjava 动态创建 `SearchBar` 可用（`material-components.md` 上屏矩阵 ✅）；问题只在设计器
+- ❓ 仅登记 `SearchBar`、页面不声明是否也崩，未测
+- 文档收敛：崩溃清单从三类缩为 `SearchBar` 一类
+
+## 2026-10-27 设计器崩溃隔离 P3（批次 tabdesigner-p3，API 34）
+
+目的：拆开 `SearchBar` 的“声明”和“登记”，并确认崩溃的时序规律。
+
+### 探针
+
+| 工程 | 页面 | `build.xml` | 用户观察 |
+|---|---|---|---|
+| P6'（复用） | 无 SearchBar（仅描述文字） | 登记 SearchBar | 连续 3 次打开都正常；下方空白，无报错 |
+| P8（新建） | `SearchBar` 全类名 | 不登记 | 组件树显示“未知”；闪退 → 重开正常 → 再开闪退，交替 |
+
+源码归档：`android-sync/iapp-demo/tabdesigner-p3/`
+
+### 原始读数（logcat，2026-10-27 20:39:35–20:41:45，`emulator-5556`）
+
+```text
+20:39:35  Start proc 10963
+20:39:40  Displayed com.iapp.app/.VisualDesigner   <- P6 第 1 次（正常）
+20:40:10  Displayed com.iapp.app/.VisualDesigner   <- P6 第 2 次（正常）
+20:40:20  Displayed com.iapp.app/.VisualDesigner   <- P6 第 3 次（正常）
+20:40:24  FATAL (10963) VisualDesigner.T0 NPE      <- P8 在该进程第 4 次构建 -> 崩
+20:40:25  Process com.iapp.app (pid 10963) has died
+20:40:39  Displayed com.iapp.app/.VisualDesigner   <- 新进程 11337 首次构建 P8 -> 正常
+20:40:45  FATAL (11337) VisualDesigner.T0 NPE      <- 同进程第二次 -> 崩
+20:40:50  Displayed com.iapp.app/.VisualDesigner   <- 新进程 11465 首次 -> 正常
+20:40:54  FATAL (11465) VisualDesigner.T0 NPE      <- 同进程第二次 -> 崩
+20:41:45  Displayed com.iapp.app/.VisualDesigner   <- 新进程 11658 首次 -> 正常
+```
+
+三次崩溃栈完全相同：
+
+```text
+java.lang.NullPointerException: Attempt to read from null array
+  at com.iapp.app.VisualDesigner.T0(...:54)
+  at com.iapp.app.VisualDesigner.T0(...:128)
+```
+
+### 结论
+
+- ✅ 触发条件是 **`SearchBar` 写进 ppt**，与 `build.xml` 登记无关：
+  只登记不声明（P6'）连续 3 次正常；不登记只声明（P8）仍崩
+- ⚠ 现象上表现为“新进程第一次正常、之后崩”，但**根因不是构建次数**——是设计器保存/序列化的 2 秒防抖，
+  见文末「设计器崩溃根因（R8 反编译）」
+- ✅ 未登记的 `SearchBar` 在设计器里显示“未知”，但仍会在第二次构建时崩
+- ✅ 结论：`SearchBar` 只能 mjava 动态创建，不要写进 ppt；登记无影响，动态创建也不需要登记
+- ⚠ 该时序规律与原 `m3showcase` 崩溃一致（打开它时进程里已构建过设计器树），但当时未记录进程内构建次数
+
+### XUI-P3：开发模式补内容（20:07，API 34）
+
+给每个控件配真实内容后，暴露两个**调用姿势**问题（都不是渲染问题，控件根本没进容器）：
+
+```
+XUI FAIL ButtonView :: java.lang.NullPointerException: Attempt to invoke virtual method
+        'void android.graphics.drawable.GradientDrawable.setColor(int)' on a null object reference
+XUI FAIL RippleView :: android.content.res.Resources$NotFoundException: Resource ID #0xff299ee3
+XUI SELFTEST ok=15 fail=2
+```
+
+| # | 现象 | 根因（字节码确认） | 判定 |
+|---|---|---|---|
+| X13 | `ButtonView` 用 `new ButtonView(ctx)` 后调 `setSolidColor(int)` NPE | `setSolidColor` 直接对私有字段 `gradientDrawable` 调 `setColor`；该字段只在带 `AttributeSet` 的初始化路径里赋值，`(Context)` 构造后是 `null` | ✅ |
+| X14 | `RippleView.setRippleColor(0xff299ee3)` 抛 `Resource ID #0xff299ee3` | 形参是**颜色资源 id**（内部 `getResources().getColor(id)`），传 ARGB 值会被当成 id 去查 | ✅ |
+
+修法：ButtonView 自己铺 `GradientDrawable`（`setColor` + `setCornerRadius` + `setBackgroundDrawable`）；
+RippleView 传 `getIdentifier("xui_config_color_main_theme","color","com.xuexiang.xui")` 拿到的 id。
+
+### XUI-P4：打包版（20:42，API 34）
+
+第一次打包运行失败：`projectRoot()` 依赖 `VisualDesigner.a9`，打包包里该类被裁掉 → `setup()` 直接放弃。
+补上打包路径后（`getAssets()` → `cacheDir`，dex 走只读流程）：
+
+```
+I/XUI (12112): ROOT-ERR java.lang.ClassNotFoundException: Didn't find class "com.iapp.app.VisualDesigner" ...
+I/XUI (12112): MODE=packaged
+I/XUI (12112): ASSET-COPY xui-res.apk len=749721
+I/XUI (12112): ASSET-COPY xui.dex len=1636900
+I/XUI (12112): PATHS dex=/data/user/0/com.demo.xui/cache/xui.dex res=/data/user/0/com.demo.xui/cache/xui-res.apk
+I/XUI (12112): RES-MOUNT[act] ret=6
+I/XUI (12112): RES-MOUNT[app] ret=6
+I/XUI (12112): PROBE-ACT color=0xffffffff dimen=24
+I/XUI (12112): PROBE-APP color=0xffffffff dimen=24
+I/XUI (12112): DCL-DIRECT ok
+I/XUI (12112): XUI-INIT ok
+I/XUI (12112): THEME-NAME XUITheme.Phone id=0x800d01cf
+I/XUI (12112): SELFTEST ok=17 fail=0
+I/XUI (12112): TOTAL ms=1042
+```
+
+| # | 结论 | 判定 |
+|---|---|---|
+| X15 | 打包模式：dex 和**资源包**都要从 APK assets 释放到 `cacheDir`；资源包可写不影响，dex 必须只读（走「开流 → setReadOnly → 写完再设一次」） | ✅ |
+| X16 | 只读释放后 `DexClassLoader` 直接加载成功（`DCL-DIRECT ok`，无 SecurityException）；addAssetPath 的 cookie 从 7 变 6 属正常（路径顺序不同） | ✅ |
+| X17 | 打包版 `ygs` 无输出，`android.util.Log.i("XUI", …)` 有输出；两套日志同时写最省事 | ✅ |
+| X18 | 资源包在 cacheDir 里同样能被 `addAssetPath` 挂载，Activity/Application 两份都生效（`PROBE-ACT`/`PROBE-APP` 都能取到 color/dimen） | ✅ |
+
+---
+
+## 2026-10-27 QJ-P1 青简运行时能力探针（com.qingjian.reader，API 34）
+
+**探针**：`mian.iyu` 的 `loading` → `call(null,"mjava","qj_probe.boot")`；`boot` 内 `i.fn("qj_ui")` 上色后，
+在 `new Thread(new Runnable(){...})` 里 `i.hs` 拉真实列表 → `org.json` 解析 → `runOnUiThread` 回主线程 →
+动态建 ImageView 并用 `i.us(iv,"src",cover)` 加载网络封面。
+
+**第一轮（20:43:17）闪退**：
+
+```
+20:43:17.105 V/ygs: PROBE hs len=2624
+20:43:17.120 E/AndroidRuntime: FATAL EXCEPTION: Thread-33
+    Process: com.iapp.app, PID: 11901
+    java.lang.reflect.UndeclaredThrowableException
+      at $Proxy5.run(Unknown Source)
+      at java.lang.Thread.run(Thread.java:1012)
+    Caused by: Typed variable declaration : No static field or inner class: json of class org
+      at Line: 22 ... : org .json .JSONObject
+      at bsh.BSHAmbiguousName.toObject ...
+```
+
+- 屏幕：直接闪退，无页面
+- 归因：`org.json.JSONObject` 全限定名被 BeanShell 解析成「类 `org` 的字段 `json`」；
+  该错误在线程内 `catch(Throwable)` 接不住，穿过 bsh Proxy 到 `Thread.run`，**杀进程**
+
+**第二轮（20:44:44）通过**（顶部 `import org.json.JSONObject;` 后）：
+
+```
+20:44:44.755 V/ygs: PROBE hs len=2624
+20:44:44.757 V/ygs: PROBE json result=1 n=2
+20:44:44.770 V/ygs: PROBE ui
+20:44:44.782 V/ygs: PROBE img https://unicover.duxiu.com/coverNew/CoverNew.dll?iid=…
+```
+
+屏幕：首页骨架 + 一张 80×110 封面缩略图；无 JavaErr。
+
+**结论（✅ API 34）**：`i.hs(String)` 同步 GET 可用；匿名 `Runnable` 与 `runOnUiThread` 可用；
+`i.us(View,"src",url)` 能加载网络图；`org.json.*` 必须 import，不能用全限定名。
+
+---
+
+## 2026-10-27 设计器崩溃根因（R8 反编译，API 34）
+
+对象：`docs/artifacts/base.apk`（iApp 5.0.1013，`classes4.dex`）中的 `com.iapp.app.VisualDesigner`。
+工具：`dexdump -d` + `scripts/dex_body.py`（`DEXDUMP` 指向 build-tools 35 的 `dexdump.exe`）。
+本节修正 P3 的“同进程第二次构建起必崩”表述：那只是现象，真正条件是**设计器执行保存/序列化**。
+
+### 调用链（与崩溃栈逐帧对应）
+
+```text
+VisualDesigner.onClick(:554)
+  -> S0(:89)          自动保存
+    -> R0(:24)        遍历预览容器子控件
+      -> T0(:128)     递归子控件
+        -> T0(:54)    aget-object 读 tag 数组 -> NPE
+```
+
+### 各方法（字节码还原）
+
+- `S0()V`：当前文件后缀为 `.iyu/.ilua/.ijava/.ijs` 时，若 `now - D8 < 2000` 直接返回（2 秒防抖）；
+  否则拼 `<工程根>/src/<当前文件>`，用 `R0(R$id.Vo)` 取预览树文本，追加 `<UIEventset>…</UIEventset>` 后写盘。
+  `D8 = System.currentTimeMillis()` 在 `VisualDesigner.<init>` 里赋值。
+- `R0(I)String`：`findViewById(id)` → `ViewGroup` → 遍历 `getChildAt(i)`，逐个 `T0(child, 0, sb)`。
+- `T0(View,I,StringBuilder)V`：把 View 序列化回 `<View id did type><ppt><event>`；
+  从 `view.getTag()` 取 `Object[]`，约定 `[0]=type, [1]=ppt, [2]=event`。
+- `q2(String,ArrayList,Map)V`：解析 `<View …>` 时给每个由 `.iyu` 创建的控件
+  `setTag(new Object[]{type,ppt,event,null})`。
+- `if0.q(id,type)`：短名 switch 找不到时，若 `type` 含 `.` 就走 `t0()` 反射实例化，**与 `build.xml` 登记无关**。
+
+### 崩溃点（`T0` 字节码）
+
+```text
+0x000a: if-ge v0, 1, 0x29      # id >= 1 -> 直接去序列化
+0x000c: if-nez v1, 0x85        # 只有 id < 1 才做 tag == null 检查
+...
+0x0035: aget-object v4, v1, 0  # 对 null 数组取下标 -> NPE（positions: 0x0035 line=54）
+```
+
+即：**`id >= 1` 的控件跳过 tag 空检查**，`tag == null` 时直接 NPE。
+
+### 为什么是 `SearchBar`
+
+`SearchBar` 构造里 `inflate(R.layout.mtrl_search_bar, this)`，给自己加了带资源 id 的内部子 View：
+
+```text
+sget R$id.open_search_bar_text_view / open_search_bar_placeholder_text_view /
+     open_search_bar_text_view_container
+```
+
+这些子 View 的 id 非 0，但不是 `.iyu` 声明的，iApp 不会给它们打 `Object[]` tag。
+序列化时 `T0` 递归进 `SearchBar`，再递归到它的内部 TextView → tag 为 null → 第 54 行 NPE。
+
+`TabLayout` / `ChipGroup` / `MaterialDivider` 的内部子 View 没有非 0 id（或没有自建子 View），所以不崩。
+
+### 结论
+
+- ✅ 崩溃发生在**设计器保存/序列化**（运行前保存、切代码页、布局调整等都会调 `S0`），不是“打开设计器就崩”
+- ✅ `S0` 有 2 秒防抖（`D8` 在 Activity 构造时赋值）：进程刚起、2 秒内的第一次保存会被跳过，
+  看起来像“重开第一次正常”
+- ✅ 与 `build.xml` 登记无关；`type` 含点号时 `if0.q` 直接反射实例化
+- ✅ 运行期 mjava 动态创建不受影响：`R0` 只序列化设计器预览树
+- ⚠ 泛化：任何“构造时自建带资源 id 子 View”的第三方控件都可能触发同一缺陷，不止 `SearchBar`
+
+> 收尾（2026-10-27）：`com.demo.xui` 工程与 `build/xui` 中间产物已按「探针用完即删」清理。
+> 复建时按上面的复现命令重新下载依赖、生成 `xui.dex` / `xui-res.apk`，放进新工程的 `apk/assets/`；
+> 运行期代码照 `SKILL references/external-library-guide.md` 的「接入骨架」抄。
+
+---
+
+## 2026-10-27 设计器崩溃根因验证 Demo（com.demo.sbverify / com.demo.sbcrash，API 34）
+
+目的：用两个可运行 Demo 独立验证上节根因与时序，不依赖设计器的偶发现象。
+
+### Demo 1：机制自检（`com.demo.sbverify`，安全页）
+
+页面 ppt 不含 SearchBar；`loading` → mjava 在运行期 `new SearchBar(activity)`，给 SearchBar 自己
+`setId(9999)` + 模拟 q2 的 `Object[]{type,ppt,event,null}` tag，再遍历它的子 View。
+
+原始读数（2026-10-27 20:58:57–20:58:58）：
+
+```text
+SBCHECK searchbar id=9999 tagType=[Ljava.lang.Object;
+SBCHECK childCount=2
+SBCHECK child=0 cls=androidx.appcompat.widget.AppCompatImageButton id=-1 tag=null risky=false
+SBCHECK child=1 cls=android.widget.FrameLayout id=2131296828 tag=null risky=true
+SBCHECK risky=1
+SBCHECK sim child=0 id=-1 skip:id<1
+FATAL EXCEPTION: main
+java.lang.reflect.UndeclaredThrowableException
+  at $Proxy3.run(...)
+Caused by: Typed variable declaration : Not an array : at Line: 73 ... [ 0 ]
+```
+
+`2131296828 = 0x7F09023C = com.iapp.app:id/open_search_bar_text_view_container`
+（`aapt dump resources` 反查），正是 SearchBar 构造时 inflate `mtrl_search_bar` 加进来的内部 FrameLayout。
+
+结论：
+
+- ✅ 运行期实测：SearchBar 的直接子 View 带非 0 资源 id、`tag=null`（`risky=1`）
+- ✅ 对 `id >= 1` 的子 View 执行 `((Object[]) tag)[0]` 直接杀进程；BeanShell 抛
+  `Typed variable declaration : Not an array`，穿过匿名 Runnable 代理成
+  `UndeclaredThrowableException`，`catch(Throwable)` 接不住（与 `pitfalls.md` #8.1 同类）
+- 设计器里同一操作是 JVM 级 `aget-object` → `NullPointerException: Attempt to read from null array`；
+  Demo 里是 BeanShell 求值 `[0]` 抛的不同异常类，但**后果相同（进程死）**，指向同一缺陷
+
+### Demo 2：设计器时序（`com.demo.sbcrash`）
+
+页面 ppt 直接声明未登记的 SearchBar；`loading` 打 `SBCRASH page running` 作为“页面真的运行了”的标记。
+
+原始读数（20:59:36–20:59:55）：
+
+```text
+20:59:36.733 Displayed com.iapp.app/.VisualDesigner   <- 打开工程
+20:59:38.380 V/ygs: SBCRASH page running              <- 首次运行（打开后约 1.6s，S0 防抖跳过保存）
+20:59:38.462 Displayed com.iapp.app/.run.mian
+20:59:55.116 FATAL ... VisualDesigner.T0:54           <- 再次运行/保存（>2s） -> 崩
+```
+
+结论：
+
+- ✅ 打开设计器本身不崩（能看到搜索框）
+- ✅ 打开后 2 秒内的首次保存被 `S0` 防抖跳过 → 页面正常运行（`SBCRASH page running`）
+- ✅ 超过 2 秒后再触发保存 → `T0:54` NPE 闪退
+- ✅ 与用户观察一致：第一次运行正常，第二次运行闪退
+
+### 总体
+
+根因（`T0` 对 `id >= 1` 跳过 tag 判空 + SearchBar 内部子 View 无 tag）已由**运行期自检**与
+**设计器 A/B** 两条独立证据链验证通过。
+
+源码归档：`android-sync/iapp-demo/sbverify-demo/`（`com.demo.sbverify` / `com.demo.sbcrash`）。

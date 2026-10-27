@@ -1,7 +1,7 @@
 # iyu 白名单
 
 `.iyu` 只做事件绑定与调用编排：**只允许 `call` 和 `addv`**。
-其它能力全部下沉到 `.mjava`，用 Android 原生写法。
+其它能力全部下沉到 `.mjava`，用 Android 原生写法；`activity.finish()`、`i.lan(...)`、`end()`、`ViewGroup.removeView(...)` 都不写在事件体里。
 
 ## 替换表
 
@@ -14,8 +14,6 @@
 | `syso(...)` | `i.syso(...)` 或 `android.util.Log` |
 | `tw(...)` / `utw(...)` | Toast / AlertDialog |
 | `uigo(...)` | `.uigo` 方式 |
-
-可以直接用：`activity.finish()`、`i.lan`、`ViewGroup.removeView(...)`。
 
 ## 为什么
 

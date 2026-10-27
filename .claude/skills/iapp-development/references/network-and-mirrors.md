@@ -23,7 +23,7 @@
 | 现象 | 含义 | 处理 |
 |---|---|---|
 | WebFetch 报 `Unable to verify if domain … is safe to fetch` | 抓取服务侧不可达（网络环境所致，不是域名问题；Claude Code CLI 实测） | 改用 Bash + `curl` |
-| `curl` 返回 `000`、退出码 35（SSL connect error） | 域名不可达或本机信任库拦了 | 换国内可达域名；确认是信任库问题时才用 `-k` |
+| `curl` 返回 `000`、退出码 35（SSL connect error） | 域名不可达或本地信任库拦了 | 换国内可达域名；确认是信任库问题时才用 `-k` |
 | `curl http://…` 返回 301 | 站点可达，只是要求 https | 继续用 https（必要时 `-k`） |
 | 404 但拿到一坨 HTML | 镜像站没有这个包，返回的是提示页 | 换仓库（central ↔ google） |
 
@@ -54,7 +54,7 @@ curl -sk -m 40 -L "https://developer.android.google.cn/about/versions/14/behavio
 ```
 
 - 先看状态码 + 体积（200 且几十 KB 以上才算拿到）
-- `-k` 会关闭证书校验：只在确认是**本机信任库**问题（exit 35）时用，并在记录里注明
+- `-k` 会关闭证书校验：只在确认是**本地信任库**问题（exit 35）时用，并在记录里注明
 - 保存原始 HTML，不要只留结论
 
 ## 离线转文本
@@ -75,7 +75,7 @@ i = s.find("关键字")            # 定位到章节再截取
 - 每个下载物放**独立、新建、空**目录；自己写的脚本放别处，按路径传参
 - 校验：看文件头（`PK` = zip/aar/jar）、`md5sum`、解压试读
 - 大文件用完删（如 SDK zip 75 MB，只留需要的 `android.jar`）
-- 记录：URL、状态码、体积、日期写进本机证据文件
+- 记录：URL、状态码、体积、日期写进你自己的证据文件
 
 ## 典型组合（本次实战）
 

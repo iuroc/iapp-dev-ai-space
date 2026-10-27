@@ -33,7 +33,7 @@ grep -c rosemoe /data/app/com.iapp.app-*/oat/x86_64/base.vdex   → 15
 
 ## 字段
 
-`Aid_javaCode` 公开字段：`a`(HashMap)、`b`(Activity)、`c`(Context)、`d`(j6h)、`i`(HashMap)、`ss_dim`(静态 HashMap，默认 null)、`alertdialog` 等，共 12 个。
+`Aid_javaCode` 12 个公开字段：`a`(HashMap)、`b`(Activity)、`c`(Context)、`d`(j6h)、`e`(FrameLayout)、`f`(int)、`g`(WebChromeClient.CustomViewCallback)、`h`(Handler)、`i`(static HashMap)、`j`(static int)、`alertdialog`(static AlertDialog)、`ss_dim`(static HashMap，默认 null)；用途见 `iapp-i-reference.md`。
 
 `ss_dim` 在 `Aid_javaCode` / `Aid_jsCode` / `Aid_luaCode` 中都是 **static**。
 
@@ -53,10 +53,33 @@ lib/arm64-v8a/libluajava.so
 
 ## 分析脚本
 
-`docs/scripts/`（本机路径，按需参考）：
+随包脚本（`scripts/`）：
 - `dex_classes.py` 列类与成员数
 - `dex_api_dump.py` 导公开 API
 - `dex_body.py` 导方法字节码
 - `dex_map_fields.py` 按字段名反查类
 
-依赖 build-tools 的 `dexdump`，经 `DEXDUMP` 环境变量指定。
+依赖 build-tools 的 `dexdump`：默认从 `PATH` 找，找不到时用 `DEXDUMP` 环境变量指定完整路径。
+
+## 查一个方法读写了哪些字段
+
+| 手头有 | 手段 | 看什么 |
+|---|---|---|
+| 源码 | 读代码 / IDE Find Usages / `grep` | 直接看字段名 |
+| `.class` / `.jar` | `javap -c -p <类>` | `getfield` / `putfield` / `getstatic` / `putstatic` |
+| `.dex` / `.apk` | `dexdump -d`，或 `python scripts/dex_body.py <apk> <类> <方法>` | `iget` / `iput` / `sget` / `sput`（含 `-object` 变体），字段引用形如 `Lcom/x/Y;.f:I` |
+| 混淆过 | 先 `dex_map_fields.py` 把字段名映射到类，再回反汇编 | 字段名与所属类 |
+| 反射 / 动态代理 / JNI | 运行时探针：反射读字段前后值，或调用前后 `i.syso` 记录 | 值变化；静态看不到的路径 |
+
+注意：方法可能调其它方法，字段访问要沿调用图追；`dexdump -d` 里的 `invoke-*` 给出下一跳。
+
+## 搜不到某个类，能判不存在吗
+
+不能直接判。先确认覆盖：
+
+- APK 里**所有** dex 都搜过：`classes*.dex`、`assets/**/*.dex`；multidex 别只搜 `classes.dex`。
+- 类可能来自 framework、宿主 APK、`DexClassLoader` 动态加载、运行时字节码生成，不在当前 artifact 的 dex 里。
+- 混淆/改名、内部类 `Outer$Inner`、描述符格式 `Lpkg/Class;` 与点号名都要试。
+- 运行时探针要用**正确的 ClassLoader** `loadClass` 并接 `ClassNotFoundException`；BeanShell 解释器看不见宿主类，不能拿 `Class.forName` 直接判。
+
+只有覆盖完这些、且没有动态加载路径，“这个 artifact 里没有”才是可靠负结论；“运行时不存在”还要再排除动态加载与生成。

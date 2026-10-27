@@ -53,9 +53,14 @@ ppt 能表达的静态样式，不要在 mjava 里再写一遍。
 | 权重 | ✅ **只能写 `layout_weight`**（`weight` 无效） | — |
 | 透明度 | ❌ 不生效 | ✅ `setAlpha(0.5f)` |
 | 圆角/渐变 | ❌ 无此属性 | ✅ `GradientDrawable` |
-| dp→px、按屏宽计算 | — | ✅ |
+| `dp` / `sp` 单位 | ✅ `width=42dp`、`textsize=16sp`、`elevation=4dp` | mjava setter 收 **px**，调用前自己换算 |
+| 按屏宽比例计算 | — | ✅ |
 
 **坑**：`weight=1` + `width=0` 会让控件宽度为 0（标题直接消失），必须写 `layout_weight`。
+
+**`st_` 桥不归层，尽量不用**：它是 ppt 里直接调 Java setter（如 `st_setTextColor=16711680`），
+只认整数、布尔字符串无效、无单位后缀无效（详见 `iyu-guide.md`）。静态样式优先用普通属性；
+普通属性表达不了就进 mjava，不要用 `st_` 造第三种写法。
 
 ## 波纹（Ripple）
 
@@ -70,6 +75,8 @@ bg.setCornerRadius(dp(24));
 view.setBackground(new android.graphics.drawable.RippleDrawable(ripple, bg, null));
 ```
 
+第三个参数是**遮罩**：行内水波纹要给一个不透明圆角矩形遮罩，否则涟漪会按无边界圆扩散成整圆；整块背景本身已是圆角时，可传 `null` 让内容 drawable 约束涟漪。
+
 | 组合 | 现象 |
 |---|---|
 | RippleDrawable + `clickable=false` | 无波纹 |
@@ -78,9 +85,11 @@ view.setBackground(new android.graphics.drawable.RippleDrawable(ripple, bg, null
 
 ## 组合控件（Material / 自定义类）
 
-**不要**把自定义类写进 ppt：`findViewById` 会拿到影子实例，`addView`/`setPadding` 静默失效；设计器还会显示“未知”。
-
-做法：ppt 只放普通 `LinearLayout` 占位，组件在 mjava 里 `new` 出来 `addView`。详见 `md-components-guide.md`。
+**自定义控件默认就写在 ppt 里**（`type=` 全类名 + `build.xml` 登记）：实例真实可写，设计器也能看到
+（API 34 实测；API 28 的旧结论是“影子实例”⚠，按版本差异对待）。外观差异只在子控件 Context
+（TIL 按 `md-components-guide.md` 的 `loading` 配方修复），不需要整页改成 mjava 动态创建。
+只有两种情况在 mjava 里 `new`：① 整类无法在 ppt 声明（必须带构造参数）；② ppt 路径实测不可用
+（`SearchBar` 写进 ppt 后设计器保存/序列化时会崩，与登记无关；`TabLayout`/`ChipGroup`/`MaterialDivider` 已排除，见 `pitfalls.md` #7）。
 
 ## MD 风格输入框
 

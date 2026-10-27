@@ -69,7 +69,7 @@ call(null, "mjava", "app.bind")
 | `minheight=40dp` | 生效 | `getMinimumHeight()`=120（dp→px）✅ |
 | `elevation=4dp` | 生效 | `getElevation()`=12.0（dp→px）✅ |
 
-锚点：本机 density = scaledDensity = 3.0，默认字号 14sp → `getTextSize()` = 42.0。
+锚点：该次测量 density = scaledDensity = 3.0，默认字号 14sp → `getTextSize()` = 42.0；换设备必须重取。
 
 布局时机：载入事件里 `getHeight()` 还是 0（尚未测量），要拿真实高度需在布局完成后取。
 
@@ -82,6 +82,9 @@ call(null, "mjava", "app.bind")
 | `st_setTextColor=16711680` | 生效，读回 16711680 | — |
 | `st_setTextColor=#ff0000` | **不生效**，读回 -11975345 = 默认色 | 默认 -11975345 |
 | `st_setAlpha=128` | 读回 128.0（默认 1.0），**没有 clamp** | 默认 1.0 ⚠ |
+| `st_setChecked=true` | **不生效**：Chip 读回 `checkable=false checked=false`（布尔字符串不认，1/0 未测） | 默认 false |
+| `st_setGravity=center` | ❓ 未测；`setGravity(int)` 期望整数，字符串 `center` 很可能不生效 | 用普通层 `gravity=center` |
+| `st_setGravity=17` | ❓ 未测；17 = `Gravity.CENTER`，若按十进制整数解析可能生效 | — |
 
 ### 书写规则（✅ 实测）
 
@@ -90,6 +93,8 @@ call(null, "mjava", "app.bind")
 - `us(控件, "st_xxx", 值)` **不认 st_ 键**：`us(13,"st_setTextSize",30)` 后字号仍是 42.0（白名单前测；现在 `us` 已禁用，setter 走 mjava）
 
 ### 语法细节（✅ 实测；以下为白名单收紧前的裕语言行为记录）
+
+> 白名单后这些写法不再使用：事件体只写 `call` / `addv`，`syso` / `s` / `us` 等一律下沉 mjava。下表只用于理解旧工程和旧报错。
 
 | 写法 | 结果 |
 |---|---|
@@ -104,3 +109,31 @@ call(null, "mjava", "app.bind")
 
 - 除 `syso` 外的短指令是否校验参数个数 ❓
 - 其余控件类型、属性名对照表 ❓
+
+## 长页面：ScrollView 根 + LinearLayout 内层
+
+内容超过一屏时（探针页尤其常见），根部换成 `ScrollView`，其余控件挂到内层 `LinearLayout`：
+
+```xml
+<View id="1" did="0" type="ScrollView">
+<ppt>width=-1
+height=-1
+backgroundcolor=#f5f6f8</ppt>
+<event></event>
+</View>
+<View id="2" did="1" type="LinearLayout">
+<ppt>width=-1
+height=-2
+orientation=vertical
+padding=12</ppt>
+<event></event>
+</View>
+<!-- 其余控件 did=2；height=-2 即可，不要写 -1 -->
+```
+
+要点：
+
+- `ScrollView` 是短名控件（`android.widget.ScrollView`），不用登记
+- 内层 `LinearLayout` 的 `height` 必须 `-2`（wrap_content）；写 `-1` 会撑满导致滚不动
+- 子控件高度都给 `-2` 或固定 dp，不要用 `layout_weight`（在 ScrollView 里没有剩余空间可分）
+- 嵌套 `ViewPager` / `DrawerLayout` 时，容器高度要用**固定 dp**（DrawerLayout 还要求精确尺寸）

@@ -25,6 +25,8 @@
 > **当前状态（2026-10-26 用户实测 + 本机复测）**：LD9 = `emulator-5554` / 5555 / sdk 28；LD14 = `emulator-5556`（串口名）或 `127.0.0.1:5557` / sdk 34。
 > 投递前仍先 `adb -s <serial> shell getprop ro.build.version.sdk` 核对，不要盲信 `emulator-5554`。
 > 推荐一次开一台；需要同时开就分别按安卓版本配置。若 LD14 又被 GUI 拉回 5555：检查 `vms` 下是不是又出现实机 `leidian0`，按 `docs/evidence.md` 2026-10-26 E1 重新改名为 `leidian1`。
+> **选择规则（2026-10-27 起，原文在 `CLAUDE.md`「设备选择」）**：只有 1 台就用它；2 台默认取 API 高的；用户指定版本则按用户要求。
+> 2026-10-27 当前：只连 LD14 = `emulator-5556` / sdk 34（LD9 未启动）。
 > 详见 `docs/evidence.md` 2026-10-26 E0（冲突成因）/ E1（改名验证）。
 
 ## Android 14 的 root 机制（LDPlayer14）
@@ -81,6 +83,20 @@
 ## 共享目录
 
 - 宿主机 `android-sync/` ↔ 模拟器 `/mnt/shared/Pictures`（vboxsf，rw，ttl=0，双向实时）
+- **工程打开期间有读缓存**：iApp 正开着的工程，宿主机改 `src/*.iyu|*.mjava`、`build.xml`，设备端可能仍读到旧内容（md5 不一致）；关掉工程后自动刷新对齐（2026-10-27 实测）
+- **可能同步出截断文件**：2026-10-27 实测 `matsupport.mjava` 设备端只有 4190/4222 字节，截断在行中间，iApp 报 `Parse error ... Encountered: <EOF>`。改完先核 `wc -c` + md5，不一致就 `adb push` 兜底
+- 投递顺序：先改同步目录 → 让用户关/重开工程 → 核 md5；只有核不上才 `adb push` 兜底
+- **2026-10-27 出现单文件不同步**：同一轮改了 3 个 `.iyu`，设备上只有 `mian.iyu` 更新，`p_b.iyu` / `p_c.iyu` 仍是旧 md5（等待 2s 仍未同步）→ 核 md5 这一步不能省
+- **Git Bash 下 `adb push` 远程路径会被 MSYS 改写**成 `D:/Program Files/Git/storage/...`，报 `secure_mkdirs failed`；先 `export MSYS_NO_PATHCONV=1` 再 push
+- **工程根是符号链接**：`VisualDesigner.a9`（开发模式取工程根）返回
+  `/storage/emulated/0/Android/data/com.iapp.app/files/iApp/ProjectApp/<项目ID>`，
+  而 `.../files/iApp/ProjectApp` 是指向 `/storage/emulated/0/Pictures/ProjectApp` 的**符号链接**（`u0_a72 ext_data_rw`），
+  与共享目录是同一份文件；两条路径的 `md5` 一致，写哪边都生效（2026-10-27）
+  - 所以 mjava 里拼 `<root>/apk/assets/xxx.dex` 拿到的就是共享目录里的产物
+- **改「已存在」文件可能只有 vboxsf 直挂那侧更新**：宿主改 `xui.mjava` 后
+  `/mnt/shared/Pictures/...` 是新内容（10836 B），`/sdcard/Pictures/...`（FUSE 视图）仍是旧内容（8312 B），
+  iApp 读 `/sdcard` 侧就跑旧代码；**新建**文件（marker）则两侧立刻可见。
+  结论：改已存在文件后，核的是 `/sdcard/...` 的 md5，不一致直接 `adb push` 覆盖（2026-10-27 实测）
 - `android-sync/cache`、`android-sync/data` 是 LDPlayer 侧文件，与本项目无关
 
 ## 工具

@@ -1,6 +1,10 @@
 # 内置短名控件
 
 `type` 直接写短名，不需要在 `build.xml` 登记。
+
+> **Material 组件优先写全类名**：本表的短名里有一部分指向 iApp 封装或 androidx
+> （`TabLayout`、`CardView`、`SwitchCompat`、`Toolbar`），外观/能力不等于 Material。
+> 选型规范与支持矩阵见 `material-components.md`。
 下表是**运行时实测**的「短名 → 实际类」（iApp 5.0.1013 / API 28）。
 
 写 mjava 时**导入路径照抄这张表的“实际类”**，不要按 `android.widget.*` 猜（见 `pitfalls.md` 第 12 条）。
@@ -56,8 +60,8 @@
 
 - **`Switch` 不是内置短名**，开关用 `SwitchCompat`
 - 短名不是简单去包名：`GifView`、`RoundImageView`、`TabLayout`、`VerticalViewPager` 是封装类
-- 设计器显示“未知” = 短名不存在或未登记
-- 清单可能不完整；未列出的类写完整类名并登记
+- 设计器显示“未知” = 短名不存在，或 `type` 写了完整类名但没在 `build.xml` 登记
+- 清单可能不完整；未列出的类写完整类名，并在**每个工程**各自登记（登记不继承）
 
 ## 布局约束
 

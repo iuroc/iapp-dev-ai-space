@@ -13,7 +13,7 @@
 
 ## 为什么以前全是蓝方块
 
-`docs/scripts/create_project.py` 早期版本写的是 70 字节的“1×1 占位图”，注释写“透明”，
+`scripts/create_project.py` 早期版本写的是 70 字节的“1×1 占位图”，注释写“透明”，
 实际解码出来是 **RGBA `00 00 FF 7F`**：一个半透明蓝色像素。启动器把它拉满整个图标，
 所以每个脚本新建的工程都是纯蓝方块。
 
@@ -32,17 +32,17 @@
 
 ## 离线生成器（默认方案）
 
-`docs/scripts/make_icon.py`，纯 Python 标准库，**不联网、不依赖 Pillow**。
+`scripts/make_icon.py`，纯 Python 标准库，**不联网、不依赖 Pillow**。
 
 ```bash
 # 单张
-python docs/scripts/make_icon.py --out icon.png --title 2048 --package com.demo.game2048
+python scripts/make_icon.py --out icon.png --title 2048 --package com.demo.game2048
 
 # 按工程 manifest 自动读标题/包名，写回 icon.png
-python docs/scripts/make_icon.py --project-dir android-sync/ProjectApp/com.demo.game2048
+python scripts/make_icon.py --project-dir D:/iAppWorkspace/sync/ProjectApp/com.demo.game2048
 
 # 批量补所有工程
-python docs/scripts/make_icon.py --all android-sync/ProjectApp
+python scripts/make_icon.py --all D:/iAppWorkspace/sync/ProjectApp
 ```
 
 `create_project.py` 已经接入：不传 `--icon` 时自动生成，不再写 1×1 占位图。
@@ -73,6 +73,9 @@ python docs/scripts/make_icon.py --all android-sync/ProjectApp
 ## 验证图标有没有生效
 
 ```bash
+# aapt 在 Android SDK 的 build-tools 目录里；版本按实际替换
+AAPT="$HOME/Android/Sdk/build-tools/35.0.0/aapt"     # Windows: C:\Users\<用户名>\AppData\Local\Android\Sdk\build-tools\35.0.0\aapt.exe
+
 # 1. 看打包后的图标声明
 "$AAPT" dump badging <apk> | grep application-icon
 

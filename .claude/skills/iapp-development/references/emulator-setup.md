@@ -1,6 +1,6 @@
-# 模拟器环境搭建案例（iApp）
+# 模拟器环境搭建参考（iApp）
 
-> **读法**：这是案例参考，不是强制规范。用户问“模拟器怎么配 / Windows 工作区怎么同步进 iApp / 多开怎么弄”时，按这里的原则映射到用户自己的模拟器；雷电只是示例，路径都是通用示例值。
+> **读法**：这是参考，不是强制规范。用户问“模拟器怎么配 / Windows 工作区怎么同步进 iApp / 多开怎么弄”时，按这里的原则映射到用户自己的模拟器；雷电 9/14 是常见环境，路径按其默认值写，装在别处按实际替换。工程根以 iApp 设置里显示的“存储路径 / 工程路径”为准；下面是雷电 9 的实测参考。
 
 示例值：
 
@@ -10,13 +10,16 @@
 | 设备共享存储 | `/sdcard/Pictures`（= `/storage/emulated/0/Pictures`） |
 | iApp 包名 | `com.iapp.app` |
 | 工程 ID | `<项目ID>`（如 `com.demo.xxx`） |
-| 模拟器安装目录 | `<模拟器安装目录>` |
+| 模拟器安装目录 | `C:\LDPlayer\LDPlayer9`（雷电默认；装在别处按实际） |
 | adb 序列号 | `<serial>`（如 `127.0.0.1:5557`） |
 | VM UUID | `<VM-UUID>` |
 
 ## 0. 一句话模型
 
-宿主工作区目录 ↔ 模拟器共享目录 ↔ 设备 `Pictures`；iApp 工程是 `Pictures/ProjectApp/<项目ID>` 的子目录。安卓 9 让 iApp 直接读 Pictures；安卓 14 iApp 只能读自己的 Android/data，所以在那里建软链转到 Pictures。
+宿主工作区目录 ↔ 模拟器共享目录 ↔ 设备 `Pictures`；iApp 工程是 `Pictures/ProjectApp/<项目ID>` 的子目录。
+
+- 安卓 9（雷电 9 实测，仅供参考）：常见工程根是 `/data/media/0/iApp/ProjectApp`（日常视图 `/sdcard/iApp/ProjectApp`），可以直接改到 `/sdcard/Pictures/ProjectApp`。不同模拟器/真机的路径可能不同，以 iApp 设置里显示的路径为准。
+- 安卓 14：工程根固定在 iApp 自己的 `Android/data` 里，改不出去，只能在那里建软链转到 Pictures（**需要 ROOT**，见 §4）。
 
 ## 1. 目标形态
 
@@ -43,20 +46,23 @@ D:\iAppWorkspace\sync\ProjectApp        ≡                       /sdcard/Pictur
 3. **软链/挂载只能建在设备侧 ext4/FUSE 路径**；共享目录（vboxsf）不支持 `ln -s`，会报 `Function not implemented`。
 4. **不要用 `mount --bind`** 把 Pictures 挂到 Android/data：应用有独立 mount namespace，init 命名空间里的挂载对 app 不可见（实测）。
 5. **多设备一律 `adb -s <serial>`**；投递前 `getprop ro.build.version.sdk` 核对，别信 `emulator-5554` 这个名字。
-6. 权限：安卓 9 走存储权限；安卓 14 走 `MANAGE_EXTERNAL_STORAGE`（appop），`READ/WRITE_EXTERNAL_STORAGE` 在 13+ 无效。
+6. 权限：安卓 9 用 `READ/WRITE_EXTERNAL_STORAGE` 运行时权限；安卓 11+ 广域文件用 `MANAGE_EXTERNAL_STORAGE`（appop）；`READ/WRITE_EXTERNAL_STORAGE` 在 13+ 不再给广域访问，媒体用 `READ_MEDIA_*`；app 私有目录不需要这些权限。
 7. 安卓 14 的 `Android/data/<包名>` 只有该 app 自己的 mount namespace 能访问；普通 `adb shell` 会被 FUSE 拒绝，建链接必须 `su`。
 
-## 3. 安卓 9 案例（API 28，sdcardfs）
+## 3. 安卓 9 环境（API 28，sdcardfs）
 
-适用：雷电 9 / Android 9，也适用于其它 Android 9~10 模拟器。
+适用：雷电 9 / Android 9；其它 Android 9~10 模拟器可参考同样思路，但工程根和共享目录路径以各自实际配置为准。
 
-1. 装 iApp，建工程，确认入口是 `<项目ID>/src/mian.iyu`。
-2. 在 iApp 设置里把“存储路径 / 工程路径”改为 `/sdcard/Pictures/ProjectApp`，保存并重开工程。
+1. **先看 iApp 设置**：打开“存储路径 / 工程路径”，那里显示的才是当前工程根，以它为准。
+   雷电 9 上没改过设置时，实测常见位置是 `/data/media/0/iApp/ProjectApp/<项目ID>`，入口在 `src/mian.iyu`；
+   日常视图是 `/sdcard/iApp/ProjectApp/<项目ID>`（在雷电 9 上 `/sdcard` = `/storage/emulated/0`，底层是 `/data/media/0`）。
+   不同模拟器/真机可能不同；直接 `ls /data/media/0` 通常要先 `adb root`，投递和核对走 `/sdcard/...`。
+2. 要跟宿主同步，再在 iApp 设置里把“存储路径 / 工程路径”改为 `/sdcard/Pictures/ProjectApp`，保存并重开工程。
 3. 模拟器设置里把共享目录指到宿主工作区 `D:\iAppWorkspace\sync`。雷电的约定：共享目录在设备上显示为 `/sdcard/Pictures`，所以宿主 `sync\ProjectApp` ≡ 设备 `/sdcard/Pictures/ProjectApp`。
 4. 验证：宿主新建 `ProjectApp\<项目ID>\src\mian.iyu` → `adb shell ls /sdcard/Pictures/ProjectApp` 可见 → iApp 打开工程能渲染。
 5. 说明：Android 9 无分区存储；iApp 需要有存储权限。共享目录不可用时退回 `adb push`（先 `am force-stop`，push 后 `chown u0_a**:sdcard_rw` + `chmod 660`）。
 
-## 4. 安卓 14 案例（API 34，FUSE + 分区存储）
+## 4. 安卓 14 环境（API 34，FUSE + 分区存储）
 
 适用：雷电 14 / Android 14，也适用于其它 Android 11+ 模拟器。
 
@@ -113,19 +119,19 @@ adb shell su -c 'ls /storage/emulated/0/Android/data/com.iapp.app/files/iApp/Pro
 永久解法（2026-10-26 实测：安卓 9 一台 + 安卓 14 一台）：把第二套安装的实例改名成 `leidian1`。
 
 ```bat
-<模拟器安装目录>\ldconsole.exe quit --index 0
+C:\LDPlayer\LDPlayer9\ldconsole.exe quit --index 0
 :: 等 10 秒，确认 VM 已退出
-cd /d <模拟器安装目录>\vms
+cd /d C:\LDPlayer\LDPlayer9\vms
 ren leidian0 leidian1
 cd config
 ren leidian0.config leidian1.config
-<模拟器安装目录>\ldconsole.exe launch --index 1
+C:\LDPlayer\LDPlayer9\ldconsole.exe launch --index 1
 ```
 
 验证：
 
 ```bat
-<VBoxManage 路径> showvminfo <VM-UUID> --machinereadable | findstr /i forwarding
+"C:\Program Files\ldplayer9box\VBoxManage.exe" showvminfo <VM-UUID> --machinereadable | findstr /i forwarding
 :: 期望 Forwarding(0)="adb,tcp,,5557,,5555"
 
 adb connect 127.0.0.1:5557
@@ -135,8 +141,8 @@ adb -s 127.0.0.1:5557 shell getprop ro.build.version.sdk   :: 期望 34
 回滚（数据不动）：
 
 ```bat
-<模拟器安装目录>\ldconsole.exe quit --index 1
-cd /d <模拟器安装目录>\vms
+C:\LDPlayer\LDPlayer9\ldconsole.exe quit --index 1
+cd /d C:\LDPlayer\LDPlayer9\vms
 ren leidian1 leidian0
 cd config
 ren leidian1.config leidian0.config
@@ -144,6 +150,7 @@ ren leidian1.config leidian0.config
 
 注意：
 
+- 上面的 `C:\LDPlayer\LDPlayer9` 与 `C:\Program Files\ldplayer9box` 是雷电默认安装位置；装在别的盘或目录时按实际替换。
 - 改名必须在关机状态做；只改 `vms` 目录名和 `vms\config` 配置名，不动数据盘。
 - 如果目标名 `leidian1` 已存在（之前试过/多开过），先确认它是不是空实例；是就删掉或临时改名，再执行 `ren`。
 - 雷电 GUI 可能自动新建一个空的 `leidian0`（0 字节）；**不要启动它**，稳定后可删。

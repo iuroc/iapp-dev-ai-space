@@ -48,4 +48,6 @@ Called from method: bare : at Line: -1 : in file: <Called from Java Code> : <Com
 
 - 所有 mjava 错误文本里都有 `inline evaluation of` —— 执行器是 **BeanShell**
 - 模块解析失败是「全有或全无」：一个方法写坏，整个模块的方法都不可用
+- 解析期错误（`MJavaErr`）发生在模块加载前，模块里的 `try/catch` 还没机会执行，**兜不住**；能兜的是方法体内的运行期 Java 异常
+- 影响范围是模块级：该模块所有方法都不可用；其它模块和已加载模块不受影响，后续语句继续；如果随后调用该模块的方法，会再触发 `JavaErr`（`Command not found`），中断本次 call
 - 行号只在 `at Line: N` 里对模块文件有效；iApp 弹窗里的「mian.iyu 第 N 行」不可靠

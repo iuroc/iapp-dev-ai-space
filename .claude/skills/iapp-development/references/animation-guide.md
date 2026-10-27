@@ -28,8 +28,8 @@ ax.start();
 
 ## 回弹/归位：优先 `View.animate()`
 
-✅ 实测（API 28，卡面 3D 探针）：ViewPropertyAnimator 在 mjava 里可链式调用，
-而且**能取消**——这是 ObjectAnimator 做不到的地方（拿不到 animator 引用就没法取消）。
+✅ 实测（API 28）：ViewPropertyAnimator 在 mjava 里可链式调用，而且**能取消**——
+不用像 ObjectAnimator 那样额外保存 animator 引用。
 
 ```java
 v.animate().rotationX(0.0f).rotationY(0.0f).setDuration(420).start();   // 回弹
@@ -42,6 +42,15 @@ v.animate().cancel();                                                    // 按�
 
 - 一定要传 `new float[]{...}`，不要依赖可变参数展开
 - 动画只改 `translation`，不改布局参数；结束后重绘/重建视图即可归位
+
+## 3D 倾斜（普通 View，不用自定义 View）
+
+- `setRotationX` / `setRotationY` + `setCameraDistance(dp(...))` 就能做透视倾斜；`setCameraDistance` 越小透视越夸张
+- 按位移驱动时，**按下的那一刻角度归零**；用按下点绝对位置算会“一碰就歪”
+- 回弹用 `View.animate().rotationX(0).rotationY(0).setDuration(...).start()`；按下时 `cancel()` 打断
+- 父容器 `setClipToOutline(true)` + 圆角 `GradientDrawable` 背景，溢出的子 View 自动裁到圆角内
+- 光斑/高光用另一层 `ImageView`，随倾斜做反向平移；角度大时两层透视会有轻微错位
+- 状态用 `setTag(new float[]{x, y})` / `int[]` 存，跨 call 能取回
 
 ## 收尾（没有监听器时的做法）
 
@@ -92,17 +101,6 @@ String p = st("pending"); st("pending", "");
 if (p.length() > 0) doMove(Integer.parseInt(p));
 ```
 
-## 实测读数
+## 实测边界
 
-2026-10-26 `com.demo.game2048`：
-
-```
-G2048 move dir=D add=4 score=4 spawn=5 ...
-G2048 anim slide tiles=4
-G2048 step2 merged=1 spawn=5
-G2048 key code=22 dir=1
-G2048 move queued dir=R
-G2048 apply pending=1
-```
-
-用户确认：滑动、合并、生成动画都正常，连按不打架。
+- 动画期间连按：`busy` + `i.sss` 排队，滑动/合并/生成动画都正常（iApp 5.0.1013 / API 28，2026-10-26）

@@ -35,6 +35,8 @@ iApp 设计器支持的事件类型就是下面这些，`<eventItme type="…">`
 - **载入完毕是 `loadingComplete`**（驼峰），不是 `loadingend`
 - **没有 `androidResume/androidPause/...`**：dex 里那些 `android*` 字符串不是设计器事件名，写进 `.iyu` 不会触发
 - **事件名写错不报错**：`onreceivedtitle`、`onloadresource`、`onconsolemessage` 这类不存在的名字，iApp 静默忽略（没有 YuErr、也没有回调）。只能对照上面这张名单自查
+- `onactivityresult` / `onrequestpermissionsresult` 在名单里，但参数形状未系统验证；要拿精确结果优先在 mjava 里用原生回调/`requestPermissions` 配合
+- `sensor` 的 `st_x/st_y/st_z` 来自 DEX 推断，运行期未验 ❓
 - 编写时遵守 iyu 白名单：事件体只写 `call` / `addv`
 
 ## 事件内置变量（`st_*`，DEX 证实）
@@ -117,7 +119,8 @@ call(null, "mjava", "game.keyCode", st_kC)
 - 不要同时挂 `setOnKeyListener`（可能双触发）；真要兜底，在 mjava 按 `(键码, 120ms)` 去抖
 - 长按会重复触发 `downkey`，同样用去抖吞掉
 - 非方向键（Ctrl、字母键、返回键）也会进 `downkey`，在 mjava 里过滤即可
-- 证据：`docs/evidence.md` 2026-10-26 2048；反编译 `main2` 的 UIEventset 参数表为 `st_kC,st_eA,st_eR`
+- **绑了 `downkey` 就等于接管了返回键**：返回键码 `4` 会进事件，但页面**不再自动弹出**（与 `shouldoverrideurlloading` 同款）。要自定义返回就 `call` 到 mjava，在 mjava 里判 `kc == 4` 后 `activity.finish()` ✅（API 34）
+- 反编译 `main2` 的 UIEventset 参数表为 `st_kC,st_eA,st_eR`；方向键在 API 28 实测（2026-10-26）
 
 ## touchmonitor 能拿到什么 ⚠/❓
 
@@ -128,8 +131,8 @@ view、view id、action、x、y、rawX、rawY
 ```
 
 - 事件体一定会触发（单击、长按都算），这是 ✅ 的
-- 位置参数在事件体里用 `st_eX` / `st_eY` / `st_rX` / `st_rY`（见上面 `st_*` 表）
-- 需要坐标/方向时，优先用 mjava：
+- DEX 里派发的是 `view / id / action / x / y / rawX / rawY`；对应变量名推测为 `st_eX` / `st_eY` / `st_rX` / `st_rY`，但**运行期未验证在事件体里能否取到** ❓
+- 需要坐标/方向时，直接改用 mjava：
 
 ```java
 board.setOnTouchListener(new View.OnTouchListener() {
@@ -141,11 +144,11 @@ board.setOnTouchListener(new View.OnTouchListener() {
 });
 ```
 
-`docs/evidence.md` 2026-10-26 2048：这套写法在 API 28 实测可用，回调里可以直接调同模块方法。
+API 28 实测（2026-10-26）：这套写法可用，回调里可以直接调同模块方法。
 
 **多点触控（API 28 实测）**：`getActionMasked()`、`getActionIndex()`、`getPointerCount()`、`getPointerId(i)`、`findPointerIndex(id)`、`getX(int)` / `getY(int)` 都能在 BeanShell 里解析。
 但 `getHistorySize(int)` / `getHistoricalX(int,int)` 这些**带 pointerIndex 的重载会解析失败并杀进程**（`catch` 接不住），只用无参 `getHistorySize()`。
-证据：`docs/evidence.md` 2026-10-26「课堂黑板 BB-P1」。
+API 28 实测（2026-10-26）。
 
 ## 滚动 / 列表事件（✅ 实测）
 
@@ -198,7 +201,7 @@ public void onrefresh() {
 | `onpagestarted` / `onprogresschanged` / `onpagefinished` | ✅ 加载全过程都能收到 |
 | `onreceivederror` | ✅ 收到（错误页）；**只带 `st_vId` / `st_vW`，没有错误码** |
 | `shouldoverrideurlloading` | ✅ 点链接就触发，变量 `st_url` 是目标地址 |
-| `ondownloadstart` | ❌ 到不了（链接进 override 分支） |
+| `ondownloadstart` | ❌ 绑了 `shouldoverrideurlloading` 时到不了；未绑时未验 ❓ |
 
 **关键机制（DEX 证实）**：`run/mian$i0.shouldOverrideUrlLoading` 分两条路——
 
@@ -219,6 +222,13 @@ public void override(Object u) {
 ```
 
 注意：事件体里写 `url` 是**未定义变量**，调用会退化成 `override()` 零参 → `JavaErr: Method override() not found`。必须用 `st_url`。
+
+补充（API 28 实测）：
+
+- `canGoBack()` / `goBack()` 正常；返回栈自己维护
+- `onprogresschanged` 到 100 会回调**多次**（一次加载常见 3 次），不要在 100 做重活
+- `loadDataWithBaseURL` 打开的本地页，`getUrl()` 返回 `about:blank`，不要靠它判断当前页
+- 老设备 WebView 内核可能较旧（例如 Chrome 91），前端按对应能力写，别用太新的 CSS/JS
 
 ## 抽屉 / 页面销毁（✅ 实测）
 
@@ -264,7 +274,11 @@ DrawerLayout 在 ppt 里给精确尺寸（如 `320dp × 300dp`），内容区和
 </View>
 ```
 
-注意 `onpagescrolled` 频率与 `onscroll` 同级，回调里别做重活。
+注意：
+
+- `onpagescrolled` 频率与 `onscroll` 同级，回调里别做重活
+- `VerticalViewPager` 是否同样支持这三个事件未测 ❓
+- 想确认某个事件的参数个数：在 mjava 里写 0/1/2 参重载（`onSel()` / `onSel(Object p)` / `onSel(Object p, Object o)`），iApp 注入几个就命中哪个；命中哪档本身就是读数
 
 ## AppBarLayout 偏移（✅ 实测）
 
@@ -293,6 +307,6 @@ DrawerLayout 在 ppt 里给精确尺寸（如 `320dp × 300dp`），内容区和
 | 事件 | 状态 | 缺什么才能验 |
 |---|---|---|
 | `onoptionsitemselected` | ❓ | 需要 ActionBar 上真的有菜单项：`activity.getActionBar()` 可能是 null（iApp 主题未必带 ActionBar），得先用 mjava 拿到 ActionBar/Toolbar 并 `addMenu`，再点菜单 |
-| `onpicturecallback` | ❓ | 需要相机回调：模拟器（LDPlayer9）无摄像头，得真机，或先给模拟器接一个虚拟摄像头 |
+| `onpicturecallback` | ❓ | 需要相机回调：无摄像头的模拟器测不了，得真机，或先给模拟器接一个虚拟摄像头 |
 
 这两项价值不高，标 ❓ 即可；真要用时按上表补条件。

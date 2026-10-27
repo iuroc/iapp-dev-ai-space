@@ -5,3 +5,23 @@ __pycache__/
 /dist/
 # 从设备拉下的 APK / dex 产物（152M，需要时重新 pull）
 docs/artifacts/
+/build/
+
+# 临时反编译/分析产物（含大 APK 与 dump）
+/tmp-recon/
+
+# 大文件与二进制样本：不入库
+*.bin
+*.apk
+*.dex
+*.jar
+*.aar
+*.so
+*.zip
+*.7z
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.pdf
