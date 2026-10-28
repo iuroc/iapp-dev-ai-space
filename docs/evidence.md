@@ -3824,3 +3824,86 @@ JavaErr: Command not found: set_css() : at Line: 132 : in file: inline evaluatio
 新增 `qj_set.mjava`（原生 BottomSheetDialog 设置面板：字号/字间距/行距/字体/纸色/屏幕常亮 + 恢复默认）；
 设置落盘 `filesDir/qingjian/settings.json`；默认值唯一来源 `qj_store.store_defaults()`；
 点屏翻页区与「翻页方式」设置按用户要求移除（只保留底栏按钮）。
+
+---
+
+## 2026-10-28 WATCH-2 应用宝容器 → OPPO Watch X2 全链路（MD3 按钮 Demo）
+
+**探针**：iApp 工程 `com.demo.watchdemo`（`mian.iyu` 单页 + `watch.mjava`）。
+开发/打包在应用宝电脑版的 Android 容器内，工程经 iApp 内置 FTP 投递；APK 拉回宿主后用 adb 装表。
+
+**设备读数**（`adb -s d96d6a4e`，2026-10-28）：
+
+```
+ro.product.model=OWW251  ro.product.brand=OPPO  ro.oplus.wear.oppo.product=true
+ro.build.version.release=11   ro.build.version.sdk=30
+ro.build.display.id=OWW251_11_A.265     security_patch=2024-03-05
+ro.product.cpu.abilist=armeabi-v7a,armeabi   abilist64=（空）   ro.zygote=zygote32
+/proc/cpuinfo: ARMv7 Processor rev 4 (v7l) x4   Hardware: Qualcomm MONACO
+wm size: 466x466   wm density: 320   ro.sf.lcd_density=320
+MemTotal: 1873636 kB   battery level=92 (USB powered)
+id: uid=2000(shell)；su: inaccessible or not found
+```
+
+**FTP（iApp 服务器控制台）**：`ftp://172.22.44.17:9527`，匿名可登录，根含
+`ProjectApp/ DownloadFileDir/ Userimg/ screenshot/ iyu-helpV*.txt`。
+`ftp_sync.py` push 6/6 文件 `MD5` 全过（退出码 0）；`RETR` 可取回 `bin/<包名>.apk`。
+
+**打包 ABI 对照**：
+
+```
+# 第 1 次：iApp 设置默认（只勾 arm64-v8a）
+lib/arm64-v8a/libygsiyu.so        ELF class=2 machine=0xb7
+lib/arm64-v8a/libluajava.so       ELF class=2 machine=0xb7
+lib/arm64-v8a/libpl_droidsonroids_gif.so  ELF class=2 machine=0xb7
+adb install → Failure [INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113]
+
+# 第 2 次：设置 →【打包设定so库】四项全勾
+lib/{armeabi-v7a,arm64-v8a,x86,x86_64}/ 三个 .so 齐备
+adb install -r → Success
+```
+
+**对照样本**：表上已装的 iApp 产物 `com.iuroc.watch`
+（`primaryCpuAbi=armeabi-v7a`，`versionCode=100001`，`targetSdk=31`）是三架构包：
+`armeabi-v7a` + `arm64-v8a` + `x86`，同样三个 `.so`。
+
+**运行读数**（打包版，`android.util.Log` tag `watchdemo`）：
+
+```
+23:51:22.272 I/watchdemo(10378): init style=0
+23:51:30.072 I/watchdemo(10378): pick count=1
+...（共 34 次 pick，间隔 0.2~5s）
+23:51:50.959 I/watchdemo(10378): style=1
+23:51:53.938 I/watchdemo(10378): style=2
+23:51:57.213 I/watchdemo(10378): style=3
+23:52:01.701 I/watchdemo(10378): style=0
+```
+
+启动噪声（不影响运行）：
+
+```
+W/System.err: java.io.FileNotFoundException: userencryption.xml
+  at android.content.res.AssetManager.nativeOpenAsset(Native Method)
+  at com.iapp.app.run.iActivity.onCreate(...)
+W/System.err: Caused by: java.lang.ClassNotFoundException: com.demo.watchdemo.IConfig
+```
+
+表冠（上一轮）：`I/watchdemo: key kc=131` 一条；`131` = `KEYCODE_F1`，
+`/system/usr/keylayout/Generic.kl:81` 为 `key 59 F1`。本轮复测未再出现。
+
+息屏：`mWakefulness=Asleep`、`Display Power: state=OFF` 时
+`pidof com.demo.watchdemo` 仍返回 `10378`。
+
+截图（466×466 PNG）像素：背景 `#141218`、文字 `#D0BCFF`/`#CAC4D0`/`#938F99`，
+与 ppt 声明一致；150dp 按钮实测 300px 宽 → density = 2.0。
+
+**结论（✅，2026-10-28，API 30 / 应用宝容器打包）**：
+
+1. 打包 APK 的 `lib/` 架构由 iApp 设置【打包设定so库】决定，**默认只勾 arm64-v8a**；
+   纯 32 位用户空间设备需要勾上 `armeabi-v7a`，否则安装直接失败（`res=-113`）。
+2. 应用宝容器内的 iApp 打包链路可用：FTP 推工程 → 容器内打包 → FTP 取回 APK → adb 装表。
+3. 手表侧 adb `install` / `am start` / `logcat` / `screencap` / `pidof` 全部可用；无 root。
+4. 打包版 `android.util.Log` 有输出（`ygs`/`i.syso` 本轮未验）。
+5. 圆屏 466×466 / density 320：ppt 的 dp 值按 2.0 换算，`backgroundcolor` 与 `textcolor` 均生效。
+6. 表冠可产生 `downkey`，键码 `131`（`KEYCODE_F1`）；是否每次转动都发、方向是否可区分 ❓。
+7. 息屏后进程存活（短时观测，未测长时间/内存回收）。

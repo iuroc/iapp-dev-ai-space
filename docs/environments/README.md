@@ -41,13 +41,13 @@ python docs/scripts/detect_env.py --json     # 机器可读
 | 宿主虚拟化 | Hyper-V 未启用（`HypervisorPresent=False`）✅ 2026-10-28 | 同左 ✅ | 必须开 Hyper-V ⚠ 他机口述 |
 | 产品版本 | 雷电 14.0.32.1 ✅ | 雷电 9.5.42.0 ✅ | 应用宝电脑版（版本 ❓） |
 | Android / API | 14 / 34 ✅ | 9 / 28 ✅ | ❓（>11 猜测，无读数） |
-| adb | ✅ `emulator-5556`（或 `127.0.0.1:5557`） | ✅ 宿主端口 5555（未连接时 `adb devices` 为空） | ❌ 自带 `adb.exe` 但 `adb devices` 为空 ⚠ 他机 |
+| adb | ✅ `emulator-5556`（或 `127.0.0.1:5557`） | ✅ 宿主端口 5555（未连接时 `adb devices` 为空） | ❌ 容器不可见；✅ 外接 USB 设备可见 ✅ 2026-10-28 |
 | root | `su -c id` → uid=0 ✅ | `adb root` → uid=0 ✅ | ❓ |
 | 共享目录 | `android-sync/` ↔ `/sdcard/Pictures` ✅ | 同左 ✅ | ❓ |
 | iApp 工程根 | `Android/data/com.iapp.app/files/iApp/ProjectApp` → 软链 `Pictures/ProjectApp` ✅ | `/sdcard/iApp/ProjectApp`（可直接改）✅ | ❓ |
 | 工程根可否改 | 只能在 app 内改到 `Android/data` 内，出界需 root 软链 | 可在 iApp 设置里直接改到 `Pictures/ProjectApp` | ❓ |
 | 存储权限 | `MANAGE_EXTERNAL_STORAGE=allow` ✅ | `READ/WRITE_EXTERNAL_STORAGE`（运行时）✅ | ❓ |
-| FTP（宿主→设备） | ❌ 直连不通；✅ 经 `adb forward`（含逐数据端口）2026-10-28 | ❓ | ✅ 匿名可登录 ⚠ 他机 2026-10-27 |
+| FTP（宿主→设备） | ❌ 直连不通；✅ 经 `adb forward`（含逐数据端口）2026-10-28 | ❓ | ✅ 直连匿名可登录、`MD5`/`STOR` 可用 ✅ 本机 2026-10-28 |
 | FTP（设备内→自身） | ❓ 待设备内终端探测 | ❓ | ❓ |
 | 推荐通道 | 共享目录（adb 兜底） | 共享目录 / adb | FTP |
 | 版本定位 | **主开发**（API 34 优先） | 仅按需做低版本兼容 | 该机器的主环境 |
@@ -87,5 +87,5 @@ python docs/scripts/detect_env.py --json     # 机器可读
 
 - `ldplayer14.md` — 雷电 14 / API 34（M1 主开发环境）
 - `ldplayer9.md` — 雷电 9 / API 28（M1，仅按需）
-- `tencent-appstore-pc.md` — 腾讯应用宝电脑版 / Windows 11（M2，无 adb）
-- `oppo-watch-x2.md` — OPPO Watch X2 圆表盘（侧载目标 W1，不是开发主机）
+- `tencent-appstore-pc.md` — 腾讯应用宝电脑版 / Windows 11（M2，容器走 FTP，外接设备可 adb）
+- `oppo-watch-x2.md` — OPPO Watch X2 圆表盘 / API 30 / 纯 32 位（侧载目标 W1，不是开发主机）
