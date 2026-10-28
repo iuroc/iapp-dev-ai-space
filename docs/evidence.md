@@ -4056,3 +4056,39 @@ event0: EV_KEY KEY_F2 DOWN/UP
   都无法退出第三方应用 → 应用内返回只能自己实现
 - **表冠按下 = 回桌面**（用户观察），对应 `KEY_F1`；转表冠仍是 `REL_WHEEL`
 - 结论：`131` / `132` 被系统占用，应用 **不要**拿来做翻页/功能键
+
+---
+
+## 2026-10-29 WATCH-4 青简手表版（8 页）迭代读数
+
+**产物**：`com.qingjian.watch`，8 个 `.iyu`（mian/cats/list/detail/issues/reader/menu/toc）
++ 9 个 `.mjava`（复用 `qj_core` / `qj_store`）。APK 约 5.79 MB，四架构齐全。
+
+**用户实测反馈（原文要点）**
+
+```
+分类页进入卡（11 个 MaterialButton）→ 换回 TextView+GradientDrawable 后顺畅
+滚动分类页时自动退出页面
+按空白处整屏变暗
+点击下一页先滚到底再翻页
+WebView 出现水平滚动条
+```
+
+**对应的失败签名与修法**
+
+| 现象 | 根因 | 修法 |
+|---|---|---|
+| 分类页整页「裸奔」：控件堆左上、WebView 发白 | mjava 模块解析失败（Java 字符串里 `\\"` 写法非法），`boot` 根本没执行 | 删除该正则；全模块转义扫描确认 0 处非法 |
+| 分类页卡顿 | 一次创建 11 个 Material 组件 | 回退到 `TextView` + `GradientDrawable` |
+| 滚动时自动退出 | 多 View 共用监听却混用了 `getX()`（相对各自控件）与共享状态，`dx` 凭空变成 140px | 统一 `getRawX()/getRawY()` |
+| 按空白处整屏变暗 | 用 `getTag() != null` 判断可点控件；iApp 会给 ppt 里的 View 自动挂 tag | 改 `hasOnClickListeners()` |
+| 点翻页按钮先滚到底 | `step()` 先滚一屏再翻 | 按钮直接 `page(±1)`，页内滚动交给表冠/手指 |
+| WebView 横向滚动条 | 内联 `width` 属性 + 内容超宽 | `setHorizontalScrollBarEnabled(false)` + CSS `overflow-x:hidden` |
+
+**保留结论**
+
+1. 阅读正文用手机版分页参数（`w=1000&h=2000&fsize=18`），页码与手机版一致；
+   图片仅靠 CSS `max-width:100%!important;height:auto!important` 覆盖即可，**不要改写 HTML**
+2. 翻页后 `scrollTo(0,0)` 需延迟 300ms（`loadDataWithBaseURL` 异步）
+3. 圆屏内容统一收进 165dp 内接方框；标题钉在顶部圆边（9sp / 110dp 宽）
+4. 阅读页不做横滑返回；退出走菜单页「关闭阅读器」（`quit` 标志 + `resume` 检测）

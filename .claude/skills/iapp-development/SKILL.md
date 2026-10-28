@@ -297,6 +297,7 @@ b_hello();          // 加载后直接调
 - `references/project-structure.md` — 工程结构与新建工程
 - `references/emulator-setup.md` — 模拟器环境参考：宿主工作区 ↔ Pictures 同步、雷电 9 实测工程根 `/data/media/0/iApp/ProjectApp`（仅供参考，以 iApp 设置为准）、安卓 14 软链、多开 adb 端口冲突
 - `references/environment-adaptation.md` — 环境适应：能力维度、未知宿主勘测五问、投递通道选择、版本政策、无 adb 时取证、「当…可试…」参考写法
+- `references/watch-app-guide.md` — 手表应用（圆屏）：内接方框布局、轻量控件选型、手势与按压反馈、WebView 正文、页面与导航约定
 - `references/ftp-delivery.md` — iApp 内置 FTP 通道：适用条件、实测特性、坑、失败签名、宿主不可达的三种办法、安全边界
 - `references/icon-guide.md` — 应用图标（来源、规格、离线生成）
 - `references/builtin-controls.md` — 内置短名控件清单
