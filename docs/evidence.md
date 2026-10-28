@@ -4047,8 +4047,10 @@ event0: EV_KEY KEY_F2 DOWN/UP
 | 键码 | 系统行为 |
 |---|---|
 | `131`（KEY_F1） | 回桌面（焦点转到 `com.heytap.wearable.launcher`） |
-| `132`（KEY_F2） | 启动运动（`com.heytap.wearable.sports/MainActivity`） |
+| `132`（KEY_F2） | 打开运动功能页（`com.heytap.wearable.sports/MainActivity`，含骑行/跑步等模式） |
 | `138`（KEY_F8） | 与 F1 组合出现，用途未确认 ❓ |
+
+其它厂商的手表**不一定**沿用同一套映射，跨机型必须重测 ⚠（用户提示 2026-10-29）。
 
 - **左滑是纯触摸事件**，系统不把它翻译成任何按键；三种方向的 `input swipe`
   都无法退出第三方应用 → 应用内返回只能自己实现
