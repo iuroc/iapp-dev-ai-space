@@ -434,3 +434,40 @@ public void menu(Object arg) { ... }  // ✅ 正常
 - 手机版青简的 `prev/next/settings/back` 全是 `Object arg`，就是这个原因
 - 排查时不要只看 `logcat`：这条失败**不打印任何东西**。要么给方法加 `android.util.Log`，
   要么干脆在 mjava 里 `setOnClickListener` 挂监听（本书架/菜单页最终采用的方案）
+
+## 31. 后台线程的匿名 Runnable 里调模块方法，必须先 `i.fn`
+
+实测（2026-10-29，打包版 / API 30 手表青简）：
+
+```
+E/AndroidRuntime: FATAL EXCEPTION: Thread-10
+E/AndroidRuntime: java.lang.reflect.UndeclaredThrowableException
+  at $Proxy3.run(Unknown Source)
+Caused by: Typed variable declaration : Command not found:
+  core_readPage( java.lang.String, int, int, int ) : at Line: 315
+  Called from method: run
+```
+
+现象：方法入口 `i.fn("qj_core")` 已经写过，主线程调用正常；但
+`new Thread(new Runnable(){ public void run(){ core_readPage(...) } })`
+一执行就报 `Command not found`，并被包成 `UndeclaredThrowableException` **直接杀进程**
+（不是只中断本次调用）。
+
+**做法**：**在 Runnable 内部第一行再 `i.fn("模块名")`**，不要指望外层 import 穿透到线程闭包。
+
+```java
+new Thread(new Runnable() {
+    public void run() {
+        i.fn("qj_core");                 // 必须：线程闭包不继承外层命名空间
+        ArrayList list = core_books(124, 1, 20);
+        activity.runOnUiThread(new Runnable() {
+            public void run() { render(list); }
+        });
+    }
+}).start();
+```
+
+`activity.runOnUiThread(new Runnable(){...})` 里的 UI 回调同理：里面若调用其他模块方法
+（如 `render(...)`），要么在本方法里先 `i.fn`，要么在回调内先 `i.fn`。
+
+排查要点：这条**只在后台线程崩**，主线程完全正常，且异常发生在 `Thread-N` 而不是 `main`。
