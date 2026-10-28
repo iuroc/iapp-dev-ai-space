@@ -180,6 +180,7 @@ root.setOnGenericMotionListener(new View.OnGenericMotionListener() {
   `Method onGenericMotion(...) not found in bsh scripted object`，
   并被包成 `UndeclaredThrowableException` **直接杀进程**（`catch` 接不住）✅ 2026-10-29
 - 想同时保留原生滚动就 `return false`；`return true` 会吞掉滚动
+  （实测：手表上是 `ScrollView` + `return false`，表冠照样原生滚动页面 ✅ 2026-10-29）
 - 先读 `AXIS_SCROLL` 会拿到恒 0 的值，方向全丢——这是最容易踩的一步
 
 ## 滚动 / 列表事件（✅ 实测）

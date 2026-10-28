@@ -3964,8 +3964,11 @@ Caused by: Method onGenericMotion( android.widget.ScrollView, android.view.Motio
 4. 打包版 `android.util.Log` 有输出（`ygs`/`i.syso` 本轮未验）。
 5. 圆屏 466×466 / density 320：ppt 的 dp 值按 2.0 换算，`backgroundcolor` 与 `textcolor` 均生效。
 6. **表冠不是按键**：`oplus_crown` 只发 `EV_REL/REL_WHEEL`（相对滚动，有负值），
-   `downkey` 不触发；要用表冠必须接 `MotionEvent.ACTION_SCROLL` / `AXIS_SCROLL`。
+   `downkey` 不触发；应用层是 `MotionEvent.ACTION_SCROLL`，值在 **`AXIS_VSCROLL`**
+   （`AXIS_SCROLL`/`AXIS_HSCROLL` 恒 0），顺时针为负、逆时针为正。
    侧键才产生 `KEYCODE_F1(131)` / `F2(132)` / `F8(138)`。
-7. 息屏后进程存活（短时观测，未测长时间/内存回收）。
-8. 该表的「返回」走系统手势/侧键，**不向应用派发 `kc=4`**：应用被退到后台而非 finish，
+7. **表冠可直接原生滚动页面**：内容放进 `ScrollView` 后转表冠页面跟着滚，
+   监听器 `return false` 即可两不误 ✅ 2026-10-29（用户观察）。
+8. 息屏后进程存活（短时观测，未测长时间/内存回收）。
+9. 该表的「返回」走系统手势/侧键，**不向应用派发 `kc=4`**：应用被退到后台而非 finish，
    绑了 `downkey` 也拦不到；要保证退出得另找入口（见手表档案 §未测项）。
