@@ -3972,3 +3972,60 @@ Caused by: Method onGenericMotion( android.widget.ScrollView, android.view.Motio
 8. 息屏后进程存活（短时观测，未测长时间/内存回收）。
 9. 该表的「返回」走系统手势/侧键，**不向应用派发 `kc=4`**：应用被退到后台而非 finish，
    绑了 `downkey` 也拦不到；要保证退出得另找入口（见手表档案 §未测项）。
+
+---
+
+## 2026-10-29 WATCH-3 青简手表版：WebView、服务端分页与圆屏布局
+
+**探针**：新建工程 `com.qingjian.watch`（`mian.iyu` 书架 + `reader.iyu` 阅读），
+数据层 `qj_core.mjava` / 存储层 `qj_store.mjava` 原样复用手机版。
+
+**能力探针（全部通过）**
+
+```
+current webview package = com.android.webview, 83.0.4103.120, Minimum targetSdkVersion 30
+adb shell curl -s -m 12 'https://gede.5read.com/apis/touchBook/books.jspx?...' → {"result":1,...}
+```
+
+服务端按 `w/h/fsize` 重新分页（同一本书，`psize=1~3`）：
+
+```
+w=1000 h=2000 fsize=18 → pageAll=84     （手机版参数）
+w=400  h=400  fsize=18 → pageAll=487
+w=400  h=400  fsize=24 → pageAll=754
+w=330  h=340  fsize=18 → pageAll=640
+w=165  h=170  fsize=18 → pageAll=2195
+```
+
+内容 HTML 形态：
+- 文字页 `<div class="text"><div><p>…</p></div></div>`，**无固定宽度**，按视口重排
+- 图片页内联死尺寸：`<img width="973" height="1410" …>`，必须 CSS 覆盖
+
+**部署与运行**
+
+```
+FTP push 9 文件 MD5 全过；APK libs = armeabi-v7a + arm64-v8a + x86 + x86_64
+adb install -r → Success
+首次启动弹存储权限：pm grant READ/WRITE_EXTERNAL_STORAGE（每次重装都要重新授权）
+书架：core_books(124,1,10) 渲染 10 行文本；历史存在时显示「继续阅读 第 1 / 84 页」
+阅读：书名、封面图（973px 压到 330px）、正文页 6/84 字号与行高正常
+```
+
+**本轮发现的坑**
+
+1. `ppt` 的 `layout_gravity` 在 `FrameLayout` 子控件上**不生效**：`center` / `top|center`
+   三个控件全部落在 (0,0)；`width/height` 正常。改用 mjava `FrameLayout.LayoutParams` +
+   `Gravity` 摆位后正确。
+2. 插 USB 调试时**充电全屏界面 `SysUI.Charging` 会抢焦点**，此时按键/截图都落到它身上。
+   先 `svc power stayon usb`，再 `input keyevent 131` 让充电界面退场，`mCurrentFocus`
+   变成目标窗口后截图才稳定。
+3. 手表不派发 `kc=4`，阅读页必须自建返回入口（本例：点书名 `activity.finish()`）。
+
+**结论（✅ 2026-10-29，API 30 / 应用宝容器打包）**
+
+1. API 30 手表上 **WebView 可用**，能渲染远程 HTML 与图片；`loadDataWithBaseURL` 正常。
+2. 青简接口在该表网络下可直连（`curl` 与 App 双通道均通）。
+3. 服务端按 `w/h/fsize` 分页，但**沿用手机参数（1000×2000）更划算**：请求量少 20 倍、
+   页码与手机版一致，文字会按视口重排；图片靠 `max-width:100%!important` 压回。
+4. 圆屏内容必须收进内接正方形（466px → 330px / 165dp），并用 `LayoutParams` 居中。
+5. 手表版与手机版是不同 APK，`getFilesDir()` 各自独立，历史进度**不共享**。

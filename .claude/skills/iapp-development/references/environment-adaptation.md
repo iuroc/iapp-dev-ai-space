@@ -125,7 +125,8 @@ FTP 类通道先分两种情况，判据是**能不能从宿主建立 TCP 连接
 |---|---|---|---|
 | 只装了 iApp、没有 adb 的容器（如应用宝电脑版这类） | 投递工程 | 评估 iApp 内置 FTP；宿主网络不通时先试 `adb forward`（若尚有 adb），否则在设备内终端验证协议 | ⚠/❓ |
 | iApp 跑在 PC 容器里、验收目标却是外接真机 | 开发 → 打包 → 装机 | 容器内打包，`bin/<包名>.apk` 用 FTP `RETR` 取回宿主，再 `adb install -r`；打包前务必在【打包设定so库】勾齐目标 ABI | ✅（2026-10-28，应用宝容器 + OPPO Watch X2） |
-| 圆屏手表（如 466×466 / density 320） | 做界面 | 按 dp 画布（约 233dp）设计、内容收进中央安全区；息屏很积极，取证优先 `logcat` 而不是 `screencap` | ✅（API 30） |
+| 圆屏手表（如 466×466 / density 320） | 做界面 | 按 dp 画布（约 233dp）设计，内容收进内接正方形（直径 / √2）并居中；`layout_gravity` 别指望，用 mjava `LayoutParams` | ✅（API 30） |
+| 手表插 USB 调试 | 截图 / 测按键 | 先 `svc power stayon usb` 防息屏，再用侧键事件（如 `input keyevent 131`）让开充电全屏界面，`mCurrentFocus` 是目标窗口后再 `screencap` | ✅（OPPO Watch X2 / API 30，2026-10-29） |
 | Android 11+ 模拟器 + 共享目录 | 改已存在的文件 | 改完核**设备侧 FUSE 视图**（`/sdcard/...`）的 md5；直挂视图可能已新、FUSE 视图仍旧 | ✅（API 34） |
 | Windows + Git Bash | `adb push` / 传远程路径 | 先 `export MSYS_NO_PATHCONV=1`，否则 `/storage/...` 会被改写成盘符路径 | ✅ |
 | 宿主必须开 Hyper-V（如跑 Docker Desktop） | 跑安卓模拟器 | VirtualBox 系的模拟器多不可用；评估产品自带容器 + FTP 通道 | ⚠ |

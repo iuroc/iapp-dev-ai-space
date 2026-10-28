@@ -389,3 +389,21 @@ new DexClassLoader(d.getAbsolutePath(), …);
   `natpf1 "adb,tcp,,5557,,5555"` 改宿主端口（重启失效，需重加）
 - 两台同时开时不要依赖 `emulator-5554` 这个名字，统一用 `127.0.0.1:<端口>` 显式指定
 - 只开一台时，先启动你要用的那台，再启动另一台就会把 5555 抢走
+
+## 29. `layout_gravity` 在 ppt 里不生效，圆屏要对齐必须走 mjava
+
+实测（2026-10-29，打包版 / API 30 手表）：`FrameLayout` 下三个子控件分别写了
+`layout_gravity=center`、`top|center_horizontal`、`bottom|center_horizontal`，
+运行后**全部堆在 (0,0)**，`layout_gravity` 被忽略（`width/height` 生效）。
+
+做法：在 mjava 里用 `LayoutParams` 摆：
+
+```java
+FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(dp(165), dp(165));
+lp.gravity = Gravity.CENTER;
+view.setLayoutParams(lp);
+```
+
+**圆屏安全区**：直径 D 的圆里最大的内接正方形边长 = `D / √2`。
+466px 屏 → 330px（165dp @density 2）；内容按这个方框居中，四角才不会被裁。
+`layout_gravity` 的旧写法不要指望，写完都要在真机截图上确认一次。

@@ -94,6 +94,21 @@
 9. **启动噪声**：`FileNotFoundException: userencryption.xml` 与
    `ClassNotFoundException: <包名>.IConfig` 会出现在 `System.err`，不影响运行 ✅。
 
+## 取证（✅ 2026-10-29）
+
+表很爱息屏，且插着 USB 时会弹出**充电全屏界面**（`SysUI.Charging`）抢走焦点。
+固定三步，缺一步就会拿到全白截图或拿不到事件：
+
+```bash
+adb -s <serial> shell svc power stayon usb    # USB 供电时常亮，防自动息屏
+adb -s <serial> shell input keyevent 131      # 侧键事件，让充电界面让开焦点
+adb -s <serial> exec-out screencap -p > s.png # 此时截图稳定
+```
+
+- 测完记得还原：`adb shell svc power stayon false`
+- 焦点确认：`dumpsys window | grep mCurrentFocus`，必须是你自己的窗口
+- 应用在后台时表冠/按键事件会被系统收走，`logcat` 里不会有任何记录
+
 ## 未测项（每条都写怎么验）
 
 | 项 | 怎么验 |
