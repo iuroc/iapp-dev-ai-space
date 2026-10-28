@@ -10,6 +10,9 @@ docs/artifacts/
 # 临时反编译/分析产物（含大 APK 与 dump）
 /tmp-recon/
 
+# 本机 FTP 地址/路径（含设备 IP 与端口，不入库）
+/tools/ftp-sync.local
+
 # 大文件与二进制样本：不入库
 *.bin
 *.apk

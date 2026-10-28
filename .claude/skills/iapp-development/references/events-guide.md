@@ -115,6 +115,9 @@ call(null, "mjava", "game.keyCode", st_kC)
 要点：
 
 - 不传 `st_kC` 时事件体照样触发，但 mjava 拿不到按的是哪个键
+- **传参形状要照抄上面示例**：`call(null,"mjava","mod.backKey","D", st_kC)` 两个实参正常；
+  只传 `st_kC` 一个实参时报 `NumberFormatException: For input string: "mod.mjava"`
+  （iApp 解析事件参数时把模块名当数字解析），事件体最好写成单行 ✅（API 34，2026-10-27）
 - **这一条入口就够**：2026-10-26 隔离复核把 `setOnKeyListener` 注释掉，方向键仍全部生效 ✅
 - 不要同时挂 `setOnKeyListener`（可能双触发）；真要兜底，在 mjava 按 `(键码, 120ms)` 去抖
 - 长按会重复触发 `downkey`，同样用去抖吞掉

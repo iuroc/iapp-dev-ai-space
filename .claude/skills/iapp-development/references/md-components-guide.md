@@ -42,6 +42,11 @@ til.updateEditTextBoxBackgroundIfNeeded();   // Material 把盒子贴回去
 
 修完与 mjava 动态创建一致；关键是子控件用 `til.getContext()` 的字号/内边距，并去掉 activity 主题背景。
 
+⚠ **别把 ppt 的 TIL 塞进固定高度的横条**：放进 56dp 顶部栏（`width=0 + layout_weight=1`、`height=-2`）时，
+盒子会被撑到约 90dp，文字下沉并能内部滚动（2026-10-28 青简搜索页实测）。同一配方在纵向列表里正常。
+搜索框这类单行输入更稳的做法：普通 `EditText` + 圆角 `GradientDrawable` 背景 + `setPadding`，
+不用 TIL（青简最终采用）。
+
 ## 动态创建 TIL（仅当 ppt 不可用时）
 
 ```java

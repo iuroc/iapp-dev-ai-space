@@ -3363,3 +3363,464 @@ Caused by: Typed variable declaration : Not an array : at Line: 73 ... [ 0 ]
 **设计器 A/B** 两条独立证据链验证通过。
 
 源码归档：`android-sync/iapp-demo/sbverify-demo/`（`com.demo.sbverify` / `com.demo.sbcrash`）。
+
+---
+
+## 2026-10-28 QJ-P2 搜索接口复查：`keyword` 是假参数（推翻 API-A1 的一条结论）
+
+**触发**：青简搜索页无论输入什么，结果完全一致。
+
+**原始读数**（宿主机直连，同一 `gedeid`）：
+
+```
+keyword=读者      → {"result":1,"msg":{"allCount":2871,...}}  首两条：<同一批>
+keyword=孔子      → {"result":1,"msg":{"allCount":2871,...}}  首两条：<同一批>
+keyword=123331231231232 → allCount=2871
+keyword=zzzzzz    → allCount=2871
+```
+
+参数扫：`keyword / name / title / q / key / word / searchKey / searchText / kw / value / bookName`
+全部返回 `allCount=2871`，首条标题一致 → **参数被忽略，返回的是全量列表**。
+
+路径扫：`/apis/touchBook/search.jspx`、`searchBook.jspx`、`/apis/search/*` 等均返回
+`{"result":0,"errorMsg":"接口路径不存在"}`（`books/search.jspx` 为 404）→ 官方接口没有搜索。
+
+**结论（✅ API 34 环境无关，纯服务端行为）**：`books.jspx` 的 `keyword` 无效，API-A1 里
+“站内搜索可用”是误判——当时只看 `result:1` 和条数，没有比对不同关键词的结果。
+旧版 app 的搜索依赖 `ouyangpeng.top/urls.json` 指向的私有代理，官方没有等价接口。
+
+**替代方案**：客户端全量索引——11 个图书分类 + 7 个期刊分类各拉一次 `pageSize=-1`，
+按 key 去重落盘，之后本地按标题/作者/简介过滤（约 4000 图书 + 500 期刊，首次约 18 个请求）。
+
+---
+
+## 2026-10-28 QJ-P3 目录跳页：`contentIndex` 不是页索引
+
+**现象**：阅读器目录显示「第 100 页」，点击跳到后底部页码显示「第 20 页」（举例）。
+
+**原始读数**（图书 `HYB…`，surl `gede.5read.com/g/c8ef34b77bcb49b790c4df77cd8d4031.h`）：
+
+```
+contents=333  pageAll=333  catalogs=9
+  page=1   contentIndex=0
+  page=2   contentIndex=1
+  page=3   contentIndex=2
+  page=330 contentIndex=6      ← 页号与 contentIndex 不再一致
+  page=332 contentIndex=7
+  page=333 contentIndex=8
+```
+
+**结论（✅）**：`catalogs[].page` 是 1 基页号，直接对应 `contents[page-1]`；
+`contentIndex` 是章节内部的索引，不能拿来当页号。青简原来的 `toc()` 用了 `contentIndex`，所以跳错。
+
+**修法**：`ci = page - 1`，并夹在 `[0, total-1]`。
+
+---
+
+## 2026-10-28 QJ-P4 两个 BeanShell 崩溃点（搜索页首次打开 / 目录跳页回归）
+
+**崩溃读数**（搜索页首次打开，pid 3283）：
+
+```
+W/System.err: java.lang.NullPointerException: Attempt to get length of null array
+    at java.lang.StringFactory.newStringFromChars
+    at java.lang.String.valueOf(String.java:4106)
+    at bsh.Reflect.invokeStaticMethod
+    ... bsh.BSHTypedVariableDeclaration ...
+```
+
+**归因（✅）**：`String st = String.valueOf(i.sss("qj.idx.state"))`，首次打开时该 key 为 null，
+BeanShell 把 `valueOf(null)` 解析到 `valueOf(char[])` 重载，直接 NPE。
+同类写法 `String.valueOf(m.get("total"))` 在旧历史记录上也会踩。
+
+**修法**：统一走 `x == null ? "" : String.valueOf(x)` 的兜底函数；数字解析再包一层默认值。
+
+**另一条（✅ 2026-10-27）**：`downkey` 事件只传 `st_kC` 一个实参时，iApp 报
+`NumberFormatException: For input string: "qj_pages.mjava"`；写成 `"D", st_kC` 两个实参即正常，
+与 navprobe / game2048 的既有形状一致。
+
+---
+
+## 2026-10-28 QJ-P5 搜索框：ppt TIL 放进 56dp 横条被撑高、文字下沉
+
+**现象**（截图）：搜索页顶部 `TextInputLayout` 盒子高约 90dp，占满并溢出 56dp 顶栏；
+hint「书名 / 作者 / 出版社」贴在盒子顶部内侧，输入文字沉到盒子下半部且可内部滚动。
+
+**探针**：`search.iyu` 中 TIL `width=0 height=-2 layout_weight=1`，子控件 `TextInputEditText`；
+`ui_fixField(4)` 按 `md-components-guide.md` 配方修盒子。
+
+**结论（⚠→改方案）**：同一修复配方在纵向列表里正常（`com.demo.m3demo`），
+但放进固定 56dp 的横向栏（weight 撑宽 + wrap 高）后，TIL 的 box 高度按子控件内边距计算，约 90dp，
+在栏内被裁；文字看起来“滚到下面”。
+
+**改法**：搜索框改为普通 `EditText` + 圆角 `GradientDrawable`（22dp）+ 左右 16dp padding，
+不再用 TIL。输入框高度 44dp、`singleLine=true`、`imeOptions=actionsearch`。
+
+---
+
+## 2026-10-28 ENV-1 环境探测首跑（M1：Windows 10 + 雷电 14/9）
+
+**工具**：`docs/scripts/detect_env.py`（本轮新建，只读）
+
+**原始输出**：
+
+```
+== 环境探测 2026-10-28T11:22:01 ==
+宿主  Microsoft Windows 10 专业教育版 10.0.19045
+虚拟化 Hyper-V=off
+产品  雷电模拟器 9 v9.5.42.0 — 运行中
+产品  雷电模拟器 14 v14.0.32.1 — 运行中
+adb   E:\Program Files\platform-tools\adb.EXE (Android Debug Bridge version 1.0.41)
+       emulator-5556 [device] API=34 android=14 model=25102RKBEC iApp=5.0.1013 uid=10072 root=yes 工程根->/storage/emulated/0/Pictures/ProjectApp
+共享  E:\workspaces\2026-10-24-iapp-dev-ai-space\android-sync -> /sdcard/Pictures/ProjectApp [ok]
+FTP   未配置 [skipped]
+通道  shared=ok adb=ok ftp=unknown
+建议  shared（备选 adb）；档案 ldplayer14
+```
+
+**补充读数**（`adb shell`，2026-10-28）：
+
+```
+pm list packages -U com.iapp.app  -> package:com.iapp.app uid:10072
+dumpsys package com.iapp.app     -> versionCode=127 minSdk=21 targetSdk=37 / versionName=5.0.1013
+readlink .../Android/data/com.iapp.app/files/iApp/ProjectApp
+                                 -> /storage/emulated/0/Pictures/ProjectApp
+ls -ld /sdcard/Pictures/ProjectApp-> drwxrwxrwx 1 media_rw media_rw 4096 2026-10-27 21:20
+appops get ... MANAGE_EXTERNAL_STORAGE -> allow
+su -c id                         -> uid=0(root) gid=0(root) context=u:r:su:s0
+```
+
+**进程路径**（区分两套雷电）：
+
+```
+dnplayer        -> C:\leidian\LDPlayer14\dnplayer.exe
+Ld9BoxHeadless  -> C:\Program Files\ldplayer9box\Ld9BoxHeadless.exe
+```
+
+**结论**：
+
+- M1 = 雷电 14（API 34）在连 + 雷电 9（API 28）已装且 VM 引擎在跑但未连 adb ✅
+- 宿主 Hyper-V 未启用（`HypervisorPresent=False`）✅
+- `targetSdk` 实测 37，与 `delivery-guide.md` 里的 36 不符 ⚠（以 37 为准）
+- `dnplayer.exe` 在雷电 9/14 下同名，**只能靠可执行文件路径区分** ✅
+
+---
+
+## 2026-10-28 ENV-2 FTP 通道读数（M2 他机，经交接文档带回，本机未复验）
+
+> 来源：另一台 Windows 11 + 腾讯应用宝电脑版的机器，2026-10-27 在该机实测。
+> 本机（M1）现在无法复验（宿主到雷电内的 FTP 因网关隔离不通，用户 2026-10-28 口述）。
+
+**服务器**：`ftp://172.22.39.216:9527`（该机一次读数，端口每次可能变）
+
+**原始读数（他机）**：
+
+```
+登录            anonymous + 任意邮箱 -> 成功
+FEAT            MLSD MLST SIZE MD5 MODE Z AUTH TLS
+STOR/DELE/MKD/RMD                 -> 全部成功
+MLSD /ProjectApp/<项目ID>          -> 列表中没有 .project；SIZE 145B，与本地 MD5 一致
+STOR 到不存在的父目录              -> 失败（不会自动建父目录）
+传完立即 MD5                       -> 一致
+根目录                             -> ProjectApp/ DownloadFileDir/ Userimg/ screenshot/ *.txt
+```
+
+**结论（级别 ⚠ 他机）**：匿名可读写、`SIZE`/`MD5` 可用、点文件不列、`STOR` 不建父目录。
+宿主可达性因环境而异，不作为通用事实。
+
+**本机补充（2026-10-28）**：`ftp_sync.py` 的参数守卫生效——Git Bash 把
+`--remote /ProjectApp/x` 改写成 `C:/Program Files/Git/ProjectApp/x` 后，脚本按预期拒绝并提示
+`MSYS_NO_PATHCONV=1`（实测，见本轮命令输出）。
+
+---
+
+## 2026-10-28 ENV-3 FTP 通道本机实测（M1 雷电 14，经 adb forward）
+
+**前提**：用户在 iApp 打开服务器控制台，地址 `ftp://172.16.1.87:9527`；
+设备侧 `netstat` 显示 `[::]:9527 LISTEN 5388/com.iapp.app`。
+
+**宿主直连（❌）**：
+
+```
+detect_env.py --ftp 172.16.1.87:9527
+-> FTP 172.16.1.87:9527 [unreachable]（WinError 10061）
+```
+
+宿主不在 172.16.1.x 网段（设备在雷电 NAT 后），直连不可达。
+
+**只转发控制端口（部分可用）**：
+
+```
+adb -s emulator-5556 forward tcp:9527 tcp:9527
+-> detect_env --ftp 127.0.0.1:9527 -> [ok]（登录成功）
+-> 但 NLST 时报 ConnectionRefusedError：
+   PASV 返回 172.16.1.87:<数据端口>，宿主到不了
+```
+
+**主动模式（❌）**：`set_pasv(False)` → `425 Can't open data connection`（超时）。
+
+**逐数据端口转发（✅）**：重写 `makepasv()`——拿到 PASV 端口后 `adb forward tcp:<port>`，
+再连 `127.0.0.1:<port>`。实测每次数据连接会新开端口（如 32969、36219），所以必须逐个转发。
+
+**原始读数（本机，2026-10-28）**：
+
+```
+FEAT   211-Extensions supported
+         SIZE | MDTM | REST STREAM | LANG en;zh-tw;ja;is | MLST Size;Modify;Type;Perm
+         AUTH SSL | AUTH TLS | MODE Z | UTF8 | TVFS | MD5 | MMD5 | MFMT
+PWD    /
+NLST   DownloadFileDir ProjectApp Temp Userimg iAppDir screenshot tempFile
+       igame-helpV1.0.txt igame-<乱码>.txt ijava-helpV3.0.txt ijs-helpV3.0.txt
+       ilua-helpV3.0.txt iyu-helpV3.0.txt iyu-helpV5.0.txt iyu-helpV6.0.txt
+MLSD   /ProjectApp/com.qingjian.reader
+       -> AndroidManifest.xml build.xml files icon.png res sdk src   （无 .project）
+SIZE   /ProjectApp/com.qingjian.reader/.project      -> 213 145
+MD5    /ProjectApp/com.qingjian.reader/src/mian.iyu  -> 341CAFE426CFE30C3BF767EAA2C73474
+本地   src/mian.iyu 4384B md5 341cafe426cfe30c3bf767eaa2c73474（一致）
+```
+
+`ftp_sync.py --adb-forward emulator-5556 --port 9527 --remote /ProjectApp/com.qingjian.reader --dry-run`：
+
+```
+15 个文件；13 个两侧大小一致，2 个本地更大：
+  ~ src/qj_pages.mjava  本地 32423 / 远端 32401
+  ~ src/qj_reader.mjava 本地 9653 / 远端 9642
+```
+
+**写入未验完**：准备在 `/ProjectApp/_ftp_probe_20261028` 做 MKD/STOR/SIZE/MD5/DELE/RMD 时，
+iApp 进程退出（`pidof com.iapp.app` 为空，9527 只剩 TIME_WAIT），连接得到 EOFError；
+探针未创建任何目录或文件。写入能力仍按他机读数记 ⚠。
+
+**结论**：
+- 宿主直连设备 FTP ❌（NAT）✅本机
+- 控制端口 forward 可登录 ✅本机
+- 数据连接必须逐端口 forward；主动模式不可用 ✅本机
+- 点文件不列、`SIZE` 可探、`MD5` 与本地一致 ✅本机
+- 根目录含中文文件名乱码一条（`igame-<乱码>.txt`），编码问题待查 ⚠
+  - **更正（见 ENV-4）**：那是本机控制台编码导致的显示问题；服务端文件名本身是正常 UTF-8
+
+---
+
+## 2026-10-28 ENV-4 FTP 写入与协议细节（M1，iApp pid 6161，经 adb forward）
+
+**环境**：`ftp://172.16.1.87:9527`，设备侧 `[::]:9527 LISTEN 6161/com.iapp.app`；
+宿主经 `adb forward`（控制 + 逐数据端口）连接。探针目录 `/ProjectApp/_ftp_probe_20261028b`，跑完即删。
+
+| 操作 | 结果 | 原始响应 |
+|---|---|---|
+| `MKD root` / `MKD a` / `MKD a/b` | ✅ | 257 逐级创建成功 |
+| `MKD p/q`（父 `p` 不存在） | ❌ | `550 Can't create directory .../p/q` → **MKD 非递归** |
+| `STOR probe.bin`（8192B 随机） | ✅ | 226 Transfer complete |
+| `SIZE probe.bin` | ✅ | `213 8192` |
+| `MD5 probe.bin` | ✅ | `567EB07E…DB55`，与本地一致 |
+| `MLSD root` | ✅ | `['a', 'probe.bin']` |
+| `STOR .probe_dot` / `SIZE` | ✅ | `213 3`；**MLSD 不列点文件** |
+| `STOR "测试 文件.txt"` / `SIZE` | ✅ | `213 5`；MLSD 精确返回 `测试 文件.txt` |
+| `RNFR/RNTO` | ✅ | 250 file renamed |
+| `APPE` +10B | ✅ | `213 8202`（8192+10） |
+| `REST 100` + `RETR` | ✅ | 收到 8102B（8202-100） |
+| `STOR missing/x.bin`（父不存在） | ❌ | **`551 /...: Error on output file`**（不是 550/553） |
+| `DELE` ×3 / `RMD` ×3 | ✅ | 250 |
+| 清理后 `MLSD` | ✅ | 空列表 |
+
+**编码核对（推翻 ENV-3 的乱码结论）**：
+
+```
+MLSD 返回名 repr: '\u6d4b\u8bd5 \u6587\u4ef6.txt'   -> 精确等于「测试 文件.txt」✅
+根目录 igame 手册: 'igame-\u4e2d\u6587\u7f16\u7a0bV1.0.txt' -> 「igame-中文编程V1.0.txt」✅
+```
+
+ENV-3 里看到的 `igame-<乱码>.txt` 是**本机控制台编码**（GBK）造成的显示问题，不是服务端编码问题。
+含中文与空格的路径可正常 `STOR`/`SIZE`/`DELE`，往返一致。
+
+**结论**：FTP 通道的读、写、改名、追加、断点、删除、建/删目录全部可用；
+两个硬约束是 **`MKD` 非递归** 与 **`STOR` 不建父目录（551）**，投递脚本必须先逐级建目录。
+
+---
+
+## 2026-10-28 ENV-5 ftp_sync.py 端到端（M1，经 adb forward）
+
+**探针**：临时本地目录 4 个文件（含 `.project`、`src/sub/`、`sdk/`、5000B 随机二进制），
+远端 `/ProjectApp/_ftp_probe_sync`（隔离目录，跑完删除）。
+
+```
+push : 文件总数 4  上传 4/4  MD5 校验 4  -> 退出码 0
+pull : 文件总数 4  下载 4/4  MD5 校验 4  -> 退出码 0
+两侧 md5sum 全部一致
+pull 不存在的远端 /ProjectApp/_no_such_dir_xyz -> 退出码 5（550 No such directory）
+```
+
+**过程中发现并修掉的两个脚本问题**：
+
+1. **拉取不存在的远端会“成功返回 0 文件”**：`walk_remote` 把 `MLSD`/`NLST` 的失败吞掉了。
+   已改为拉取前先 `CWD <remote>`，失败即退出 5。
+2. **`except (all_errors, RuntimeError)` 抛 TypeError**：`ftplib.all_errors` 本身就是元组，
+   不能嵌套在 `except` 的元组里。已改为 `ALL_ERRORS = all_errors + (RuntimeError,)`。
+
+**清理时的额外验证**：`MLSD` 不列 `.project`，按列表删文件后 `RMD` 报
+`450 Can't remove directory`——必须按 `DOTFILES` 点名删点文件，再自底向上删目录。
+清理后 `/ProjectApp` 下恢复为 19 个工程，无残留。
+
+---
+
+## 2026-10-28 QJ-P6 阅读接口分段与虚拟尺寸
+
+**探针**（同一本图书，token 复用）：
+
+```
+psize=10000              -> contents=333  catalogs=9  pageAll=333
+psize=30                 -> contents=30   catalogs=9  pageAll=333   # 目录不受 psize 限制
+psize=1                  -> contents=1    catalogs=9  pageAll=333   # 取目录的最省请求
+psize=10&page=1 vs page=2 -> p2[0] == p1[1]                          # page 是 1 基内容起点
+psize=30&page=31         -> 从第 31 条内容开始
+w=1000&h=2000            -> pageAll=91，目录页号同步缩放（330→89 / 333→91）
+w=2000&h=2000            -> pageAll=85
+```
+
+**结论（✅）**：
+1. `page` 是内容起点（1 基），配合 `psize` 可做分段拉取；`page=31&psize=30` 取 31–60 页。
+2. `psize=1` 也返回完整 `catalogs`，目录可以单独便宜地取。
+3. `w/h` 决定服务端分页，必须固定一组值（青简用 1000×2000）；否则 `pageAll`、目录页号、分段边界全对不上。
+4. 正文 HTML 无内联宽度；图片带 `width/height` 属性，需要 `max-width:100%!important;height:auto!important` 覆盖，
+   并关闭 WebView 的 wide viewport / overview mode，宽屏才会铺满。
+## 2026-10-28 DOC-1 三层文档架构体检与 review skill 落地
+
+**新建** `.claude/skills/docs-architecture/`：`SKILL.md` + 4 份 references（architecture / evidence-and-levels / maintenance / review-checklist）
++ `scripts/review_docs.py` + `review_config.json` + `scripts/README.md`。
+根 `CLAUDE.md` 的三层判据、目录约定、知识沉淀细则迁入该 skill，`CLAUDE.md` 只留 8 条要点 + 指针。
+
+**体检输出（`e55723b` 基线，59 个 Markdown）**：
+
+```
+阻断 0 / 应修 64 / 建议 21
+LEVEL-03×23  LEVEL-05×15  LINK-03×20  LINK-02×12  LINK-04×11  NUM-01×3  LINK-01×1
+```
+
+**首跑到收敛的校准记录**（198 阻断 → 0）：
+
+| 误报来源 | 处理 |
+|---|---|
+| 代码块里的示例路径被当死链 | 跳过 fenced code |
+| 整份 `SKILL.md` 的表格被当索引进 | 索引只扫「导航」小节，且只认首列是反引号路径的行 |
+| 多行命令被逐行判缺参 | 按反斜杠续行拼接后再判 |
+| 三列能力矩阵被当「同格多级别」 | 级别判断改为按单元格，且只看 ✅+⚠ |
+| 版本号 `9.5.42.0` 被当 IPv4 | 行内含 LDPlayer/版本 时跳过 IP 检查 |
+| `C:\Program Files` 被截成 `C:\Program` | 盘符正则吃到反引号或行尾 |
+
+**本轮修掉的阻断项**：SKILL 里的真实 IP（`ftp-delivery.md`、`ftp_sync.py`）、作者盘符（`emulator-setup.md`、`icon-guide.md`、`scripts/README.md`、`make_icon.py`）、
+他机读数写成 ✅（`tencent-appstore-pc.md`、`environments/README.md`）、`CLAUDE.md` FTP 示例缺 `--remote`/`--port`、`--tls` help 与实现不符、
+`targetSdk 37/36` 被当成矛盾（改为「安装包 37 / 打包产物 36」）、`scripts/README` 漏 `dex_common.py`、`docs/scripts/README.md` 缺失。
+
+**未修（留作下一轮应修）**：`✅` 缺日期 23、`❓` 缺验证法 15、跨 skill 引用缺前缀 20、历史 spec 的行号引用 12 与 `cases/` 死链 11、数值口径分组 3。
+
+**反向验证**：临时目录里造「死链 + 他机 ✅ + 缺索引」三类问题，脚本全部报出且退出码 1。
+
+---
+
+## 2026-10-28 CAP-1 BeanShell 匿名接口捕获形参/局部变量（com.demo.captureprobe，API 34）
+
+**探针**：`mian.iyu` 的 `loading` → `cap.boot()`，五项各建一个匿名回调，回调里直接读外层变量，
+不带 `final`。
+
+**原始读数**（用户控制台）：
+
+```
+CAP t1 tag=T1         # Thread(Runnable) 读局部 String
+CAP t2 n=42           # runOnUiThread(Runnable) 读局部 int
+CAP t3 who=T3-arg     # OnClickListener 读方法形参
+CAP t4 size=2         # OnClickListener 读局部 ArrayList
+CAP t5 sb=XY          # 回调创建后 sb.append("Y")，回调读到 XY → 按引用捕获
+CAP done
+```
+
+**结论（✅ API 34）**：匿名接口回调可以捕获方法形参和局部变量，不需要 `final`；
+对象按引用捕获。未覆盖：回调创建后重新赋值局部变量时的可见性（❓）。
+
+---
+
+## 2026-10-28 WATCH-1 iApp 打包 APK 在 OPPO Watch X2 上安装并运行（用户口述）
+
+**探针**：无新探针。用户把 iApp 打包产物（同 `docs/artifacts/packaged.apk` 一类：4.7 MB、
+minSdk 21 / targetSdk 36 / `lib/` 仅 `arm64-v8a`）侧载到 OPPO Watch X2 实机。
+
+**原始读数**（用户口述，未取 logcat / screencap）：
+
+```
+安装：成功
+启动：成功，界面能打开运行
+```
+
+**结论（⚠ 口述，未复测）**：
+1. iApp 打包 APK 是自包含标准 APK，可以侧载到手表，**不需要在表上装 iApp 本体**。
+2. 反推：该手表用户空间支持 `arm64-v8a`（APK 内原生库只有这一种 ABI）。
+3. 待补读数：API 级、`abilist`、屏幕密度、圆屏裁切范围、桌面入口位置、表上 adb logcat 可用性
+   —— 见 `docs/environments/oppo-watch-x2.md` §未测项。
+
+## 2026-10-28 QJ-P7 原生底部抽屉（BottomSheetDialog）与可变参数调用
+
+**探针 / 读数**：
+
+```
+# iApp 自带 dex 是否含 Material 抽屉类（pull base.apk 后按 dex 查字符串）
+classes4.dex: bottomsheet/BottomSheetDialog, bottomsheet/BottomSheetBehavior, shape/MaterialShapeDrawable
+
+# 抽屉内容里的骨架屏（ObjectAnimator 可变参数）
+JavaErr: Static method ofFloat( android.widget.LinearLayout, java.lang.String, float, float )
+         not found in class'android.animation.ObjectAnimator'
+# 改法：ObjectAnimator.ofFloat(v, "alpha", new float[]{0.45f, 1f}) -> 正常
+```
+
+**结论（✅，API 34 / iApp 5.0.1013）**：
+1. iApp 的 Material 是完整 AAR，`BottomSheetDialog` / `BottomSheetBehavior` / `MaterialShapeDrawable`
+   都能在 mjava 里直接 `new`，不需要 build.xml 登记（登记只针对 `.iyu` 的 `type=`）。
+2. 用 `new BottomSheetDialog(activity)` + `setContentView` 即得到原生模态抽屉：贴底、
+   只圆上边两角、遮罩、下滑/外点关闭、`getBehavior().setState(STATE_EXPANDED)` 控制展开高度。
+3. 想改抽屉底色而不丢圆角：`show()` 后取内容视图的 `getParent()`（= design_bottom_sheet），
+   若背景是 `MaterialShapeDrawable` 就 `setFillColor(...)`，**不要** `setBackgroundColor`（会抹掉形状）。
+   ⚠ 2026-10-28 修正：只有 `setFillColor(ColorStateList)` 重载，传 int 会闪退，见下面 QJ-P8。
+4. 可变参数方法必须显式传数组，见 SKILL `mjava-guide` §调 Material / 框架的可变参数方法。
+
+## 2026-10-28 QJ-P8 阅读设置面板：抽屉上色闪退、嵌套滚动、入口 import（API 34）
+
+**探针 / 读数**（青简 `com.qingjian.reader`，mjava 源码即探针）：
+
+```
+# 1) 切纸色时闪退（setFillColor 传 int）
+E/AndroidRuntime: FATAL EXCEPTION: main
+E/AndroidRuntime: Process: com.iapp.app, PID: 2914
+E/AndroidRuntime: java.lang.reflect.UndeclaredThrowableException
+                 at $Proxy4.onClick(Unknown Source)
+E/AndroidRuntime: Caused by: Error in method invocation:
+                 Method setFillColor( int ) not found in class
+                 'com.google.android.material.shape.MaterialShapeDrawable'
+                 Called from method: set_put / set_click / onClick
+W/System.err: java.lang.Exception: call killProcess callstack! pid=2914
+
+# 2) 底栏翻页失效（跨模块方法没 import）
+JavaErr: Command not found: set_css() : at Line: 132 : in file: inline evaluation of: qj_reader.mjava
+         Called from method: reader_html : at Line: 260 … reader_render … reader_step … next
+（只打印 JavaErr + 翻页无效，进程不崩）
+
+# 3) 抽屉内滚动：ScrollView 往上拖会带关抽屉；换 NestedScrollView 后正常
+（用户口述：往下滚可以，往回滚抽屉被拖走；替换后回滚正常、滚到顶才收起）
+```
+
+**结论（✅，API 34 / iApp 5.0.1013）**：
+1. `MaterialShapeDrawable` 只有 `setFillColor(ColorStateList)`；传 int 报
+   `Method setFillColor( int ) not found`，而 EvalError 在**匿名接口回调**里 `catch (Throwable)` 接不住，
+   被包成 `UndeclaredThrowableException` 穿到点击分发 → iApp 杀进程。
+2. 同一个 EvalError 出现在 iyu 事件直接 `call(...)` 的入口时只打印 `JavaErr`、中断本次调用，不崩。
+   → UI 回调里禁止出现“方法可能不存在”的调用（同名重载、varargs、拼错）。
+3. iyu 每次事件是新解释器：`prev/next` 只 `i.fn` 了 `qj_ui/qj_core/qj_store`，内部改调
+   `qj_set.set_css()` 就 `Command not found`。每个入口必须自己 import；被多入口复用的方法在体内再 import 一次。
+4. 抽屉内滚动要用 `androidx.core.widget.NestedScrollView`（`ScrollView` 不是 NestedScrollingChild，
+   `BottomSheetBehavior` 感知不到内容位置，会抢走回滚手势）。
+5. 抽屉底色要在首帧前刷：`setContentView()` 后、`show()` 前沿 `root.getParent()` 往上遍历刷
+   `MaterialShapeDrawable.fillColor`；只在 `show()` 后刷会有一条白帧。
+   本次同时确认：`show()` 刚返回时 `root.getParent()` 常常还不是圆角面板，
+   所以上一版写成 int 的那行**从未执行**（这也是它当时没崩的原因）。
+
+**产品改动（顺带记录，非探针）**：阅读页底栏 88dp → 56dp，只留上一页/页码/下一页；
+新增 `qj_set.mjava`（原生 BottomSheetDialog 设置面板：字号/字间距/行距/字体/纸色/屏幕常亮 + 恢复默认）；
+设置落盘 `filesDir/qingjian/settings.json`；默认值唯一来源 `qj_store.store_defaults()`；
+点屏翻页区与「翻页方式」设置按用户要求移除（只保留底栏按钮）。

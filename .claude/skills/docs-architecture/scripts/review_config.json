@@ -1,0 +1,141 @@
+{
+  "_comment": "review_docs.py 的只读配置。调误报改这里，不改代码。",
+  "include": [
+    "CLAUDE.md",
+    "docs/**/*.md",
+    ".claude/skills/*/SKILL.md",
+    ".claude/skills/*/references/*.md",
+    ".claude/skills/*/scripts/README.md"
+  ],
+  "exclude_dirs": [
+    ".git",
+    "android-sync",
+    "tmp-recon",
+    "docs/artifacts",
+    ".superpowers",
+    "__pycache__",
+    ".claude/worktrees"
+  ],
+  "history_files": [
+    "docs/evidence.md",
+    "docs/superpowers/plans",
+    "docs/superpowers/specs"
+  ],
+  "allow_missing": [
+    "tools/ftp-sync.local"
+  ],
+  "allow_missing_prefix": [
+    "docs/artifacts/"
+  ],
+  "skill_fact_ignore_files": [
+    "check_portable.py",
+    "review_docs.py"
+  ],
+  "tombstones": [
+    "cases/[A-Za-z0-9_]"
+  ],
+  "index_map": [
+    {
+      "index": ".claude/skills/iapp-development/SKILL.md",
+      "section": "导航",
+      "scope": [".claude/skills/iapp-development/references/*.md"]
+    },
+    {
+      "index": ".claude/skills/iapp-development/scripts/README.md",
+      "scope": [".claude/skills/iapp-development/scripts/*.py"]
+    },
+    {
+      "index": "docs/README.md",
+      "scope": [
+        "docs/*.md",
+        "docs/environments",
+        "docs/scripts",
+        "docs/reference",
+        "docs/superpowers",
+        "docs/artifacts"
+      ]
+    },
+    {
+      "index": "docs/environments/README.md",
+      "scope": ["docs/environments/*.md"]
+    },
+    {
+      "index": "docs/scripts/README.md",
+      "scope": ["docs/scripts/*"]
+    },
+    {
+      "index": ".claude/skills/docs-architecture/SKILL.md",
+      "section": "导航",
+      "scope": [".claude/skills/docs-architecture/references/*.md"]
+    },
+    {
+      "index": ".claude/skills/docs-architecture/scripts/README.md",
+      "scope": [".claude/skills/docs-architecture/scripts/*.py",
+                ".claude/skills/docs-architecture/scripts/*.json"]
+    }
+  ],
+  "portable_script": ".claude/skills/iapp-development/scripts/check_portable.py",
+  "skill_dirs": [
+    ".claude/skills/iapp-development",
+    ".claude/skills/docs-architecture"
+  ],
+  "allowed_ip_prefixes": [
+    "127.",
+    "0.0.0.0",
+    "10.0.2.2",
+    "192.0.2.",
+    "198.51.100.",
+    "203.0.113."
+  ],
+  "allowed_paths": [
+    "C:\\Program Files",
+    "C:\\Program Files (x86)",
+    "C:\\LDPlayer",
+    "C:\\ProgramData",
+    "C:\\Users",
+    "E:\\Program Files",
+    "C:/Program Files/Git",
+    "C:\\Program Files\\Git"
+  ],
+  "ip_context_allow": [
+    "LDPlayer",
+    "dnplayer",
+    "版本",
+    "version"
+  ],
+  "level_dirs": [
+    "docs/environments/",
+    "docs/ui-skills.md",
+    "docs/runtime-env.md"
+  ],
+  "rule_phrases": [
+    "级别只升不降",
+    "一条结论只放一个主文件",
+    "先证据后结论",
+    "他机读数最高"
+  ],
+  "numeric_patterns": {
+    "targetSdk": "targetSdk[^0-9]{0,12}(\\d{2})",
+    "UID": "u0_a(\\d+)",
+    "serial": "emulator-(\\d+)"
+  },
+  "known_split": [
+    "targetSdk"
+  ],
+  "arg_scripts": [
+    ".claude/skills/iapp-development/scripts/ftp_sync.py",
+    "docs/scripts/detect_env.py"
+  ],
+  "arg_rules": {
+    "ftp_sync.py": {
+      "required": ["--remote"],
+      "required_unless": {
+        "--host": ["--adb-forward"]
+      }
+    }
+  },
+  "ignore_options": [
+    "--help",
+    "-h"
+  ]
+}

@@ -52,11 +52,11 @@
 |---|---|---|
 | 图书分类 | `GET /apis/touchBook/books.jspx?cataid=<id>&page=<n>&pageSize=<n>&gedeid=84751638` | `msg.page/pageCount/allCount/list[]`；item：`title, author, summary, bookNum, cover, bcover, isbn, publish, pageNum, newbook, hotbook, surl, urlid, type` |
 | 期刊分类 | `GET /apis/magazine/magazines.jspx?cataid=<id>&page=<n>&pageSize=<n>&gedeid=84751638` | item：`name, id(数字), magazineNum, coverPath, summary, ISSN, CN, surl, urlid` |
-| 图书搜索 | `GET /apis/touchBook/books.jspx?keyword=<utf8 编码>&page=<n>&pageSize=<n>&gedeid=84751638` | 同上；可叠加 `cataid` 限定分类 |
+| 图书搜索 | ❌ **没有服务端搜索**：`books.jspx?keyword=`（以及 `name/title/q/key/word/searchKey/searchText/kw/value/bookName`）全部被忽略，任何关键词都返回全量 2871 条 | 搜索结果改为客户端全量索引（见 §6） |
 | 期刊期次 | `GET /apis/magazine/magazineItems.jspx?magazineid=<数字 id>` | `msg.magazine`、`msg.itemList[]`：`magazineItemNum, issue, name, coverPath, id, sort, surl` |
 
 - 分页两个列表都实测可用（`page` + `pageSize`，`pageSize=-1` 返回全部）
-- 期刊**没有** keyword 搜索：`magazines.jspx?keyword=` 返回“未获取到数据”
+- 期刊同样没有 keyword 搜索；图书期刊都走客户端索引过滤
 - 期刊期次只认数字 `id`；传 `MZ...` 编号报“magazineid 不能为空或参数不正确”
 - 失败的统一形态：`{"result":0,"errorMsg":"…"}`
 
@@ -85,7 +85,7 @@
 
 ### 4.4 失效与替代
 
-- `http://ouyangpeng.top/urls.json`（旧搜索配置源）已 302 到无关站点 → 彻底不用，搜索改走 `books.jspx?keyword=`
+- `http://ouyangpeng.top/urls.json`（旧搜索配置源）已 302 到无关站点 → 彻底不用；旧版的“搜索”其实依赖这个私有代理，官方接口没有搜索
 - 期刊 `magazineItems` 的 `magazineNum` 参数失效 → 用数字 `id`
 
 ## 5. 产品结构
@@ -140,8 +140,8 @@
 
   - 图书 key = `bookNum`；期刊 key = 期次的 `magazineItemNum`
   - 期刊也进足迹；`surl` 必须存，否则无法重建阅读流程
-- 搜索：图书在线分页；期刊索引在**搜索页首次打开时**后台拉全 7 个分类（`pageSize=-1`，约 495 条）
-  并落盘缓存，按名称 / 简介 / ISSN / CN 本地过滤；拉取期间展示「正在建立期刊索引」
+- 搜索：**本地全量索引**。搜索页首次打开时后台拉全 11 个图书分类 + 7 个期刊分类（`pageSize=-1`，约 4000 + 500 条），
+  按 key 去重后落盘缓存；之后按标题 / 作者 / 简介本地过滤，结果分「图书」「期刊」两段。索引建立期间显示进度与「结果会随索引补全」
 
 ## 7. 技术方案
 
@@ -168,7 +168,17 @@ com.qingjian.reader/
   阅读器必须拿到 `surl` 才能换 `detailUrl` token；只给 `bookNum` 打不开内容。
   返回结果同样走 `i.sss` + `finish()`
 
-### 7.2 布局与组件
+### 7.2 主机与借阅机 ID 的存放
+
+`gede.5read.com` 与 `gedeid=84751638` 不以明文出现在源码里：两者拼成
+`host|id` 后按固定 key 逐字节 XOR，以 `int[]` 常量嵌进 `qj_core`，运行时还原
+（`core_host()` / `core_gedeid()` / `core_web()`）。
+
+- 目标只是**避免源码明文**，不防抓包；已在设计上接受被抓包的风险
+- key 也写在源码里，属于混淆而非密码学保护；真要换 key 只需重算数组
+- 新增接口地址一律走 `core_api(path)` / `core_web()`，不要手写域名
+
+### 7.3 布局与组件
 
 - 布局与静态文字写在 `.iyu`；颜色、圆角、运行期内容在 mjava 补
 - Material 组件一律 ppt 全类名 + `build.xml` 登记；每个组件在 `qj_ui` 里有一个封装方法
@@ -187,7 +197,17 @@ com.qingjian.reader/
 - 翻页手势：WebView 外层覆盖左右各 1/3 的透明点击区；WebView 内注入触摸监听做横滑，
   与点击区互斥（滑动优先，位移超过阈值才算翻页）
 - 字号三档改 CSS `font-size`，不重新拉接口
-- 目录项按 `contentIndex` 跳页；`pageAll` 作为总页数
+- 目录跳页用目录项的 `page`（1 基页码）→ `contents[page-1]`；**不要用 `contentIndex`**，
+  它是章节内部索引，和页号不对应（实测 page=330 时 contentIndex=6）；`pageAll` 作为总页数
+- **分段加载**：目录用 `psize=1` 一次取全（catalogs 不受 psize 限制）；正文每次 30 页，
+  `page=<起始页>`、`psize=30`（`page` 是 1 基内容起点，实测 page=2 的首条 = page=1 的第 2 条）；
+  每段落盘缓存为 `chunk_<itemKey>_<start>`
+- **虚拟尺寸固定**：所有 readNew 请求带 `w=1000&h=2000`。服务端按它分页，不同 w/h 会改变
+  `pageAll` 与目录页号（同一本书：默认 333 页，1000×2000 为 91 页，2000×2000 为 85 页），
+  必须每次一致；我们只滚屏，不关心实际宽高
+- **排版宽度自适应**：viewport `width=device-width` + `img{max-width:100%!important;height:auto!important}`，
+  WebView 关闭 wide viewport / overview mode，避免宽屏右侧留白
+- **目录对话框**：自绘列表，当前章用 `primaryContainer` 底 + 加粗 + 自动滚到可视区
 - 加载失败显示重试按钮，保留上一页内容不白屏
 
 ### 7.4 缓存与错误

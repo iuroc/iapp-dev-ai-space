@@ -34,9 +34,12 @@ import android.widget.TextView;
   常见于只写了方法、没写 import 的模块；`importAll()` 只负责加载子模块，**不能替代 import**
 - **反射加载应用内类**：用 `activity.getClassLoader().loadClass(name)`；
   `Class.forName(name)` 在 BeanShell 里看不到应用类（实测 35 个 Material 类全部 lookup-fail）
-- **全限定名不总是能用**：`org.json.JSONObject` 被解析成「类 `org` 的静态字段 `json`」，
-  报 `No static field or inner class: json of class org` ✅（API 34，2026-10-27）。
-  `org.json.*` 必须 `import org.json.JSONObject;` / `import org.json.JSONArray;` 后写短名。
+- **全限定名不能出现在「类型声明」和 `new` 里**：BeanShell 把第一段当类名去找内部类/静态字段，
+  报 `No static field or inner class: <第一段> of class <第一段>`。实测踩过三例：
+  `org.json.JSONObject`（`... json of class org`）、
+  `com.google.android.material.progressindicator.CircularProgressIndicator`（`... google of class com`）、
+  `androidx.appcompat.app.AlertDialog`（`... appcompat of class androidx`）✅（API 34，2026-10-27/28）。
+  一律 `import` 后用短名；表达式里的静态常量（`android.view.Gravity.CENTER`）不受影响。
 
 ## 两个默认对象
 
@@ -77,6 +80,34 @@ call(r, "mjava", "app5.add", 3, 4)    // 有参、取返回值
     }
     ```
 
+## 写模块前的 10 秒自检
+
+整个模块会因为一处语法被拒而**全部失效**，而且没有编译期提示。新增/修改 mjava 后先跑一遍：
+
+```bash
+grep -nE 'final |0x[89A-Fa-f][0-9A-Fa-f]{3,}|\.\.\.|->|new bsh\.' src/*.mjava
+```
+
+命中 `final`（形参/局部）、大十六进制字面量、可变参数、lambda、`new bsh.*` 都要改写——
+它们都是「解析失败 → 模块整体不加载」的那一类，不是运行期异常。
+
+更省事的方式是直接跑随包脚本（覆盖上面所有项 + 全限定名 + 非法转义）：
+
+```bash
+python scripts/check_mjava.py <工程>/src
+```
+
+退出码非 0 就不要投递。
+
+另外单独扫一遍可变形参的 Material 调用：
+
+```bash
+grep -n "setIndicatorColor(" src/*.mjava
+```
+
+每一处都必须写成 `setIndicatorColor(new int[]{color})`；单值 `int` 会抛
+`Method setIndicatorColor( int ) not found` 并中断当前调用链（2026-10-28 又踩一次）。
+
 ## 铁律表（API 28 实测）
 
 | 写法 | 结果 | 错误原文 |
@@ -94,6 +125,7 @@ call(r, "mjava", "app5.add", 3, 4)    // 有参、取返回值
 | 匿名实现 `Runnable`（`new Thread(...)` / `runOnUiThread(...)`） | ✅ 可用（API 34） | — |
 | 后台线程里抛出 BeanShell 解析/求值错误 | ❌ **整个进程被杀** | `java.lang.reflect.UndeclaredThrowableException at $Proxy5.run`；线程内的 `try/catch(Throwable)` 接不住，异常穿过 bsh Proxy 直达 `Thread.run` |
 | 循环变量取名 `i` | ✅ 不遮蔽 iApp 的 `i`（循环后 `i != null`） | — |
+| `String.valueOf(可能为 null 的值)` | ❌ NPE 并中断 | `NullPointerException: Attempt to get length of null array`（BeanShell 选中 `valueOf(char[])`）；用 `o == null ? "" : String.valueOf(o)` 或 `"" + o` ✅（API 34，2026-10-27） |
 
 循环体内 `i` 就是那个整数，不能写 `i.sss`；要在循环里用 iApp 的 `i`，先 `Aid_javaCode app = i;`，或把循环变量改叫 `idx`。
 
@@ -110,9 +142,40 @@ iApp 5.0.1013 的 `base.apk` 里能读到 BeanShell `2.0b4`，早于 Java 7/8：
 - BeanShell 不能直接调用形参是 `int...` / `Object...` 的方法（Material 里常见，如
   `ProgressIndicator.setIndicatorColor(int...)`）：解析失败，整个方法中断，`catch` 接不住
 - 退到父类或等价 API：如进度条颜色改用 `ProgressBar.setProgressTintList(ColorStateList)`（⚠ 未实测）
+- **可变参数方法要显式传数组**，否则按固定参数匹配失败 ✅（API 34，2026-10-28，青简 QJ-P7）：
+  `ObjectAnimator.ofFloat(v, "alpha", 0.45f, 1f)` →
+  `JavaErr: Static method ofFloat( android.widget.LinearLayout, java.lang.String, float, float ) not found`，
+  改成 `ObjectAnimator.ofFloat(v, "alpha", new float[]{0.45f, 1f})` 即正常；
+  `int...` 同理（`setIndicatorColor(new int[]{c})`）
 - 调用了不存在的方法同样中断：`Command not found: xxx( … )`，是 EvalError
+- **重载要按目标版本的签名写**：`MaterialShapeDrawable` 在这个版本里只有
+  `setFillColor(ColorStateList)`，**没有** `setFillColor(int)` ✅（API 34，2026-10-28，青简 QJ-P8）：
+  `Method setFillColor( int ) not found in class 'com.google.android.material.shape.MaterialShapeDrawable'`。
+  改法：`setFillColor(ColorStateList.valueOf(color))`。同名方法先确认重载表，别按新版本 SDK 的印象写
+- **EvalError 会穿破 `catch (Throwable)`，破坏面和“解析失败”一样大** ✅（同上，API 34）：
+  - 在**匿名接口回调**（`OnClickListener` / `OnChangeListener` 这类 Proxy 回调）里抛出的 EvalError
+    接不住，会以 `java.lang.reflect.UndeclaredThrowableException` 穿到点击分发线程，
+    iApp 的 `KillApplicationHandler` 直接杀进程（日志尾部 `java.lang.Exception: call killProcess callstack!`）
+  - 对比：iyu 事件直接 `call(...)` 的入口抛 EvalError，iApp 只打印 `JavaErr` 并中断本次调用，**不崩**
+  - 做法：回调里只写已实机验证过的调用；新控件/新方法先在 iyu 入口跑一次，再搬进回调
+- **匿名接口回调可以直接读外层形参与局部变量，不需要 `final`** ✅（API 34，2026-10-28，
+  探针 `com.demo.captureprobe`）：`new Thread(new Runnable(){...})`、`activity.runOnUiThread(...)`、
+  `View.OnClickListener` 里读局部 String / int / 方法形参 / 局部 ArrayList 全部正常；
+  对象按引用捕获（回调前 `sb.append("Y")`，回调里读到 `XY`）
+- 未覆盖 ❓：回调创建后**重新赋值**同一个局部变量，回调读到旧值还是新值（探针没测这一项）
+- 仍建议长生命周期回调不依赖捕获，改用 `view.getTag()` 或 `i.sss`，避免持有过期引用
 - 结论：方法名按**通用 Material API** 写；只有不确定存在的调用才先做静态核对，
   不要为了“保险”把整张 API 表抄进 SKILL
+
+### 原生底部抽屉里的滚动与上色
+
+- 抽屉内容要能滚动就用 `androidx.core.widget.NestedScrollView`，**不要用** `android.widget.ScrollView`
+  ✅（API 34，2026-10-28，青简 QJ-P8）：`ScrollView` 不是 NestedScrollingChild，
+  `BottomSheetBehavior` 看不到内容滚到哪，手指往回拖会被当成拖抽屉 → 直接收起，内容回滚不了。
+  换成 `NestedScrollView` 后内容先滚、滚到顶才轮到抽屉，`setSkipCollapsed(true)` 照旧
+- 抽屉底色要在**首帧之前**刷：`setContentView()` 之后、`show()` 之前沿 `root.getParent()` 往上遍历几层，
+  遇到 `MaterialShapeDrawable` 就 `setFillColor(ColorStateList.valueOf(...))`；
+  只在 `show()` 之后刷会有一条白帧（深色主题下明显）。`show()` 后再补刷一两次兜底
 
 ### 版本前提（不要外推）
 
@@ -137,6 +200,13 @@ int n = b_add(2, 3);  // 有返回值也直接接
 - 同名方法后加载覆盖；子模块方法加前缀避免
 
 ### 铁律：先加载，再调用
+
+- **每个 iyu 事件入口都要自己 `i.fn(...)`** ✅（API 34，2026-10-28，青简 QJ-P8）：
+  iyu 每触发一次事件就是新解释器，上一次入口 `i.fn` 过什么不会带过来。`prev/next` 只 import 了
+  `qj_ui/qj_core/qj_store`，内部改成调 `qj_set` 的 `set_css()` 后立刻
+  `Command not found: set_css()`（不崩，但翻页失效）。会被多个入口复用的方法（渲染、取色、格式化）
+  在方法体内再 `i.fn` 一次，别依赖调用方先热身。
+
 
 未加载就调用：
 

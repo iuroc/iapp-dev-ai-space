@@ -51,3 +51,13 @@ Called from method: bare : at Line: -1 : in file: <Called from Java Code> : <Com
 - 解析期错误（`MJavaErr`）发生在模块加载前，模块里的 `try/catch` 还没机会执行，**兜不住**；能兜的是方法体内的运行期 Java 异常
 - 影响范围是模块级：该模块所有方法都不可用；其它模块和已加载模块不受影响，后续语句继续；如果随后调用该模块的方法，会再触发 `JavaErr`（`Command not found`），中断本次 call
 - 行号只在 `at Line: N` 里对模块文件有效；iApp 弹窗里的「mian.iyu 第 N 行」不可靠
+
+### 正则/转义写错：模块整体 Token Parsing Error
+
+```
+MJavaErr: Token Parsing Error: Lexical error at line 215, column 50.
+Encountered: "s" (115), after : "\"detailUrl:\\"
+```
+
+Java 字符串里 `\s` 才是正则的 `\s`；写成单反斜杠 `"detailUrl:\s"` 不是合法转义，
+BeanShell 直接判整个模块不可用（不是只坏一行）。日志里的行号可信，按行号改。

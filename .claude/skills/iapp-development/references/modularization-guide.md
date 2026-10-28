@@ -140,6 +140,10 @@ util  ←  core / store / ui / anim / input  ←  game(facade)
 - 模块级变量也在同一命名空间：同名变量互相覆盖，常量也加前缀。
 - `importAll()` 只由 facade 定义；子模块不要定义，否则后加载的会覆盖 facade 的。
 - 用 `i.call` 或 `.iyu` 的 `"模块.方法"` 形式时，方法名按模块隔离；但同一模块内仍要唯一。
+- **每个 iyu 入口的 `i.fn` 要覆盖整条调用链**，不是只覆盖它直接调的方法。实测事故：
+  `qj_reader.next()` 只 `i.fn("qj_ui","qj_store")`，翻到未缓存页时链路走到 `core_readPage()`，
+  后台线程里报 `Command not found`，异常穿透线程直接杀进程 ✅（API 34，2026-10-28）。
+  规则：入口 → 渲染 → 拉数据 → 写缓存，每一跳用到的模块都要在入口加载。
 - **点号后那一段就是方法名本身**：模块里必须真有叫 `method` 的方法。入口写成 `probe_boot` 再
   `call(null,"mjava","qj_probe.boot")` 会报
   `Method boot() not found in bsh scripted object: global` ✅（API 34，2026-10-27）。

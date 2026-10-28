@@ -6,7 +6,7 @@
 
 | 占位 | 示例 |
 |---|---|
-| 宿主工作区 | `D:\iAppWorkspace\sync` |
+| 宿主工作区 | `<宿主共享目录>` |
 | 设备共享存储 | `/sdcard/Pictures`（= `/storage/emulated/0/Pictures`） |
 | iApp 包名 | `com.iapp.app` |
 | 工程 ID | `<项目ID>`（如 `com.demo.xxx`） |
@@ -25,8 +25,8 @@
 
 ```
 Windows 工作区                        模拟器共享目录                 设备
-D:\iAppWorkspace\sync          <──────────────────────>        /sdcard/Pictures
-D:\iAppWorkspace\sync\ProjectApp        ≡                       /sdcard/Pictures/ProjectApp
+<宿主共享目录>          <──────────────────────>        /sdcard/Pictures
+<宿主共享目录>\ProjectApp        ≡                       /sdcard/Pictures/ProjectApp
                                                                   └─ <项目ID>/src/mian.iyu
 ```
 
@@ -48,6 +48,9 @@ D:\iAppWorkspace\sync\ProjectApp        ≡                       /sdcard/Pictur
 5. **多设备一律 `adb -s <serial>`**；投递前 `getprop ro.build.version.sdk` 核对，别信 `emulator-5554` 这个名字。
 6. 权限：安卓 9 用 `READ/WRITE_EXTERNAL_STORAGE` 运行时权限；安卓 11+ 广域文件用 `MANAGE_EXTERNAL_STORAGE`（appop）；`READ/WRITE_EXTERNAL_STORAGE` 在 13+ 不再给广域访问，媒体用 `READ_MEDIA_*`；app 私有目录不需要这些权限。
 7. 安卓 14 的 `Android/data/<包名>` 只有该 app 自己的 mount namespace 能访问；普通 `adb shell` 会被 FUSE 拒绝，建链接必须 `su`。
+8. **没有共享目录、也没有 adb 时**：评估 iApp 内置 FTP（`references/ftp-delivery.md`）。
+   宿主机网络到设备不通时，先试 `adb forward tcp:<端口> tcp:<端口>`；仍不行就只能在设备内终端验证协议，
+   FTP 不能充当宿主的投递通道。通道取舍见 `references/environment-adaptation.md`。
 
 ## 3. 安卓 9 环境（API 28，sdcardfs）
 
@@ -58,7 +61,7 @@ D:\iAppWorkspace\sync\ProjectApp        ≡                       /sdcard/Pictur
    日常视图是 `/sdcard/iApp/ProjectApp/<项目ID>`（在雷电 9 上 `/sdcard` = `/storage/emulated/0`，底层是 `/data/media/0`）。
    不同模拟器/真机可能不同；直接 `ls /data/media/0` 通常要先 `adb root`，投递和核对走 `/sdcard/...`。
 2. 要跟宿主同步，再在 iApp 设置里把“存储路径 / 工程路径”改为 `/sdcard/Pictures/ProjectApp`，保存并重开工程。
-3. 模拟器设置里把共享目录指到宿主工作区 `D:\iAppWorkspace\sync`。雷电的约定：共享目录在设备上显示为 `/sdcard/Pictures`，所以宿主 `sync\ProjectApp` ≡ 设备 `/sdcard/Pictures/ProjectApp`。
+3. 模拟器设置里把共享目录指到宿主工作区 `<宿主共享目录>`。雷电的约定：共享目录在设备上显示为 `/sdcard/Pictures`，所以宿主 `sync\ProjectApp` ≡ 设备 `/sdcard/Pictures/ProjectApp`。
 4. 验证：宿主新建 `ProjectApp\<项目ID>\src\mian.iyu` → `adb shell ls /sdcard/Pictures/ProjectApp` 可见 → iApp 打开工程能渲染。
 5. 说明：Android 9 无分区存储；iApp 需要有存储权限。共享目录不可用时退回 `adb push`（先 `am force-stop`，push 后 `chown u0_a**:sdcard_rw` + `chmod 660`）。
 
@@ -70,7 +73,7 @@ D:\iAppWorkspace\sync\ProjectApp        ≡                       /sdcard/Pictur
 `/storage/emulated/0/Android/data/com.iapp.app/files/iApp/ProjectApp`，
 不能在 iApp 内改到 Android/data 之外（实测）。共享存储是 FUSE + scoped storage。
 
-1. 模拟器共享目录同样指到 `D:\iAppWorkspace\sync`；设备侧是 `/sdcard/Pictures`。
+1. 模拟器共享目录同样指到 `<宿主共享目录>`；设备侧是 `/sdcard/Pictures`。
 2. 先启动一次 iApp，让它生成 `files/iApp` 目录（父目录不要用 root 手建，否则属主不对，iApp 可能写不了）。
 3. 用 root 建软链（必须 `su`；普通 `adb shell` 访问 Android/data 会 `Permission denied`）：
 
@@ -96,7 +99,7 @@ adb shell su -c 'ls /storage/emulated/0/Android/data/com.iapp.app/files/iApp/Pro
 # -> Pictures/ProjectApp 的内容
 ```
 
-   写入回读：root 经链接写一个 probe 文件，宿主 `D:\iAppWorkspace\sync\ProjectApp` 应出现；删除同步。
+   写入回读：root 经链接写一个 probe 文件，宿主 `<宿主共享目录>\ProjectApp` 应出现；删除同步。
 
 6. 真实 app 验证：在 iApp 里打开工程 / 编辑保存，宿主侧能看到变化。**不要把 `su <uid>` 派生进程当作 app 访问测试**——FUSE 对非 app namespace 的 Android/data 一律拒绝（AOSP `FuseDaemon::is_app_accessible_path`）。
 
@@ -116,7 +119,7 @@ adb shell su -c 'ls /storage/emulated/0/Android/data/com.iapp.app/files/iApp/Pro
 - 雷电的实例序号 = `vms\leidian0`、`vms\leidian1`…；宿主端口按序号走：0 → 5555，1 → 5557。
 - 两套独立安装各自唯一的实例都叫 `leidian0` → 都要求宿主 5555 → 静默冲突；`adb devices` 里的名字可能指向另一台，模拟器重启后还可能 offline。
 
-永久解法（2026-10-26 实测：安卓 9 一台 + 安卓 14 一台）：把第二套安装的实例改名成 `leidian1`。
+永久解法（在两台不同 API 级别的实例上实测过）：把第二套安装的实例改名成 `leidian1`。
 
 ```bat
 C:\LDPlayer\LDPlayer9\ldconsole.exe quit --index 0
@@ -218,6 +221,7 @@ ren leidian1.config leidian0.config
 | `emulator-5554` 指向错设备 / offline | 两实例同抢 5555 | `netstat -ano \| findstr :5555`；改名/改端口；`getprop` 核对 |
 | bind mount 后 app 看不到 | app 独立 mount namespace | 用共享目录 + 软链，不用 bind |
 | iApp 打不开工程 | 入口是否 `<项目ID>/src/mian.iyu`；工程 ID | 修正路径 / 重开工程 |
+| 没有共享目录也没有 adb 设备 | 设备侧是否开了 iApp 服务器控制台；宿主网络能否到设备 | 走 FTP；宿主不通先试 `adb forward`（见 `references/ftp-delivery.md`） |
 
 ## 8. 验证清单
 

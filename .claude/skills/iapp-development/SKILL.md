@@ -1,6 +1,6 @@
 ---
 name: iapp-development
-description: 开发、调试、打包 iApp（Android 可视化 IDE，显示名"测兆编程"）工程时使用。只要出现 .iyu 界面文件、.mjava 模块、裕语言语法、call 跨语言调用、iApp 工程结构、adb 投递调试、iApp 打包交付等需求，就先读本技能。里面有实测过的语法铁律、失败签名、投递链路和探针方法，能避免重复踩坑；不确定的行为按本技能的探针流程先测再写。
+description: 开发、调试、打包 iApp（Android 可视化 IDE，显示名"测兆编程"）工程时使用。只要出现 .iyu 界面文件、.mjava 模块、裕语言语法、call 跨语言调用、iApp 工程结构、adb 投递调试、iApp 打包交付，或换机器/换模拟器/无 adb 环境、FTP 投递、共享目录同步等环境适配需求，就先读本技能。里面有实测过的语法铁律、失败签名、三条投递通道的选择方法与探针方法，能避免重复踩坑；不确定的行为按本技能的探针流程先测再写。
 ---
 
 # iApp 开发知识库
@@ -26,7 +26,7 @@ iApp（显示名"测兆编程"）是 Android 上的可视化 IDE：工程是「�
 本库要分享给别的 workspace，但不等于把路径全变成占位符。判据是**这个值对“大多数用这个环境的人”是否成立**：
 
 - **写实**：常见环境/工具的默认路径，例如 `C:\Program Files`、`C:\LDPlayer\LDPlayer9`、`/sdcard/Pictures`、`/data/media/0`、`com.iapp.app`。这些是通用知识，写实才方便别人照着做。
-- **占位或环境变量**：只对作者机器或本项目成立的，例如 `E:\...` 这种作者盘符路径；随实例/项目变化的，例如 `<serial>`、`<VM-UUID>`、`<项目ID>`；版本化工具目录用 `BUILD_TOOLS` / `JDK_BIN` / `DEXDUMP` 覆盖，文档同时给常见默认位置。
+- **占位或环境变量**：只对作者机器或本项目成立的，例如 `<作者盘符>\...` 这种作者机器路径；随实例/项目变化的，例如 `<serial>`、`<VM-UUID>`、`<项目ID>`；版本化工具目录用 `BUILD_TOOLS` / `JDK_BIN` / `DEXDUMP` 覆盖，文档同时给常见默认位置。
 - **不要为了“可移植”把常见路径泛化成 `<目录>` 或 `%ENV%`**；只有确实没有共识默认值时才这么做。
 
 ## 五分钟模型
@@ -144,7 +144,11 @@ b_hello();          // 加载后直接调
 
 1. 【硬】**入口必须是 `src/mian.iyu`**（不是 main.iyu）。
 2. 【荐】**iApp 以内存为准**：外部改文件前先 `am force-stop`，或在 iApp 里关掉工程；否则保存/运行会用旧内存覆盖磁盘。
-3. 【荐】**投递优先走你环境里最稳的同步方式**（共享目录/同步盘），工程打开期间可能有旧缓存，关/重开工程后刷新；无同步链路或 md5 核不上再用 `adb push`。不要用 bind mount（应用 namespace 看不到后加的挂载）。
+3. 【荐】**投递先协商再选通道**：共享目录镜像、`adb push/pull`、iApp 内置 FTP 是三条并列通道，按当前环境实际可用性选，不按产品名预设。
+   共享目录可用且核验通过时优先（双向、免认证）；否则有 adb 设备就 `adb push`；adb 不可用而 FTP 暴露工程根时用 FTP
+   （先判断宿主能否直达该端口，直达就直连，否则走 `adb forward`）；都不通才手工导入 `.iApp`。
+   任何通道都遵守：**改前关工程、改完全量推、推完核字节**；同一时刻只走一条写通道。
+   不要用 bind mount（应用 namespace 看不到后加的挂载）。详见 `references/environment-adaptation.md`、`references/ftp-delivery.md`。
 4. 【荐】**双证据**：屏幕现象（screencap）+ 原文日志
    `adb logcat -d -v time 'ygs:V' 'System.err:V' '*:S'`
 5. 【硬】日志 tag=`ygs`；mjava 里 `i.syso(...)` 的内容出现在这里（旧写法 `.iyu` 里的 `syso` 已按白名单禁用）。
@@ -152,6 +156,10 @@ b_hello();          // 加载后直接调
 7. 【荐】结论标注：✅实测 / ⚠推测 / ❓未知。null/false/0 必须有对照锚点。
 8. 【硬】**`type=` 含点号（完整类名）→ 必须写进 `build.xml` 的 `<newControl>`**；短名不用。新建工程的登记不继承（见上节）。
    **例外**：`SearchBar` 写进 ppt 后，设计器保存/序列化时会崩（登记与否都一样；`TabLayout`/`ChipGroup`/`MaterialDivider` 已排除），不要 ppt 声明，走 mjava 动态创建。
+9. 【荐】**换机器/换设备先勘测，别照抄上一台的路径**：确认五件事——设备能起且 iApp 已装、`adb devices` 有没有 `device` 行（不是「adb 可执行」）、iApp 设置里显示的工程根、有没有共享目录、FTP 能不能登。
+   缺哪项就在结论里标 ❓ 并写清怎么验，不要用「应该/通常」代替。见 `references/environment-adaptation.md`。
+10. 【荐】**版本优先高**：新功能与验证默认在可用的最高 Android 上做（写成这条时是 API 34）；
+    API 28 及以下只做有限兼容，且要开发者明确要求才投入，不追求低版本结论与高版本追平。
 
 ## 已验证
 
@@ -238,7 +246,7 @@ b_hello();          // 加载后直接调
 | Android 11+：`/sdcard/Android/data/<pkg>` 由 app 自身 mount namespace 的 bind mount 提供；FUSE 对其它进程一律拒绝（`is_app_accessible_path`），所以不能用 `su <uid>` 派生进程模拟 app 访问 | ✅（AOSP 源码 + API 34 实机） |
 | Android 11+：可在 app 自己的 `Android/data/<pkg>` 下建指向共享存储（如 `Pictures`）的符号链接，app 自身可经链接读写；写入可经 vboxsf/共享目录落到宿主机（需相应存储权限，如 `MANAGE_EXTERNAL_STORAGE` appop） | ✅（API 34 + iApp 实机） |
 | 共享目录（vboxsf）本身不支持符号链接：`ln -s` 报 `Function not implemented`，链接只能建在设备 ext4/FUSE 侧 | ✅（Android 14 模拟器） |
-| 雷电实例序号 = `vms\leidianN`，宿主端口按序号走（0→5555，1→5557）；两套安装各自的 `leidian0` 会抢 5555，把第二套改名成 `leidian1` 可永久分开，无需脚本 | ✅（2026-10-26，安卓 9 + 安卓 14 各一台） |
+| 雷电实例序号 = `vms\leidianN`，宿主端口按序号走（0→5555，1→5557）；两套安装各自的 `leidian0` 会抢 5555，把第二套改名成 `leidian1` 可永久分开，无需脚本 | ✅（两台不同 API 级别的实例） |
 | `MotionEvent` 的 `getActionMasked/getActionIndex/getPointerCount/getPointerId/findPointerIndex/getX(int)` 可用 | ✅（API 28） |
 | `MotionEvent.getHistorySize(int)` 等带 pointerIndex 的重载**解析失败且杀进程**，`catch` 接不住；只用无参版本 | ✅（API 28） |
 | 旋转屏幕会重建页面并重跑 `loading`；`loading` 里宽高=0，`loadingComplete` 有真实尺寸；`addOnLayoutChangeListener` 可用 | ✅（API 28） |
@@ -261,6 +269,11 @@ b_hello();          // 加载后直接调
 | 内嵌页 id 按"文件首次内嵌顺序"分 **10000 号段**（不是固定 +10000，不能硬编码）；内嵌页事件照常触发；要定位就原生遍历树 | ✅（API 34） |
 | 多页 `addv` 只有 `DrawerLayout` 能用（第 2 个 child 改 gravity=START + 延后 400ms `openDrawer`）；`ViewPager`/`VerticalViewPager` 子控件进树但不渲染 | ✅（API 34） |
 | yul 字面量 ≥2³⁰ 以 `Long` 传入 mjava：形参写 `int` 会 `Method … not found` 且**界面静默无反应**；数值形参用 `Object`+`Number` 接 | ✅（API 34） |
+| iApp 内置 FTP（服务器控制台）匿名 `anonymous` + 任意邮箱可登录，`FEAT` 含 `MLSD/MLST/SIZE/MD5/AUTH TLS`，`STOR/DELE/MKD/RMD` 可用；根是应用级文件区，工程在 `/ProjectApp/<项目ID>` | ✅（单机，2026-10-27，未复验） |
+| FTP 的 `MLSD/NLST` **不列出点开头文件**（`.project` 看不到，但 `SIZE`/`MD5` 正常）→ 判存在性只能直探；`STOR` **不自动建父目录**，要先 `MKD` | ✅（单机，2026-10-27，未复验） |
+| 无 adb 时可用 iApp 内置 FTP 完成工程投递（网络可达即可，模拟器/真机同理），但拿不到 `logcat`/`screencap`，也不能 `force-stop` | ⚠（单机，2026-10-27；宿主可达性按环境而异） |
+| NAT 后的设备：只 `adb forward` 控制端口能登录，但 PASV 数据连接被拒（返回设备内网 IP）；**每个数据端口要单独 forward**，主动模式报 `425` | ✅（单台机器，2026-10-28） |
+| iApp FTP 写操作全通：`STOR`/`DELE`/`MKD`/`RMD`/`RNFR+RNTO`/`APPE`/`REST` 都可用；`MKD` **非递归**、`STOR` 不建父目录（父缺报 `551`）；UTF-8 文件名（含空格）正常 | ✅（单台，2026-10-28） |
 
 ## 导航
 
@@ -283,6 +296,8 @@ b_hello();          // 加载后直接调
 - `references/delivery-guide.md` — `.iApp` 备份、APK 打包、边界
 - `references/project-structure.md` — 工程结构与新建工程
 - `references/emulator-setup.md` — 模拟器环境参考：宿主工作区 ↔ Pictures 同步、雷电 9 实测工程根 `/data/media/0/iApp/ProjectApp`（仅供参考，以 iApp 设置为准）、安卓 14 软链、多开 adb 端口冲突
+- `references/environment-adaptation.md` — 环境适应：能力维度、未知宿主勘测五问、投递通道选择、版本政策、无 adb 时取证、「当…可试…」参考写法
+- `references/ftp-delivery.md` — iApp 内置 FTP 通道：适用条件、实测特性、坑、失败签名、宿主不可达的三种办法、安全边界
 - `references/icon-guide.md` — 应用图标（来源、规格、离线生成）
 - `references/builtin-controls.md` — 内置短名控件清单
 - `references/style-guide.md` — ppt 与 mjava 的样式分层

@@ -6,8 +6,8 @@
 
 用法：
   python make_icon.py --out icon.png --title 2048 --package com.demo.game2048
-  python make_icon.py --project-dir D:/iAppWorkspace/sync/ProjectApp/com.demo.calc
-  python make_icon.py --all D:/iAppWorkspace/sync/ProjectApp
+  python make_icon.py --project-dir <宿主工程目录>/com.demo.calc
+  python make_icon.py --all <宿主工程目录>
 
 可覆盖：
   --category auto|game|calc|browser|file|note|chat|camera|music|video|weather|shop|health|tool|default

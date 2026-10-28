@@ -39,10 +39,10 @@
 python scripts/make_icon.py --out icon.png --title 2048 --package com.demo.game2048
 
 # 按工程 manifest 自动读标题/包名，写回 icon.png
-python scripts/make_icon.py --project-dir D:/iAppWorkspace/sync/ProjectApp/com.demo.game2048
+python scripts/make_icon.py --project-dir <宿主工程目录>/com.demo.game2048
 
 # 批量补所有工程
-python scripts/make_icon.py --all D:/iAppWorkspace/sync/ProjectApp
+python scripts/make_icon.py --all <宿主工程目录>
 ```
 
 `create_project.py` 已经接入：不传 `--icon` 时自动生成，不再写 1×1 占位图。

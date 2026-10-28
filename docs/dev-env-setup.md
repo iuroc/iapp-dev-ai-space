@@ -1,5 +1,8 @@
 # 本机开发环境与投递步骤
 
+> 本机专属步骤。环境类知识与其它机器的做法见 `docs/environments/`；
+> 通道选择方法与通用坑见 `.claude/skills/iapp-development/references/environment-adaptation.md`。
+
 ## 0. Shell 前提
 
 Git Bash 里调 adb 必须关掉路径改写，否则 `/storage/...` 会被转成 Windows 路径：
@@ -12,7 +15,7 @@ ADB="E:/Program Files/platform-tools/adb.exe"
 ## 1. 连机与提权
 
 ```bash
-"$ADB" devices                       # emulator-5554
+"$ADB" devices                       # 现查：取有 device 行的那台（detect_env.py 也会给）
 "$ADB" root                          # adbd 重启为 root
 "$ADB" shell id                      # uid=0(root)
 ```
@@ -26,8 +29,10 @@ su 传参在 Android 9 上会被拆散，整段用单引号：
 ## 2. 找到工程
 
 ```bash
-"$ADB" shell 'ls -la /storage/emulated/0/iApp/ProjectApp/'
+"$ADB" shell 'ls -la /sdcard/Pictures/ProjectApp/'      # 当前工程根，见 environments/ldplayer14.md §4
 ```
+
+旧路径 `/storage/emulated/0/iApp/ProjectApp/` 仍存在一份副本，但已不再使用。
 
 工程 = `ProjectApp/<项目ID>`，入口在 `src/mian.iyu`。
 
@@ -56,15 +61,30 @@ iApp 内把工程根设为 `Pictures/ProjectApp` 后：
 
 ```bash
 IAPP_PKG=com.iapp.app
-DEV_PROJECT=/storage/emulated/0/iApp/ProjectApp/<项目ID>   # 旧路径，工程根改过后仅作兜底
+DEV_PROJECT=/sdcard/Pictures/ProjectApp/<项目ID>          # 以 iApp 设置里显示的为准
+UID_APP=$("$ADB" shell pm list packages -U com.iapp.app | sed 's/.*uid://' | tr -d '\r')
 
 "$ADB" shell "am force-stop $IAPP_PKG"
 "$ADB" push ./src/mian.iyu "$DEV_PROJECT/src/mian.iyu"
-"$ADB" shell "chown u0_a50:sdcard_rw $DEV_PROJECT/src/*; chmod 660 $DEV_PROJECT/src/*"
+"$ADB" shell "chown $UID_APP:sdcard_rw $DEV_PROJECT/src/*; chmod 660 $DEV_PROJECT/src/*"
 ```
 
 - 必须先 force-stop：iApp 以内存为准，运行/保存会用旧内存覆盖磁盘
 - 脚本：`docs/scripts/deploy.sh`
+
+### 备选：iApp 内置 FTP
+
+没有 adb、也没有共享目录时用。iApp 内打开「服务器控制台」，拿到 `ftp://<设备IP>:<端口>` 后：
+
+```bash
+export MSYS_NO_PATHCONV=1
+python .claude/skills/iapp-development/scripts/ftp_sync.py \
+  --host <设备IP> --port <端口> --remote /ProjectApp/<项目ID> \
+  --local-root android-sync/ProjectApp/<项目ID> --dry-run
+```
+
+宿主连不上时先试 `adb forward tcp:<端口> tcp:<端口>`（连 `127.0.0.1:<端口>`）；
+仍不通就只能在设备内终端验证。详见 `docs/environments/` 对应档案与 SKILL `references/ftp-delivery.md`。
 
 ## 4. 取证
 
