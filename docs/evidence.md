@@ -4029,3 +4029,28 @@ adb install -r → Success
    页码与手机版一致，文字会按视口重排；图片靠 `max-width:100%!important` 压回。
 4. 圆屏内容必须收进内接正方形（466px → 330px / 165dp），并用 `LayoutParams` 居中。
 5. 手表版与手机版是不同 APK，`getFilesDir()` 各自独立，历史进度**不共享**。
+
+**手势与按键读数**（`getevent -lt` + `input keyevent` 对照，2026-10-29）：
+
+```
+# 左滑：只有触摸，没有按键
+event1 (fts_ts): EV_KEY BTN_TOUCH DOWN / UP
+event1 (fts_ts): EV_ABS ABS_MT_POSITION_X / ABS_MT_POSITION_Y
+
+# 侧键 / 表冠按下：走 gpio-keys
+event0: EV_KEY KEY_F1 DOWN/UP
+event0: EV_KEY KEY_F2 DOWN/UP
+```
+
+系统对这两个键的处理（`input keyevent` 实测）：
+
+| 键码 | 系统行为 |
+|---|---|
+| `131`（KEY_F1） | 回桌面（焦点转到 `com.heytap.wearable.launcher`） |
+| `132`（KEY_F2） | 启动运动（`com.heytap.wearable.sports/MainActivity`） |
+| `138`（KEY_F8） | 与 F1 组合出现，用途未确认 ❓ |
+
+- **左滑是纯触摸事件**，系统不把它翻译成任何按键；三种方向的 `input swipe`
+  都无法退出第三方应用 → 应用内返回只能自己实现
+- **表冠按下 = 回桌面**（用户观察），对应 `KEY_F1`；转表冠仍是 `REL_WHEEL`
+- 结论：`131` / `132` 被系统占用，应用 **不要**拿来做翻页/功能键
