@@ -407,3 +407,30 @@ view.setLayoutParams(lp);
 **圆屏安全区**：直径 D 的圆里最大的内接正方形边长 = `D / √2`。
 466px 屏 → 330px（165dp @density 2）；内容按这个方框居中，四角才不会被裁。
 `layout_gravity` 的旧写法不要指望，写完都要在真机截图上确认一次。
+
+## 30. 事件里带 `0` 调 mjava，方法签名必须接这个参数
+
+`.iyu` 的事件体常写成 `call(null, "mjava", "mod.method", 0)`。这个 `0` 是**实参**：
+目标方法若不接收参数，会报方法找不到并**静默中断**（打包版 `ygs` 是死的，看不到任何提示）。
+
+实测（2026-10-29，手表工程）：
+
+```xml
+<!-- 事件体 -->
+<eventItme type="clicki">call(null, "mjava", "watch_reader.menu", 0)</eventItme>
+```
+
+```java
+public void menu() { ... }         // ❌ 不执行，无日志、无异常
+public void menu(Object arg) { ... }  // ✅ 正常
+```
+
+对照：同一工程里 `loading` 事件的 `call(null, "mjava", "watch_reader.boot")`
+**不带参数**，配 `public void boot()` 正常 —— 判据是「事件体有没有实参」，不是事件类型。
+
+**做法**：
+- 事件体里带了 `0`（或任何实参），被调方法就写 `public void xxx(Object arg)`；
+  `clicki` / `downkey` 这类习惯性带参的入口一律按带参写
+- 手机版青简的 `prev/next/settings/back` 全是 `Object arg`，就是这个原因
+- 排查时不要只看 `logcat`：这条失败**不打印任何东西**。要么给方法加 `android.util.Log`，
+  要么干脆在 mjava 里 `setOnClickListener` 挂监听（本书架/菜单页最终采用的方案）
