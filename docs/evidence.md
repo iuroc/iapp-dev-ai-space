@@ -3888,16 +3888,33 @@ W/System.err: java.io.FileNotFoundException: userencryption.xml
 W/System.err: Caused by: java.lang.ClassNotFoundException: com.demo.watchdemo.IConfig
 ```
 
-表冠（第三轮复测，pid 10558）：
+侧键（不是表冠，pid 10558）：
 
 ```
-23:55:05.550 I/watchdemo(10558): init style=0
 23:55:16.667 I/watchdemo(10558): key kc=132
 23:55:23.732 I/watchdemo(10558): key kc=131
 ```
 
-`131` = `KEYCODE_F1`、`132` = `KEYCODE_F2`；`/system/usr/keylayout/Generic.kl:81` 为 `key 59 F1`。
-两个方向各对应一个键码（哪边是 131、哪边是 132 未分别标注）。
+`131` = `KEYCODE_F1`、`132` = `KEYCODE_F2`；系统侧同时出现
+`ComboKeyCtrl/ShortcutKeyCtrl interceptKeyBeforeQueueing keyCode: 131 / 138`。
+
+**表冠不是按键**（`adb shell timeout 20 getevent -lt`，用户正反各转，2026-10-29）：
+
+```
+add device 1: /dev/input/event3
+  name:     "oplus_crown"
+
+[7374.133631] /dev/input/event3: EV_REL       REL_WHEEL            fffffff5   (-11)
+[7374.149408] /dev/input/event3: EV_REL       REL_WHEEL            fffffffb   (-5)
+[7374.165053] /dev/input/event3: EV_REL       REL_WHEEL            fffffffc   (-4)
+...
+```
+
+统计：20 秒内 `EV_REL/REL_WHEEL` **307 次**，`SYN_REPORT` 307 次，
+取值 `-15 … +24`（负值 1 个方向、正值另 1 个方向）；**`EV_KEY` 0 次**。
+设备表里另有 `fts_ts`（触摸）、`qpnp_pon`、`gpio-keys`（侧键）。
+
+对照：应用前台、屏幕常亮时转表冠，`downkey` **一次都不触发**（`watchdemo` 无 `key kc=` 日志）。
 
 返回：用户按返回后 `ResumedActivity` 变为 `com.heytap.wearable.launcher/.Launcher`，
 但 `pidof com.demo.watchdemo` 仍为 `10558`，任务栈里 activity 仍是 `paused`（未被 finish），
@@ -3918,7 +3935,9 @@ W/System.err: Caused by: java.lang.ClassNotFoundException: com.demo.watchdemo.IC
 3. 手表侧 adb `install` / `am start` / `logcat` / `screencap` / `pidof` 全部可用；无 root。
 4. 打包版 `android.util.Log` 有输出（`ygs`/`i.syso` 本轮未验）。
 5. 圆屏 466×466 / density 320：ppt 的 dp 值按 2.0 换算，`backgroundcolor` 与 `textcolor` 均生效。
-6. 表冠可产生 `downkey`，**两个方向分别是 `131`（F1）与 `132`（F2）**；是否逐格上报 ❓。
+6. **表冠不是按键**：`oplus_crown` 只发 `EV_REL/REL_WHEEL`（相对滚动，有负值），
+   `downkey` 不触发；要用表冠必须接 `MotionEvent.ACTION_SCROLL` / `AXIS_SCROLL`。
+   侧键才产生 `KEYCODE_F1(131)` / `F2(132)` / `F8(138)`。
 7. 息屏后进程存活（短时观测，未测长时间/内存回收）。
 8. 该表的「返回」走系统手势/侧键，**不向应用派发 `kc=4`**：应用被退到后台而非 finish，
    绑了 `downkey` 也拦不到；要保证退出得另找入口（见手表档案 §未测项）。

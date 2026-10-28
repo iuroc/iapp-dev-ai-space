@@ -78,8 +78,10 @@
 2. **圆屏裁切**：466px 圆形，四角不可见；按约 233dp 画布、内容收在中央安全区。
 3. **息屏很积极**：界面静置即息屏；`screencap` 可能拿到全白图。
    取证优先用 `logcat`，截图前先唤醒或由用户操作。✅ 2026-10-28
-4. **表冠**：转动会产生 `downkey`，两个方向分别是 `131`（`KEYCODE_F1`）与 `132`（`KEYCODE_F2`）；
-   是否逐格上报、哪边对应哪个码 ❓。
+4. **表冠是滚动轴，不是按键**：`/dev/input/event3` 名为 `oplus_crown`，只发
+   `EV_REL/REL_WHEEL`（20 秒 307 次，值 `-15…+24`，正负即方向），**没有 `EV_KEY`**；
+   `downkey` 收不到，要用表冠得接 `MotionEvent.ACTION_SCROLL` + `AXIS_SCROLL`。✅ 2026-10-29
+   - 侧键才有键码：`131`（F1）、`132`（F2）、`138`（F8）
 5. **返回不派发 `kc=4`**：按返回后应用只是**退到后台**（`paused`，未 `finish`），
    `downkey` 绑定也拦不到；需要真退出得自己放入口（如长按/按钮调 `activity.finish()`）。✅ 2026-10-28
 6. **没有可靠的输入法**：避免文字输入，用按钮/列表。
@@ -92,7 +94,7 @@
 
 | 项 | 怎么验 |
 |---|---|
-| 表冠方向/步进 | 绑 `downkey` 记 `st_kC`，正反转**分别**采样并标注方向 |
+| 表冠在 iApp 里怎么接 | 根 View `setFocusable(true)` + `requestFocus()`，再 `setOnGenericMotionListener` 读 `ACTION_SCROLL`/`AXIS_SCROLL`；`downkey` 无解 |
 | 主动退出的可靠入口 | 手势返回不派发 `kc=4`；试长按事件 / 页面内按钮调 `activity.finish()` |
 | 桌面入口位置 | 装完后在表上应用列表里找并截图 |
 | 圆屏实际裁切 | 探针页画 466px 正方形边线，截图量四角被切多少 |
