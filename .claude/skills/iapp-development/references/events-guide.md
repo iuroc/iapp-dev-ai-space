@@ -123,6 +123,9 @@ call(null, "mjava", "game.keyCode", st_kC)
 - 长按会重复触发 `downkey`，同样用去抖吞掉
 - 非方向键（Ctrl、字母键、返回键）也会进 `downkey`，在 mjava 里过滤即可
 - **绑了 `downkey` 就等于接管了返回键**：返回键码 `4` 会进事件，但页面**不再自动弹出**（与 `shouldoverrideurlloading` 同款）。要自定义返回就 `call` 到 mjava，在 mjava 里判 `kc == 4` 后 `activity.finish()` ✅（API 34）
+- **`downkey` 只接管「按键」**：手势返回（部分手表的侧滑/侧键返回）不走 `KeyEvent`，
+  应用收不到 `kc=4`，表现为「退到后台但没 finish」。需要可靠退出时，别只依赖返回键，
+  另放页面内入口（按钮/长按）调 `activity.finish()` ⚠（2026-10-28，OPPO Watch X2 / API 30）
 - 反编译 `main2` 的 UIEventset 参数表为 `st_kC,st_eA,st_eR`；方向键在 API 28 实测（2026-10-26）
 
 ## touchmonitor 能拿到什么 ⚠/❓

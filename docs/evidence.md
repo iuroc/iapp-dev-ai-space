@@ -3888,8 +3888,21 @@ W/System.err: java.io.FileNotFoundException: userencryption.xml
 W/System.err: Caused by: java.lang.ClassNotFoundException: com.demo.watchdemo.IConfig
 ```
 
-表冠（上一轮）：`I/watchdemo: key kc=131` 一条；`131` = `KEYCODE_F1`，
-`/system/usr/keylayout/Generic.kl:81` 为 `key 59 F1`。本轮复测未再出现。
+表冠（第三轮复测，pid 10558）：
+
+```
+23:55:05.550 I/watchdemo(10558): init style=0
+23:55:16.667 I/watchdemo(10558): key kc=132
+23:55:23.732 I/watchdemo(10558): key kc=131
+```
+
+`131` = `KEYCODE_F1`、`132` = `KEYCODE_F2`；`/system/usr/keylayout/Generic.kl:81` 为 `key 59 F1`。
+两个方向各对应一个键码（哪边是 131、哪边是 132 未分别标注）。
+
+返回：用户按返回后 `ResumedActivity` 变为 `com.heytap.wearable.launcher/.Launcher`，
+但 `pidof com.demo.watchdemo` 仍为 `10558`，任务栈里 activity 仍是 `paused`（未被 finish），
+**没有 `key kc=4`**。系统日志同窗口出现
+`NaviKeyCtrl: launch app from the single click ...` 与 `EditorInfoManager` 行。
 
 息屏：`mWakefulness=Asleep`、`Display Power: state=OFF` 时
 `pidof com.demo.watchdemo` 仍返回 `10378`。
@@ -3905,5 +3918,7 @@ W/System.err: Caused by: java.lang.ClassNotFoundException: com.demo.watchdemo.IC
 3. 手表侧 adb `install` / `am start` / `logcat` / `screencap` / `pidof` 全部可用；无 root。
 4. 打包版 `android.util.Log` 有输出（`ygs`/`i.syso` 本轮未验）。
 5. 圆屏 466×466 / density 320：ppt 的 dp 值按 2.0 换算，`backgroundcolor` 与 `textcolor` 均生效。
-6. 表冠可产生 `downkey`，键码 `131`（`KEYCODE_F1`）；是否每次转动都发、方向是否可区分 ❓。
+6. 表冠可产生 `downkey`，**两个方向分别是 `131`（F1）与 `132`（F2）**；是否逐格上报 ❓。
 7. 息屏后进程存活（短时观测，未测长时间/内存回收）。
+8. 该表的「返回」走系统手势/侧键，**不向应用派发 `kc=4`**：应用被退到后台而非 finish，
+   绑了 `downkey` 也拦不到；要保证退出得另找入口（见手表档案 §未测项）。
