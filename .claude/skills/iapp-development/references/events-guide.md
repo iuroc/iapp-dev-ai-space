@@ -156,6 +156,32 @@ API 28 实测（2026-10-26）：这套写法可用，回调里可以直接调同
 但 `getHistorySize(int)` / `getHistoricalX(int,int)` 这些**带 pointerIndex 的重载会解析失败并杀进程**（`catch` 接不住），只用无参 `getHistorySize()`。
 API 28 实测（2026-10-26）。
 
+## 滚轮 / 表冠（`ACTION_SCROLL`）✅（API 30 手表实测）
+
+表冠、鼠标滚轮这类输入**不是按键**，`downkey` 收不到；进应用的是通用运动事件
+`MotionEvent.ACTION_SCROLL`，**值在 `AXIS_VSCROLL`**（`AXIS_SCROLL` / `AXIS_HSCROLL` 恒 0）。
+
+```java
+View root = activity.findViewById(1);
+root.setFocusable(true);
+root.requestFocus();
+root.setOnGenericMotionListener(new View.OnGenericMotionListener() {
+    public boolean onGenericMotion(View v, MotionEvent e) {   // 方法名必须一字不差
+        if (e.getAction() == MotionEvent.ACTION_SCROLL) {
+            float d = e.getAxisValue(MotionEvent.AXIS_VSCROLL);
+            handle(d);          // d 的正负即方向，绝对值近似滚动格数
+        }
+        return false;           // 返回 false：让 ScrollView/列表继续原生滚动
+    }
+});
+```
+
+- **回调方法名必须与接口完全一致**：写成 `onGenericMotionEvent` 会报
+  `Method onGenericMotion(...) not found in bsh scripted object`，
+  并被包成 `UndeclaredThrowableException` **直接杀进程**（`catch` 接不住）✅ 2026-10-29
+- 想同时保留原生滚动就 `return false`；`return true` 会吞掉滚动
+- 先读 `AXIS_SCROLL` 会拿到恒 0 的值，方向全丢——这是最容易踩的一步
+
 ## 滚动 / 列表事件（✅ 实测）
 
 | 控件 | 事件 | 结果 |

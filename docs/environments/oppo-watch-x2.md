@@ -81,8 +81,9 @@
 4. **表冠是滚动轴，不是按键**：`/dev/input/event3` 名为 `oplus_crown`，只发
    `EV_REL/REL_WHEEL`（20 秒 307 次，值 `-15…+24`，正负即方向），**没有 `EV_KEY`**；
    `downkey` 收不到，要用表冠得接 `MotionEvent.ACTION_SCROLL` + `AXIS_SCROLL`。✅ 2026-10-29
-   - 系统用途 = **上下滚动页面**（用户确认 ✅ 2026-10-29）→ 页面内容放进可滚动容器
-     （`ScrollView` / 列表）时，表冠应能直接滚，不需要额外代码 ❓ 待实测
+   - 系统用途 = **上下滚动页面**（用户确认 ✅ 2026-10-29）
+   - iApp 里取值：`MotionEvent.ACTION_SCROLL` 下，**`AXIS_VSCROLL` 才有值**
+     （`AXIS_SCROLL` 与 `AXIS_HSCROLL` 恒 0）；顺时针为负、逆时针为正。✅ 2026-10-29
    - 侧键才有键码：`131`（F1）、`132`（F2）、`138`（F8）
 5. **返回不派发 `kc=4`**：按返回后应用只是**退到后台**（`paused`，未 `finish`），
    `downkey` 绑定也拦不到；需要真退出得自己放入口（如长按/按钮调 `activity.finish()`）。✅ 2026-10-28

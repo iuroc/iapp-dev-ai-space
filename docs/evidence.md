@@ -3916,6 +3916,34 @@ add device 1: /dev/input/event3
 
 对照：应用前台、屏幕常亮时转表冠，`downkey` **一次都不触发**（`watchdemo` 无 `key kc=` 日志）。
 
+**应用层读数**（`ScrollView.setOnGenericMotionListener`，2026-10-29）：
+
+```
+crown axis=0.0 total=-1008            ← 只读 AXIS_SCROLL：恒 0，方向丢失
+...
+crown s=0.0 v=-36.0 h=0.0             ← 三轴并读：值全在 AXIS_VSCROLL
+crown s=0.0 v=-40.0 h=0.0
+crown s=0.0 v=2.5451612 h=0.0
+```
+
+- `AXIS_SCROLL` 恒 `0.0`、`AXIS_HSCROLL` 恒 `0.0`，**`AXIS_VSCROLL` 才带值**
+- 幅度约为原始 `REL_WHEEL` 的 3~4 倍（`-11` → `-36/-40`），且可带小数（`2.5451612`）
+- 方向：**顺时针为负、逆时针为正**（用户观察，与日志一致）
+- 事件类型是 `MotionEvent.ACTION_SCROLL`
+
+**崩溃签名**（回调方法名写错）：
+
+```
+E/AndroidRuntime: FATAL EXCEPTION: main
+E/AndroidRuntime: java.lang.reflect.UndeclaredThrowableException
+  at $Proxy1.onGenericMotion(Unknown Source)
+Caused by: Method onGenericMotion( android.widget.ScrollView, android.view.MotionEvent )
+  not found in bsh scripted object: AnonymousBlock
+```
+
+把方法写成 `onGenericMotionEvent`（少了 `View` 的名字）即触发：BeanShell 按接口方法名查找失败 →
+被代理包成 `UndeclaredThrowableException` → 进程被杀。
+
 返回：用户按返回后 `ResumedActivity` 变为 `com.heytap.wearable.launcher/.Launcher`，
 但 `pidof com.demo.watchdemo` 仍为 `10558`，任务栈里 activity 仍是 `paused`（未被 finish），
 **没有 `key kc=4`**。系统日志同窗口出现
