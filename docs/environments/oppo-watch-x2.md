@@ -145,6 +145,8 @@ scrcpy -s <serial> --keyboard=uhid --stay-awake --no-audio --window-title "<型�
   测完要 `svc power stayon false` 还原
   （该命令把 `global stay_on_while_plugged_in` 置为 `7`＝AC|USB|无线，还原即回到 `0`；
   等价写法 `adb shell settings put global stay_on_while_plugged_in 0`，可先 `settings get` 核对）
+  表上「开发者选项 → 不锁定屏幕（充电时保持唤醒）」改的是同一个设置，也可直接在表上关
+  （用户确认 ✅ 2026-10-29）
 - 自带 adb 与应用宝自带 adb 共用 5037，实测不冲突（设备未掉线）
 - 画面正常不等于控制可用：鼠标注入这条未单独验收，见下方未测项
 
