@@ -4466,3 +4466,60 @@ sendevent /dev/input/event0 1 59 1 → Permission denied
 **回填**：
 - 本机档案 `docs/environments/oppo-watch-x2.md` §取证（scrcpy 要用 uhid）、§已知坑 4（设备归属纠正）
 - SKILL `.claude/skills/iapp-development/references/watch-app-guide.md` §11（真机预览与按键模拟）
+
+---
+
+## 2026-10-29 WATCH-9 scrcpy 模式 A/B、鼠标注入与状态读数
+
+**目标**：把上一轮的 ❓ 收干净——sdk/uhid 谁丢键、鼠标注入是否可用、无线 adb 与应用入口。
+
+```
+# 1) A/B：同一脚本、同一基线（2048 在前台），窗口均先确认前台 match=True
+sdk  模式：SendKeys F1 → 仍停在 com.demo.watch2048   表端无变化
+uhid 模式：SendKeys F1 → 回到 launcher
+            getevent -lt /dev/input/event4
+            [ 8959.314010] EV_KEY KEY_F1 DOWN
+            [ 8959.318458] EV_KEY KEY_F1 UP
+
+# 2) 用户物理按键（uhid，先点过窗口保证焦点）
+[ 9265.063063] EV_KEY KEY_F1 DOWN
+[ 9265.122062] EV_KEY KEY_F1 UP
+→ 表盘 → 应用列表第 1 页（截图 159705 B）
+
+# 3) 上一轮「全抓成 KEY_1/KEY_2」的解释
+本轮同样操作抓到的是 KEY_F1；推断上一轮窗口焦点在别处、数字键来自宿主其它输入，
+本轮未复现 ❓
+
+# 4) scrcpy 窗口不是 1:1，点击必须换算
+GetWindowRect 325x348（含标题栏）/ GetClientRect 310x310 / ClientToScreen 原点 (1959,581)
+误把视频坐标 (293,400) 直接当窗口坐标 → 点到窗口外，无反应
+按 310/466 换算成 client(195,266) → 点中应用列表里的 2048 图标，应用打开 ✅
+
+# 5) 滚轮（合成 WM_MOUSEWHEEL，delta=-120 × 3 / × 5）
+应用列表：前后截图均 160123 B → 无变化
+系统设置列表：前后截图均 34376 B → 无变化
+
+# 6) 其它读数
+pidof 后台 60 s：12768 → 12768（未回收）
+应用列表：表盘 ←F1→ 第 1 页 ←左滑→ 第 2 页（2048 在右下）
+WIRELESS_DEBUGGING 活动：No activities found
+adb_wifi_enabled=0；dumpsys wifi: Wi-Fi is disabled
+appops MANAGE_EXTERNAL_STORAGE：No operations / default
+appops POST_NOTIFICATION：No operations / default allow
+```
+
+**结论**
+
+| 结论 | 级别 | 依据 |
+|---|---|---|
+| `sdk` 模式不转发 F1，`uhid` 模式转发（同一脚本对照） | ✅ 2026-10-29 | A/B 两轮，唯一变量为模式 |
+| 物理 F1 在 uhid 下正常送达并打开应用列表 | ✅ 2026-10-29 | 用户按键 + `KEY_F1` 抓包 + 截图 |
+| scrcpy 窗口尺寸≠视频尺寸，鼠标注入必须先按 `client/视频` 换算 | ✅ 2026-10-29 | 误算点空、换算后点中 |
+| 鼠标左键点击可注入为触摸 | ✅ 2026-10-29 | 点击应用图标后应用真正启动 |
+| 应用 60 s 后台存活 | ✅ 2026-10-29 | `pidof` 不变 |
+| 应用列表在表盘按 F1 进入，2048 在第 2 页（左滑一次） | ✅ 2026-10-29 | 截图 |
+| 无线 adb 当前不可用 | ⚠ 2026-10-29 | 无 `WIRELESS_DEBUGGING` 活动，Wi-Fi 关闭，`adb_wifi_enabled=0` |
+| 滚轮能否注入 / 目标页是否吃 `ACTION_SCROLL` | ❓ 2026-10-29 | 怎么验：人手在 scrcpy 窗口滚一格，看表上列表是否滚动 |
+| 上一轮数字键异常的原因 | ❓ 2026-10-29 | 本轮未复现；怎么验：焦点确认在 scrcpy 后重按并抓包 |
+
+**回填**：`docs/environments/oppo-watch-x2.md` §取证（scrcpy 坐标换算、应用列表入口）、未测项表

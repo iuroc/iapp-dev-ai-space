@@ -133,7 +133,12 @@ scrcpy -s <serial> --keyboard=uhid --stay-awake --no-audio --window-title "<型�
   uhid 会在表端注册一只虚拟键盘（`/dev/input/event4`，name `scrcpy`，断开即消失）
 - **F1 = 表冠按下（131）、F2 = 侧键（132）** ✅ 2026-10-29 用户实测；
   不用键盘也行：`adb shell input keyevent 131`／`132`
-- 鼠标点击 = 触摸；**滚轮 = `ACTION_SCROLL`**，对应表冠那条滚动轴
+- 鼠标点击 = 触摸：点应用列表里的图标能把应用点开 ✅ 2026-10-29
+- **窗口不是 1:1**：466×466 的视频在 310×310 的客户区里显示，脚本注入鼠标时
+  必须按 `310/466` 换算（视频坐标 → client → `ClientToScreen` 原点）；直接拿视频坐标点会点空 ✅ 2026-10-29
+- **滚轮**：设计上映射 `ACTION_SCROLL`（表冠滚动轴），但本轮用合成 `WM_MOUSEWHEEL`
+  在应用列表和系统设置上都没反应，分不清是合成事件不进 SDL 还是页面不吃 → ❓
+- 应用列表入口：表盘按 F1 进第 1 页，**左滑一次**到第 2 页（2048 在这一页）✅ 2026-10-29
 - `Ctrl+H` 回主页、`Ctrl+P` 电源键、`Ctrl+O` 熄屏
 - 表仍会积极息屏：用 `--stay-awake` 即可；若改用上面的 `svc power stayon usb`，
   测完要 `svc power stayon false` 还原
@@ -148,12 +153,12 @@ scrcpy -s <serial> --keyboard=uhid --stay-awake --no-audio --window-title "<型�
 |---|---|
 | 表冠在 iApp 里怎么接 | 根 View `setFocusable(true)` + `requestFocus()`，再 `setOnGenericMotionListener` 读 `ACTION_SCROLL`/`AXIS_SCROLL`；`downkey` 无解 |
 | 主动退出的可靠入口 | 手势返回不派发 `kc=4`；试长按事件 / 页面内按钮调 `activity.finish()` |
-| 桌面入口位置 | 装完后在表上应用列表里找并截图 |
+| ~~桌面入口位置~~ | 已测 ✅ 2026-10-29：见 §取证「应用列表入口」 |
 | 圆屏实际裁切 | 探针页画 466px 正方形边线，截图量四角被切多少 |
 | 长时间后台存活 | 息屏 10 分钟后 `pidof <包名>` + `dumpsys activity activities` |
-| 无线 adb | 表内开发者选项找「无线调试」 |
-| `MANAGE_EXTERNAL_STORAGE` | `adb shell appops get <包名> MANAGE_EXTERNAL_STORAGE` |
-| scrcpy 鼠标/滚轮注入到表 | 窗口内点击与滚轮，对照表端反应与 `logcat` |
+| 无线 adb | 当前不可用 ⚠ 2026-10-29（无 `WIRELESS_DEBUGGING` 活动、Wi-Fi 关闭）；怎么验：表内开 Wi-Fi + 找「无线调试」，再 `adb tcpip 5555` 试 |
+| ~~`MANAGE_EXTERNAL_STORAGE`~~ | 已测 ✅ 2026-10-29：示例包未申请，appops `No operations` |
+| scrcpy 滚轮注入 | 点击已验 ✅ 2026-10-29；滚轮怎么验：人手在窗口滚一格，看表上列表是否滚动 |
 | 无线 adb 下的 scrcpy | 表内开发者选项开无线调试，`adb connect` 后 `scrcpy -s <ip>:<port>` |
 
 ## 取证
