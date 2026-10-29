@@ -1,0 +1,64 @@
+// 表盘罩层（注入式，可复用到任意手表工程）
+// 用法：本文件放到工程 src/，.iyu 的 loading 事件里加一行：
+//   call(null, "mjava", "bezel.install", <表盘直径dp>)
+// 例：call(null, "mjava", "bezel.install", 233)
+// 手机环境显示圆外半透明黑的罩层；手表环境（小屏或圆屏）自动跳过。
+// 表盘内部样式完全由工程自己决定，罩层不掺和。
+
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffXfermode;
+import android.graphics.drawable.BitmapDrawable;
+import android.util.DisplayMetrics;
+import android.util.Log;
+import android.view.View;
+import android.view.ViewGroup;
+
+int BEZEL_KEY = 2131623938;
+
+public void install(Object diaObj) {
+    try {
+        int dia = 233;
+        if (diaObj instanceof Number) {
+            dia = ((Number) diaObj).intValue();
+        }
+        DisplayMetrics dm = activity.getResources().getDisplayMetrics();
+        int w = dm.widthPixels;
+        int h = dm.heightPixels;
+        int small = w < h ? w : h;
+        float smallDp = small / dm.density;
+        boolean round = activity.getResources().getConfiguration().isScreenRound();
+        if (smallDp < 300.0f || round) {
+            Log.i("bezel", "watch env skip: " + small + "px " + smallDp + "dp round=" + round);
+            return;
+        }
+        ViewGroup decor = (ViewGroup) activity.getWindow().getDecorView();
+        if (decor.getTag(BEZEL_KEY) != null) {
+            return;
+        }
+        int d = (int) (dia * dm.density + 0.5f);
+        float radius = d / 2.0f;
+        Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        Canvas c = new Canvas(bmp);
+        c.drawColor(Color.argb(128, 0, 0, 0));
+        Paint p = new Paint();
+        p.setAntiAlias(true);
+        p.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.CLEAR));
+        c.drawCircle(w / 2.0f, h / 2.0f, radius, p);
+        p.setXfermode(null);
+        p.setStyle(Paint.Style.STROKE);
+        p.setStrokeWidth(2.0f * dm.density);
+        p.setColor(Color.parseColor("#6F6A78"));
+        c.drawCircle(w / 2.0f, h / 2.0f, radius - 1.0f * dm.density, p);
+        View v = new View(activity);
+        v.setBackground(new BitmapDrawable(activity.getResources(), bmp));
+        decor.addView(v, w, h);
+        decor.setTag(BEZEL_KEY, v);
+        Log.i("bezel", "installed " + w + "x" + h + " d=" + d + " smallDp=" + smallDp);
+    } catch (Throwable t) {
+        Log.e("bezel", "install failed", t);
+    }
+}

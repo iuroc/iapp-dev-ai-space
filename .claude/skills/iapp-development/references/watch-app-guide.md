@@ -1,7 +1,8 @@
 # 手表应用（圆屏）开发指南
 
 版本前提：OPPO Watch X2 / Android 11（API 30）/ 466×466 / density 320 / 纯 32 位用户空间。
-2026-10-28 ~ 10-29 用青简手表版（8 个页面）完整走通后整理。
+2026-10-28 ~ 10-29 用一个 8 页的 iApp 阅读器示例工程完整走通后整理；
+下文提到的「示例工程」即该阅读器的手表移植版（内部示例工程；换项目时替换成你自己的工程即可）。
 
 ## 1. 交付链路
 
@@ -26,6 +27,9 @@ lp.gravity = Gravity.CENTER;
 view.setLayoutParams(lp);
 ```
 
+- **关键尺寸一律 mjava 设置**：开发模式里 `.iyu` 的 `dp` 与 mjava 的 `density` 可能不一致
+  （实测 `.iyu` 的 233dp 解析成 932px，而 mjava `density=3.0`），只靠 ppt 定尺寸会整体放大 4/3；
+  容器/棋盘/按钮尺寸与 `setTextSize` 都放 mjava（✅ 2026-10-29，API 34）
 - **ppt 的 `layout_gravity` 不生效**（见 `pitfalls.md` #29），别在 ppt 里写
 - 方框之外的环形区域可以放小元素：顶部标题（top 6dp）、底部页码/菜单（bottom 2~4dp）、
   左右翻页按钮（左右各 3dp、30×60dp），都在圆内
@@ -129,3 +133,29 @@ img{max-width:100%!important;height:auto!important;display:block;margin:6px auto
 
 - 表盘（watch face）、磁贴（Tile）、complication、环境模式（iApp 做不了）
 - 手表独立的历史/设置存储与手机版**不共享**（不同包名，`getFilesDir()` 各自独立）
+
+## 10. 模拟器预览圆表盘（注入式罩层）
+
+手机模拟器和手机开发共用时，**不要改 `wm size` / `wm density`**：整实例全局生效，iApp 和其它 app
+会一起变成方屏（✅ 2026-10-29）。用注入式罩层代替：
+
+- 把 `scripts/bezel.mjava` 复制到工程 `src/`
+- `.iyu` 的 `loading` 事件加一行（只传表盘直径，单位 dp）：
+
+```
+call(null, "mjava", "bezel.install", 233)
+```
+
+行为：
+
+- **环境判断**：`min(widthPixels,heightPixels)/density < 300` 或 `Configuration.isScreenRound()`
+  → 认为是手表，直接返回不画；手机（360dp 宽）才画
+- **罩层加在 `DecorView`**：圆外半透明黑（约 50%）+ `PorterDuff.CLEAR` 挖出圆 + 2dp 中性色圆环；
+  不可点，触摸穿透；表盘内部的底色/样式完全由工程自己决定
+- 不依赖 `SYSTEM_ALERT_WINDOW`，不跨 app 残留，打包后同样有效
+- 罩层只「挡」不「排版」：页面内容仍要自己居中在 233dp 内
+- 圆直径跟随参数，换表只改调用里的 dp；不传颜色，圆外固定半透明黑，下面内容可见且点击穿透
+- 状态栏：单独 `FLAG_FULLSCREEN` 会被 iApp 覆盖，要加
+  `SYSTEM_UI_FLAG_IMMERSIVE_STICKY | LAYOUT_FULLSCREEN | LAYOUT_HIDE_NAVIGATION`，
+  并在 `loading` / `loadingComplete` / `resume` 各设一次（✅ API 34，2026-10-29）
+- 工程侧只需「模块文件 + loading 一行」，布局与样式代码零侵入
