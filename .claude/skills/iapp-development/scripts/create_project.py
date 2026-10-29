@@ -13,6 +13,7 @@ build.xml、sdk/、<包名>/ 由 iApp 首次打开时生成，不在这里创建
 大字徽章，中文标题按品类画符号。完全不联网，不依赖 Pillow。
 """
 import argparse
+import subprocess
 import os
 import shutil
 import sys
@@ -71,6 +72,15 @@ android.permission.WRITE_EXTERNAL_STORAGE</Permissions>
 </iapp>"""
 
 
+GITIGNORE = """bin/
+*.apk
+!apk/assets/*-res.apk
+*.idsig
+*.flock
+apk/assets/oat/
+"""
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", required=True, help="ProjectApp 目录")
@@ -88,6 +98,10 @@ def main():
     ap.add_argument("--developer", default="766868_2329632875")
     ap.add_argument("--toolversion", default="iApp V5.0.1013")
     ap.add_argument("--force", action="store_true")
+    ap.add_argument("--git", dest="git", action="store_true", default=False,
+                    help="创建后写 .gitignore 并 git init + 首次提交（默认不做）")
+    ap.add_argument("--no-git", dest="git", action="store_false",
+                    help="显式不初始化 git（与默认一致）")
     a = ap.parse_args()
 
     proj = os.path.join(a.root, a.package)
@@ -124,6 +138,18 @@ def main():
                                 category=a.icon_category, text=a.icon_text,
                                 color=a.icon_color, size=a.icon_size)
         print(f"icon: {icon_dst}")
+
+    if a.git:
+        with open(os.path.join(proj, ".gitignore"), "w", encoding="utf-8", newline="\n") as f:
+            f.write(GITIGNORE)
+        if shutil.which("git"):
+            subprocess.run(["git", "init", "-q"], cwd=proj, check=True)
+            subprocess.run(["git", "add", "-A"], cwd=proj, check=True)
+            subprocess.run(["git", "commit", "-q", "-m",
+                            f"chore: 初始化 {a.package} 工程"], cwd=proj, check=True)
+            print(f"git: {proj} initialized + first commit")
+        else:
+            print("git: 不可用，只写了 .gitignore，未 init")
 
     print(f"created: {proj}")
 

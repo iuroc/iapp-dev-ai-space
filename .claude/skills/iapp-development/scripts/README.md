@@ -5,7 +5,7 @@
 | 脚本 | 用途 |
 |---|---|
 | `make_icon.py` | 离线生成 512×512 工程图标（纯标准库） |
-| `create_project.py` | 新建最小 iApp 工程（默认调用 `make_icon.py`） |
+| `create_project.py` | 新建最小 iApp 工程（默认调用 `make_icon.py`）；加 `--git` 时写 `.gitignore` 并 `git init` + 首次提交，默认不做 |
 | `material_scan.py` | 扫 iApp APK 里哪些 Material 类有 `(Context)` 构造 |
 | `class_methods.py` | 列某个类自己声明的方法（核对 API 是否被裁剪） |
 | `dex_common.py` | dexdump 输出解析工具（被其它 `dex_*` 脚本 import，也可单独运行） |
@@ -15,6 +15,7 @@
 | `build_aar_dex.py` | 通用版：多 AAR + 依赖资源 + 补桩 → dex + 资源 apk（XUI 1.1.9 实测） |
 | `ftp_sync.py` | 通过 iApp 内置 FTP 全量推/拉工程（SIZE+MD5 双校验，纯标准库） |
 | `check_mjava.py` | 投递前扫 `.mjava`：找出「解析失败 → 整个模块不加载」的写法 |
+| `bezel.mjava` | 手表工程可复用的注入式表盘罩层（手机显示、手表跳过；复制到工程 `src/`） |
 | `check_portable.py` | 分享前自检：禁止外部路径与作者机器路径 |
 
 ## 环境
@@ -45,6 +46,7 @@ python scripts/make_icon.py --all <宿主工程目录>
 
 # 新建工程
 python scripts/create_project.py --root <宿主工程目录> --package com.example.demo --title 演示
+python scripts/create_project.py --root <宿主工程目录> --package com.example.demo --title 演示 --git
 
 # 扫 APK
 python scripts/material_scan.py <你的 iApp APK>
