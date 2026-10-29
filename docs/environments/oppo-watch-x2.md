@@ -136,8 +136,9 @@ scrcpy -s <serial> --keyboard=uhid --stay-awake --no-audio --window-title "<型�
 - 鼠标点击 = 触摸：点应用列表里的图标能把应用点开 ✅ 2026-10-29
 - **窗口不是 1:1**：466×466 的视频在 310×310 的客户区里显示，脚本注入鼠标时
   必须按 `310/466` 换算（视频坐标 → client → `ClientToScreen` 原点）；直接拿视频坐标点会点空 ✅ 2026-10-29
-- **滚轮**：设计上映射 `ACTION_SCROLL`（表冠滚动轴），但本轮用合成 `WM_MOUSEWHEEL`
-  在应用列表和系统设置上都没反应，分不清是合成事件不进 SDL 还是页面不吃 → ❓
+- **滚轮滚不动表**：❌ 2026-10-29 用户真鼠标实测无效；换 `--mouse=uhid`（表端多一只虚拟鼠标）
+  后合成滚轮同样无效。**要滚动就按住拖动**（拖 = 滑动），实测能让列表正常滚 ✅ 2026-10-29
+  不要为滚轮开 `--mouse=uhid`：那会让点击变成真鼠标事件而不是触摸，对调试手表应用没有好处
 - 应用列表入口：表盘按 F1 进第 1 页，**左滑一次**到第 2 页（2048 在这一页）✅ 2026-10-29
 - `Ctrl+H` 回主页、`Ctrl+P` 电源键、`Ctrl+O` 熄屏
 - 表仍会积极息屏：用 `--stay-awake` 即可；若改用上面的 `svc power stayon usb`，
@@ -158,7 +159,7 @@ scrcpy -s <serial> --keyboard=uhid --stay-awake --no-audio --window-title "<型�
 | 长时间后台存活 | 息屏 10 分钟后 `pidof <包名>` + `dumpsys activity activities` |
 | 无线 adb | 当前不可用 ⚠ 2026-10-29（无 `WIRELESS_DEBUGGING` 活动、Wi-Fi 关闭）；怎么验：表内开 Wi-Fi + 找「无线调试」，再 `adb tcpip 5555` 试 |
 | ~~`MANAGE_EXTERNAL_STORAGE`~~ | 已测 ✅ 2026-10-29：示例包未申请，appops `No operations` |
-| scrcpy 滚轮注入 | 点击已验 ✅ 2026-10-29；滚轮怎么验：人手在窗口滚一格，看表上列表是否滚动 |
+| ~~scrcpy 滚轮注入~~ | 已测 ❌ 2026-10-29：滚轮无效，改用拖动 |
 | 无线 adb 下的 scrcpy | 表内开发者选项开无线调试，`adb connect` 后 `scrcpy -s <ip>:<port>` |
 
 ## 取证
