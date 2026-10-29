@@ -4409,3 +4409,60 @@ screencap 复验
 | 鼠标点击 / 滚轮注入到表 | ❓ 2026-10-29 | 本轮只验收镜像；怎么验：窗口内点击与滚轮，对照表端反应和 `logcat` |
 
 **回填**：`docs/environments/oppo-watch-x2.md` §取证（scrcpy 小节）
+
+---
+
+## 2026-10-29 WATCH-8 scrcpy uhid 键位（F1＝表冠按下、F2＝侧键）
+
+**目标**：定清「用 PC 键盘模拟表冠按下」的可行路径与键位。
+
+```
+# 1) scrcpy 默认 --keyboard=sdk：宿主按 F1，表端无任何变化
+scrcpy -s <serial> --stay-awake --no-audio
+
+# 2) 换成 --keyboard=uhid 后，表端注册出虚拟键盘
+scrcpy -s <serial> --keyboard=uhid --stay-awake --no-audio
+  add device 1: /dev/input/event4  name: "scrcpy"
+  KEY (0001): 0001 … 0058      ← 含 003b-0044（F1-F10）、0057/0058（F11/F12）
+
+# 3) 抓包验证 F1 真的到达内核（宿主脚本代按一次）
+getevent -lt /dev/input/event4
+  [ 8623.844243] EV_KEY  KEY_F1  DOWN
+  [ 8623.853315] EV_KEY  KEY_F1  UP
+
+# 4) 键位行为（input keyevent 注入，每次截图核对）
+keyevent 131   表盘 → 应用列表 ✅
+keyevent 131   应用列表 → 表盘 ✅
+keyevent 131   应用内（com.demo.watch2048） → 表盘 ✅
+keyevent 132   → 运动功能页（用户实测确认）✅
+
+# 5) 输入设备树（getevent -pl）
+event0  qpnp_pon      KEY_F1, KEY_F2            ← 131/132 出自这里
+event1  fts_ts        BTN_TOUCH, KEY_F12, KEY_SLEEP
+event2  gpio-keys     KEY_F5(138), KEY_WAKEUP
+event3  oplus_crown   无 EV_KEY，只有 REL_WHEEL
+event4  scrcpy        KEY 0001-0058（uhid 虚拟键盘，连接期间存在）
+
+# 6) 权限
+shell uid=2000 groups=…,1004(input),3011(uhid)
+sendevent /dev/input/event0 1 59 1 → Permission denied
+
+# 7) 未解释
+150 s 抓包只有 KEY_1×52 / KEY_2×14（MSC_SCAN 0007001e/1f），全程无 KEY_F1
+```
+
+**结论**
+
+| 结论 | 级别 | 依据 |
+|---|---|---|
+| scrcpy `--keyboard=sdk` 不转发 F1–F12，`--keyboard=uhid` 可用 | ✅ 2026-10-29 | 同一按键两模式对照 + KEY_F1 抓包 |
+| uhid 键盘在表端是 `/dev/input/event4`，name `scrcpy`，断开即消失 | ✅ 2026-10-29 | `getevent -pl` |
+| `131`（F1）＝**表冠按下**：表盘→应用列表、再按→表盘、应用内→表盘 | ✅ 2026-10-29 | 逐次截图 + 用户实测 |
+| `132`（F2）＝**侧键**，打开运动功能页 | ✅ 2026-10-29 | 用户实测 |
+| `131`/`132` 来自 `qpnp_pon`（event0），不在 `gpio-keys` 上 | ✅ 2026-10-29 | `getevent -pl` |
+| `sendevent` 直写 `/dev/input/*` 被拒（无 root） | ✅ 2026-10-29 | Permission denied |
+| 上述 7) 里数字键的来源 | ❓ 2026-10-29 | 怎么验：挂 `getevent -lt /dev/input/event4`，只按一次 F1，看抓到的 `KEY_*` 名 |
+
+**回填**：
+- 本机档案 `docs/environments/oppo-watch-x2.md` §取证（scrcpy 要用 uhid）、§已知坑 4（设备归属纠正）
+- SKILL `.claude/skills/iapp-development/references/watch-app-guide.md` §11（真机预览与按键模拟）

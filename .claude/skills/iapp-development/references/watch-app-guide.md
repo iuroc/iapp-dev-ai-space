@@ -159,3 +159,18 @@ call(null, "mjava", "bezel.install", 233)
   `SYSTEM_UI_FLAG_IMMERSIVE_STICKY | LAYOUT_FULLSCREEN | LAYOUT_HIDE_NAVIGATION`，
   并在 `loading` / `loadingComplete` / `resume` 各设一次（✅ API 34，2026-10-29）
 - 工程侧只需「模块文件 + loading 一行」，布局与样式代码零侵入
+
+## 11. 真机预览与按键模拟（scrcpy）
+
+屏幕小、息屏快的手表，用 scrcpy 做实时预览和交互，比反复 `screencap` 高效。
+
+- **默认 `--keyboard=sdk` 不转发 F1–F12**（✅ 2026-10-29）；要用键盘模拟物理键必须
+  `--keyboard=uhid`。uhid 会在设备上注册一只虚拟键盘（`/dev/input/event4`，name `scrcpy`，
+  断开即消失），前提是设备有 `/dev/uhid` 且 shell 在 `uhid` 组
+- uhid 下按键走**内核输入栈**，与物理按键同一条路；sdk 走系统 API 注入，功能键会丢
+- 物理键在 Android 上常映射成 `KEYCODE_F1`/`F2`…：先 `adb shell getevent -pl` 看设备树与 `KEY (...)`
+  能力位，再 `adb shell input keyevent <数字>` 逐个试。`sendevent` 直写 `/dev/input/*`
+  一般被 SELinux 拒绝，没有 root 走不通
+- 鼠标点击 = 触摸；滚轮 = `ACTION_SCROLL`，可驱动 `ScrollView`，也对应表冠的滚动轴
+- 具体机型的键位（哪个数字是哪颗物理键、按下去做什么）属于设备事实，记在对应环境档案，
+  不写进本技能

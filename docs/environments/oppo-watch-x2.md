@@ -85,10 +85,12 @@
    - iApp 里取值：`MotionEvent.ACTION_SCROLL` 下，**`AXIS_VSCROLL` 才有值**
      （`AXIS_SCROLL` 与 `AXIS_HSCROLL` 恒 0）；顺时针为负、逆时针为正。✅ 2026-10-29
    - **页面放进 `ScrollView` 后，表冠可直接原生滚动，无需写代码** ✅ 2026-10-29（用户观察）
-   - 侧键 / 表冠按下走 `gpio-keys`：`131`（F1）= **回桌面**、
-     `132`（F2）= **打开运动功能页**（骑行/跑步等运动模式列表，用户确认 ✅ 2026-10-29）、
-     `138`（F8）用途未确认 ❓，怎么验：`adb shell getevent -l` 后逐个按侧键，对照 `kc=138` 触发的系统界面
-     —— 都是系统占用，应用不要拿来做功能键
+   - 表冠按下 / 侧键走 **`qpnp_pon`（`/dev/input/event0`）**，不是 `gpio-keys`（✅ 2026-10-29）：
+     `131`（F1）= **表冠按下**——表盘按开应用列表、再按回表盘、应用内按回表盘；
+     `132`（F2）= **侧键**，打开运动功能页（骑行/跑步等运动模式列表）✅ 2026-10-29
+   - `gpio-keys`（event2）上只有 `138`（F5）与 `WAKEUP`；`138` 用途未确认 ❓，
+     怎么验：`adb shell getevent -l` 后逐个按侧键，对照触发 `kc=138` 的界面
+   - 以上都是系统占用，应用不要拿来做功能键
    - 其它厂商的手表**不一定**沿用同样的映射（用户提示），跨机型要重新测 ⚠
 6. **左滑返回对第三方应用不生效**：滑动是纯触摸事件（`fts_ts` 的 `BTN_TOUCH` +
    `ABS_MT_POSITION`），系统**不翻译成按键**；三种方向的 `input swipe` 都无法退出应用。
@@ -108,7 +110,7 @@
 
 ```bash
 adb -s <serial> shell svc power stayon usb    # USB 供电时常亮，防自动息屏
-adb -s <serial> shell input keyevent 131      # 侧键事件，让充电界面让开焦点
+adb -s <serial> shell input keyevent 131      # 表冠按下（回表盘/开应用列表），顺带让充电界面让开焦点
 adb -s <serial> exec-out screencap -p > s.png # 此时截图稳定
 ```
 
@@ -122,11 +124,15 @@ adb -s <serial> exec-out screencap -p > s.png # 此时截图稳定
 本机（M2）便携版在 `E:\Dev Tools\scrcpy\scrcpy-win64-v5.0.1\`，换机按需重下。
 
 ```bash
-scrcpy -s <serial> --stay-awake --no-audio --window-title "<型号>"
+scrcpy -s <serial> --keyboard=uhid --stay-awake --no-audio --window-title "<型号>"
 ```
 
 - 设备端只临时推 `scrcpy-server`（约 734 KB），**不安装 App、不需要 root**
 - 窗口是 466×466 正方形，圆屏外的四角为黑，属正常，不是投屏故障
+- **`--keyboard=uhid` 必须带**：默认的 `sdk` 模式**不转发 F1–F12**（✅ 2026-10-29）；
+  uhid 会在表端注册一只虚拟键盘（`/dev/input/event4`，name `scrcpy`，断开即消失）
+- **F1 = 表冠按下（131）、F2 = 侧键（132）** ✅ 2026-10-29 用户实测；
+  不用键盘也行：`adb shell input keyevent 131`／`132`
 - 鼠标点击 = 触摸；**滚轮 = `ACTION_SCROLL`**，对应表冠那条滚动轴
 - `Ctrl+H` 回主页、`Ctrl+P` 电源键、`Ctrl+O` 熄屏
 - 表仍会积极息屏：用 `--stay-awake` 即可；若改用上面的 `svc power stayon usb`，
