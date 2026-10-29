@@ -45,7 +45,7 @@
 应用宝容器内 iApp（开发 + 打包）
    └─ FTP 取回 APK → 宿主 Windows
         └─ adb install -r <apk>  → 手表
-             └─ am start / logcat / screencap（取证）
+             └─ am start / logcat / screencap / scrcpy（取证与实时预览）
 ```
 
 | 通道 | 前置 | 命令 | 取证能力 |
@@ -116,6 +116,24 @@ adb -s <serial> exec-out screencap -p > s.png # 此时截图稳定
 - 焦点确认：`dumpsys window | grep mCurrentFocus`，必须是你自己的窗口
 - 应用在后台时表冠/按键事件会被系统收走，`logcat` 里不会有任何记录
 
+### 实时预览与交互：scrcpy（✅ 2026-10-29）
+
+要**实时看并操作**表面用 scrcpy；只取单帧留档仍用上面的 `screencap`。
+本机（M2）便携版在 `E:\Dev Tools\scrcpy\scrcpy-win64-v5.0.1\`，换机按需重下。
+
+```bash
+scrcpy -s <serial> --stay-awake --no-audio --window-title "<型号>"
+```
+
+- 设备端只临时推 `scrcpy-server`（约 734 KB），**不安装 App、不需要 root**
+- 窗口是 466×466 正方形，圆屏外的四角为黑，属正常，不是投屏故障
+- 鼠标点击 = 触摸；**滚轮 = `ACTION_SCROLL`**，对应表冠那条滚动轴
+- `Ctrl+H` 回主页、`Ctrl+P` 电源键、`Ctrl+O` 熄屏
+- 表仍会积极息屏：用 `--stay-awake` 即可；若改用上面的 `svc power stayon usb`，
+  测完要 `svc power stayon false` 还原
+- 自带 adb 与应用宝自带 adb 共用 5037，实测不冲突（设备未掉线）
+- 画面正常不等于控制可用：鼠标注入这条未单独验收，见下方未测项
+
 ## 未测项（每条都写怎么验）
 
 | 项 | 怎么验 |
@@ -127,6 +145,8 @@ adb -s <serial> exec-out screencap -p > s.png # 此时截图稳定
 | 长时间后台存活 | 息屏 10 分钟后 `pidof <包名>` + `dumpsys activity activities` |
 | 无线 adb | 表内开发者选项找「无线调试」 |
 | `MANAGE_EXTERNAL_STORAGE` | `adb shell appops get <包名> MANAGE_EXTERNAL_STORAGE` |
+| scrcpy 鼠标/滚轮注入到表 | 窗口内点击与滚轮，对照表端反应与 `logcat` |
+| 无线 adb 下的 scrcpy | 表内开发者选项开无线调试，`adb connect` 后 `scrcpy -s <ip>:<port>` |
 
 ## 取证
 

@@ -4363,3 +4363,49 @@ logcat -s ygs:V（改 mjava 定尺寸后）
 - SKILL `watch-app-guide.md` §2（ppt dp 与 mjava density 不一致）、§10（注入式罩层，只传直径）
 - SKILL `scripts/bezel.mjava`（可复用模板）
 - 提交：`6d622f7`（模块与流程）、`bd6037b`（只传直径、纯黑）、`533f9b5`（半透明）
+
+---
+
+## 2026-10-29 WATCH-7 scrcpy 控表（实时预览与交互通道）
+
+**目标**：给手表找一条能在 Windows 上看并操作屏幕的通道，替代「拍一帧看一帧」。
+
+**工具**：scrcpy v5.0.1 win64 便携版，`E:\Dev Tools\scrcpy\scrcpy-win64-v5.0.1\`；
+经 `http://127.0.0.1:7890` 代理下载（直连在 7.7% 处被 `schannel: server closed abruptly` 掐断，改断点续传补齐）。
+
+```
+scrcpy-win64-v5.0.1.zip  11264634 B
+sha256  b12a2c4ee8be317422451fc7dcf8ee20a71b5ea7ef9ad73ddd825a25316227a5
+unzip -t  No errors detected
+
+无窗录制：scrcpy -s <serial> --no-window --time-limit 6 --record wtest.mp4 --no-audio
+  [server] INFO: Device: [OPPO] OPPO OWW251 (Android 11)
+  ffprobe: h264 466x466  nb_frames=175（6 s ≈ 29 fps）  退出码 0
+  设备端只推 scrcpy-server 733930 B，未安装任何 APK
+
+带窗启动
+  INFO: Renderer: direct3d11 / Interop: d3d11va / Video decoding: d3d11va
+  INFO: Texture (D3D11VA): 480x480
+
+adb 共存
+  5037 上的 server 仍由先前的 adb 进程持有；scrcpy 自带 adb.EXE 37.0.1 作为客户端接入
+  应用宝 adb.EXE 33.0.2 随后查询 `adb devices` 仍正常列出 d96d6a4e → 未重启、未掉线
+  `adb devices` 里始终有一条 `127.0.0.1:5037  offline` 噪声条目（早于本轮，来源未知）
+
+screencap 复验
+  exec-out screencap -p → PNG 466x466 RGBA，53 KB，内容正常（非全白）
+
+电源
+  settings get global stay_on_while_plugged_in = 7（本轮 `svc power stayon usb` 所设，用完还原为 0）
+```
+
+**结论**
+
+| 结论 | 级别 | 依据 |
+|---|---|---|
+| 这块表可被 scrcpy 镜像，画面正常 | ✅ 2026-10-29 | 用户确认「看到画面了」；录得 175 帧有效画面 |
+| 硬件解码可用（D3D11VA） | ✅ 2026-10-29 | 启动日志 |
+| scrcpy 自带新版 adb 与应用宝旧版 adb 共用 5037 不冲突 | ✅ 2026-10-29 | 双方 `adb devices` 均正常，设备未掉线 |
+| 鼠标点击 / 滚轮注入到表 | ❓ 2026-10-29 | 本轮只验收镜像；怎么验：窗口内点击与滚轮，对照表端反应和 `logcat` |
+
+**回填**：`docs/environments/oppo-watch-x2.md` §取证（scrcpy 小节）
