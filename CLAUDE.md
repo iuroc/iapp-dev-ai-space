@@ -240,3 +240,4 @@ python tools/ftp-sync.py --adb-forward emulator-5556   # 退出码 0 才算投�
 - 文档规范与体检：`.claude/skills/docs-architecture/SKILL.md`
 - 环境档案：`docs/environments/README.md`
 - 本机事实：`docs/README.md`
+- 工作区索引（不写规则，只做入口）：`README.md`
