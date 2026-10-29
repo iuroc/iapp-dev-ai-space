@@ -3,7 +3,7 @@
 | 脚本 | 用途 |
 |---|---|
 | `review_docs.py` | 三层文档架构体检（只读）：死链、索引漏登记、级别标注、skill 本机事实、参数与文档一致性、数值分组 |
-| `review_config.json` | 体检配置：排除项、白名单、索引映射、数值键表、已知分口径指标 |
+| `review_config.json` | 体检配置：排除项、白名单、索引映射、数值键表、已知分口径指标（`known_split`）、已判定非冲突指标（`known_nonconflict`） |
 
 ## 用法
 
@@ -41,3 +41,4 @@ python .claude/skills/docs-architecture/scripts/review_docs.py --fail-on major
 - 历史归档（`docs/evidence.md`、`docs/superpowers/plans/`、`docs/superpowers/specs/`）里的问题自动降一级，
   避免每次都被旧引用淹没。
 - `NUM-01` 只报告「同一指标出现多个值」，**不判定谁对谁错**，需人工确认口径。
+  人工判定确属非冲突（不同时间快照）后，把指标键写进 `known_nonconflict`，该组降为提示。

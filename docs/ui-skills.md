@@ -20,9 +20,9 @@ React / Flutter」的世界，而 iApp 只有 **Android View + ppt 声明 + Bean
 
 | 部分 | 对 iApp |
 |---|---|
-| 设计流程（语境 → 结构 → 视觉 → 情绪 → 细节）、拇指区、F 型阅读、空状态、反模式、行业惯例 | ✅ 直接用 |
+| 设计流程（语境 → 结构 → 视觉 → 情绪 → 细节）、拇指区、F 型阅读、空状态、反模式、行业惯例 | ✅ 直接用 2026-10-28 |
 | Implementation Notes（Tailwind、Lucide、Recharts、`backdrop-blur`、375px 基线） | ❌ 不适用，是 Web/React 的实现 |
-| 参考文件 `.claude/skills/mobile-app-ui-design/references/industry-conventions.md` | ✅ 可直接读，按行业取约定 |
+| 参考文件 `.claude/skills/mobile-app-ui-design/references/industry-conventions.md` | ✅ 可直接读，按行业取约定 2026-10-28 |
 
 替代：375px 基线换成常见安卓宽度（360dp 宽、400dp 高以上）；图标用 Canvas 现画（见
 `.claude/skills/iapp-development/references/icon-guide.md`），不引图标库。
@@ -31,11 +31,11 @@ React / Flutter」的世界，而 iApp 只有 **Android View + ppt 声明 + Bean
 
 | 部分 | 对 iApp |
 |---|---|
-| 颜色角色（`primary` / `surface` / `outline` …）、type scale、shape token、elevation 语义 | ✅ 当作设计规格用 |
-| 组件清单、状态、可访问性、MD3 审计清单 | ✅ 用来验收 |
+| 颜色角色（`primary` / `surface` / `outline` …）、type scale、shape token、elevation 语义 | ✅ 当作设计规格用 2026-10-28 |
+| 组件清单、状态、可访问性、MD3 审计清单 | ✅ 用来验收 2026-10-28 |
 | Jetpack Compose / Flutter / `@material/web` 的代码与 API | ❌ 不能照抄 |
 | M3 Expressive（Compose 专属的形变、spring 物理） | ❌ iApp 没有 Compose |
-| Dynamic color（`DynamicColors`） | ❓ 未在 iApp 验过；按静态色板设计更稳 |
+| Dynamic color（`DynamicColors`） | ❓ 未在 iApp 验过；怎么验：写最小探针页调用 `DynamicColors.applyToActivitiesIfAvailable` 看主题色是否跟随壁纸；按静态色板设计更稳 |
 | Spring-based motion | ⚠ 用 `ObjectAnimator` / `View.animate()` 近似（见 `animation-guide.md`） |
 
 ## M3 概念 → iApp 写法

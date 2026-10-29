@@ -61,8 +61,8 @@ src/*.iyu, *.mjava
 
 ## 外部同步的边界
 
-- 通过共享目录/同步盘改工程时，可能同步出**截断文件**：设备端字节数不足，iApp 报 `Parse error ... Encountered: <EOF>`。改完先核字节数/md5，不一致就重新复制或改用 `adb push`
-- 工程在 iApp 里打开期间可能读到旧缓存；改完让用户关闭并重开工程，再核 md5
+- 通过共享目录/同步盘改工程时，可能同步出**截断文件**：设备端字节数不足，iApp 报 `Parse error ... Encountered: <EOF>`。遇到时重新复制或改用 `adb push`（不要求逐次核）
+- 工程在 iApp 里打开期间可能读到旧缓存；改完让用户关闭并重开工程
 - 同一轮改多个文件时，可能只有部分文件同步过去；不要只看一个文件就认为整批已生效
 - 没有共享目录、也没有 adb 时，可改用 iApp 内置 FTP 投递（`references/ftp-delivery.md`）；
   三条通道的取舍与共同铁律见 `references/environment-adaptation.md`

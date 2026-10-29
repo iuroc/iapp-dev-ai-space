@@ -16,6 +16,21 @@
 - `docs/` **不写通用方法**；能换台机器成立的，搬去 SKILL。
 - SKILL **不写本机数值**（IP、端口、序列号、盘符、真实包名、单机日期）；这些留在 `docs/`。
 
+### 工程私有文档区（三层之外）
+
+每个 iApp 工程在**工程根**自带 `docs/`，存放只对该工程成立的资料：规格、计划、报告、
+探针读数、设计素材等，类型不限。iApp 只读 `src/` 里的既有文件，工程根可安全新增
+任意目录（不改动已有文件即可）。
+
+它不是第四层，判据仍走下面四问：
+
+- 工程 `docs/` 里攒出**换台机器仍成立**的结论 → 照旧上浮到 SKILL（那份 skill 会随工程一起走，不会丢）。
+- 只对**本机**成立的实证 → 留在工作区 `docs/`，不往工程里塞。
+- 只对**这个工程**成立 → 工程 `<工程根>/docs/`。
+
+工程随时可能脱离本工作区独立成库，因此工程内文档引用 skill 一律写**工程根相对路径**
+（`.claude/skills/iapp-development/…`），脱离前后都成立；禁止写工作区绝对路径或上一层相对路径。
+
 ## 2. 归属四问
 
 按顺序问，止于第一条命中：
@@ -39,7 +54,8 @@
 | 某台机器的长期事实（安装目录、root、工程根、权限、能力矩阵） | `docs/environments/<环境ID>.md` | 指针 |
 | 当前会话快照（在连设备、serial、UID、端口） | `docs/runtime-env.md`（顶部必须带日期） | 不复制，只引 |
 | 原始读数（logcat、截图、命令输出、批次） | `docs/evidence.md` | 引用日期/批次 |
-| 计划、历史规格（superpowers SDD 约定位置） | `docs/superpowers/plans/`、`docs/superpowers/specs/`（归档，不作权威） | 不复述结论 |
+| 计划、历史规格（superpowers SDD 约定位置） | 跨工程任务 → 工作区 `docs/superpowers/plans|specs/`；单个工程 → `<工程根>/docs/superpowers/plans|specs/`（归档，不作权威） | 不复述结论 |
+| 只对某个 iApp 工程成立的资料（规格、报告、探针读数、素材） | `<工程根>/docs/`（工程私有，随工程脱离） | 不复述 |
 | 脚本行为与参数 | 脚本 `--help`（事实源）+ 同目录 `README.md` | 指针 |
 | 级别制度、引用规范、索引规则、冲突裁决 | 本 skill `references/*.md` | 一行指针 |
 | UI 辅助技能 ↔ iApp 的映射与限制 | `docs/ui-skills.md` | 指针 |
@@ -85,10 +101,26 @@
 
 不是文档层的位置：`android-sync/`（设备镜像）、`tmp-recon/`（临时反编译）、`.superpowers/`（会话状态）。
 
-**计划与规格遵循 superpowers SDD 约定**，本工作区不再另设 `docs/plans/`、`docs/specs/`：
+每个 iApp 工程本身也是一个小仓库，脱离本工作区后要能自解释：
 
-- 实施计划 → `docs/superpowers/plans/YYYY-MM-DD-<feature-name>.md`（由 `writing-plans` 产出）
-- 设计规格 → `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`（由 `brainstorming` 产出）
+```
+<工程根>/
+├── src/                            # .iyu + .mjava（iApp 只读这里）
+├── build.xml / .project / icon.png
+├── docs/                           # 工程私有资料区（类型不限）
+│   └── superpowers/
+│       ├── plans/                  # YYYY-MM-DD-<feature>.md
+│       └── specs/                  # YYYY-MM-DD-<topic>-design.md
+└── .claude/skills/iapp-development/   # 脱离时整目录复制进来，路径引用随之成立
+```
+
+**计划与规格遵循 superpowers SDD 约定**，位置按归属分两级，本工作区不再另设
+`docs/plans/`、`docs/specs/`：
+
+- **单个工程的任务** → `<工程根>/docs/superpowers/plans|specs/`，随工程走
+- **跨工程任务**（文档体检、环境探测等不属于任何工程的活）→ 工作区 `docs/superpowers/plans|specs/`
+- 实施计划 → `YYYY-MM-DD-<feature-name>.md`（由 `writing-plans` 产出）
+- 设计规格 → `YYYY-MM-DD-<topic>-design.md`（由 `brainstorming` 产出）
 - 执行期产物（ledger、任务简报、review 包）→ `.superpowers/sdd/<plan 名>/`，gitignored，属会话状态，不归档
 
 执行中的进度写在 ledger 里，但 ledger 不入库：**任务完成时要在计划文件里勾 checkbox**，

@@ -12,19 +12,21 @@
 | 判据 | 值 |
 |---|---|
 | 安装目录 | `C:\leidian\LDPlayer14` ✅ 2026-10-26 |
-| 引擎版本 | `dnplayer` 14.0.32.1 ✅ |
+| 引擎版本 | `dnplayer` 14.0.32.1 ✅ 2026-10-28 |
 | 注册表卸载项 | DisplayName「雷电模拟器14」，DisplayVersion 14.0.32.1 ✅ 2026-10-28 |
 | 运行进程 | `dnplayer.exe`（路径指向上面目录）✅ 2026-10-28 |
-| 实例目录 | `vms\leidian1`；同目录下的空 `vms\leidian0` 是改名后 GUI 自动建的**空实例**，勿启动 ✅ |
-| 伪装型号 | 25102RKBEC ✅ |
+| 实例目录 | `vms\leidian1`；同目录下的空 `vms\leidian0` 是改名后 GUI 自动建的**空实例**，勿启动 ✅ 2026-10-28 |
+| 伪装型号 | 25102RKBEC ✅ 2026-10-28 |
 
 同机还装了雷电 9（见 `ldplayer9.md`）。两套独立安装，不要靠 `emulator-5554` 这种名字认设备。
 
 ## 2. Android 与屏幕
 
-- Android 14 / API 34 ✅
-- 屏幕 720×1280 / 320dpi ✅
+- Android 14 / API 34 ✅ 2026-10-28
+- 屏幕 **1080×1920 / 480dpi** ✅ 2026-10-29（`wm size` / `wm density` 物理值；
+  2026-10-28 读到 720×1280 / 320dpi，实例分辨率被改过，以开工时现查为准）
 - `adb -s <serial> shell getprop ro.build.version.sdk` → `34` ✅ 2026-10-28
+- 手表预览探针：`ProjectApp/com.demo.watchmask`（233dp 圆罩层，状态栏隐藏、点击穿透）✅ 2026-10-29
 
 ## 3. 投递
 
@@ -36,7 +38,7 @@
 ```
 
 - 改文件前先 `am force-stop com.iapp.app`（iApp 以内存为准）
-- **改「已存在」文件后必须核 `/sdcard` 侧的 md5**：vboxsf 直挂侧会立刻更新，FUSE 视图可能仍是旧内容；
+- **改「已存在」文件后可能读到旧内容**：vboxsf 直挂侧会立刻更新，FUSE 视图可能仍旧；遇到时再核 md5 诊断或直接 `adb push`；
   新建文件两侧立刻可见 ✅ 2026-10-27
 - 可能同步出截断文件（设备端字节数少于宿主），核 `wc -c`，不一致就 `adb push`
 
@@ -68,7 +70,7 @@ python .claude/skills/iapp-development/scripts/ftp_sync.py \
   --remote /ProjectApp/<项目ID> --local-root android-sync/ProjectApp/<项目ID> --dry-run
 ```
 
-脚本会自动转发控制端口与每个 PASV 数据端口，退出时清理。详见 SKILL `references/ftp-delivery.md`。
+脚本会自动转发控制端口与每个 PASV 数据端口，退出时清理。详见 SKILL `.claude/skills/iapp-development/references/ftp-delivery.md`。
 
 **FTP 与共享目录是同一份文件**：工程根软链 → `Pictures` → 共享目录，所以 FTP 侧的读写最终落到宿主镜像。
 两侧偶尔出现字节差是瞬时的（编辑中/缓存），不是两份副本；2026-10-28 复核两个曾有差异的文件，
@@ -83,8 +85,8 @@ md5 已完全相同。这也意味着**不要同时用 FTP 和共享目录写同
 
 - iApp 开发模式取工程根返回 `Android/data/...` 侧，实际落在共享目录，两条路径 md5 一致 ✅ 2026-10-27
 - Android 11+ 的 `Android/data/<包名>` 只有该 app 自己的 mount namespace 能访问；
-  普通 `adb shell` 会被 FUSE 拒绝，建链接必须 `su` ✅
-- 链接建在设备侧 ext4/FUSE 路径；**共享目录（vboxsf）不支持 `ln -s`**（`Function not implemented`）✅
+  普通 `adb shell` 会被 FUSE 拒绝，建链接必须 `su` ✅ 2026-10-26
+- 链接建在设备侧 ext4/FUSE 路径；**共享目录（vboxsf）不支持 `ln -s`**（`Function not implemented`）✅ 2026-10-26
 
 ## 5. 权限与 root
 
@@ -94,6 +96,7 @@ md5 已完全相同。这也意味着**不要同时用 FTP 和共享目录写同
   永久允许行 `uid=<app uid>, command='', desired_uid=0, policy='allow', until=0`
 - iApp UID：`10072`（`u0_a72`）✅ 2026-10-28；重装后可能变，要重写该行
 - `MANAGE_EXTERNAL_STORAGE: allow` ✅ 2026-10-28
+- `SYSTEM_ALERT_WINDOW: allow`（iApp 自带悬浮窗能力，开发模式可直接加覆盖层）✅ 2026-10-29
 - 脚本：`docs/artifacts/root/grant_iapp_root.sh`
 
 ## 6. 已知坑
@@ -102,10 +105,11 @@ md5 已完全相同。这也意味着**不要同时用 FTP 和共享目录写同
 |---|---|---|
 | `emulator-5554` 指到别的实例 / offline | 两套雷电都抢宿主 5555 | 把第二套改名 `leidian1`（端口 5557）；投递前 `getprop` 核对 |
 | GUI 自动出现一个空的 `leidian0` | 改名后的残留 | 不要启动；稳定后可删 |
-| 宿主改了 iApp 看不到 | FUSE 旧缓存 / 工程还开着 | 关工程重开；核 `/sdcard` 侧 md5 |
+| 宿主改了 iApp 看不到 | FUSE 旧缓存 / 工程还开着 | 关工程重开；必要时换 `adb push` |
 | 软链消失、写入被拒 | 卸载/清除数据删了 `Android/data`，appop 也被重置 | 重建软链 + 重新 `appops set` |
 | `adb push` 报 `secure_mkdirs failed` | Git Bash 把 `/storage/...` 改写成 Windows 路径 | `export MSYS_NO_PATHCONV=1` |
 | `bind mount` 后 app 看不到 | 应用独立 mount namespace | 不用 bind mount，用共享目录 + 软链 |
+| 为手表预览改 `wm size` / `wm density` | **整实例全局生效**，iApp 与所有 app 一起变方屏，无法正常调试 | 不改尺寸；用 `com.demo.watchmask` 的 233dp 罩层（SKILL `watch-app-guide.md` §10）。已改就 `wm size reset` + `wm density reset` |
 
 ## 7. 未测项
 
@@ -121,6 +125,7 @@ md5 已完全相同。这也意味着**不要同时用 FTP 和共享目录写同
 - `docs/evidence.md` 2026-10-26「Android 14 永久 root 授权」「iApp 工程目录链接到 Pictures」
 - `docs/evidence.md` 2026-10-27（共享目录 FUSE 旧内容、截断文件）
 - `docs/evidence.md` 2026-10-28（`detect_env.py` 首跑）
+- `docs/evidence.md` 2026-10-29 WATCH-5（模拟器圆表盘罩层）
 
 ## 附：口径说明
 

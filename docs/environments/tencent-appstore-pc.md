@@ -7,7 +7,7 @@
 |---|---|
 | 环境 ID | `tencent-appstore-pc` |
 | 机器 | M2（Windows 11） |
-| 最后核验 | 2026-10-27（M2 上实测）；本机未复验 |
+| 最后核验 | 2026-10-28 / 29（M2 上实测，见 `docs/evidence.md` WATCH-2 / WATCH-3）；M1 从未复验 |
 | 状态 | 该机器的主环境；本机（M1）不适用 |
 
 ## 1. 识别
@@ -19,7 +19,7 @@
 | 产品 | 腾讯应用宝电脑版 /「腾讯应用宝移动应用引擎」 | ⚠ 他机 |
 | 安装目录 | `E:\Program Files\Tencent\Androws\Application\5.10.7500.6534` | ⚠ 他机 |
 | 运行进程 | `Androws.exe`、`AndrowsAssistant.exe`、`AndrowsDlSvr.exe` | ⚠ 他机 |
-| adb | 产品自带 `adb.EXE`（`…\Androws\Application\5.10.7500.6534\adb.EXE`）在 PATH 里；`adb devices` **能看到外接 USB 设备**（2026-10-28：手表 `d96d6a4e`），**看不到 Androws 容器本身** | ✅ 本机 2026-10-28；容器仍无 adb ❓（未试 `127.0.0.1:5555`，见 §7） |
+| adb | 产品自带 `adb.EXE`（`…\Androws\Application\5.10.7500.6534\adb.EXE`）在 PATH 里；`adb devices` **能看到外接 USB 设备**（2026-10-28：手表 `d96d6a4e`），**看不到 Androws 容器本身** | ✅ 本机 2026-10-28；容器仍无 adb ❓，怎么验：`adb connect 127.0.0.1:5555`（见 §7） |
 | 雷电 9 / 14 | 未安装（Hyper-V 占用，VirtualBox 系装不上） | ⚠ 他机 |
 | MuMu / 夜神 | 未安装 | ⚠ 他机 |
 | 容器内 iApp | `com.iapp.app` 已装（`Androws\apps\com.iapp.app`） | ✅ 本机 2026-10-28 |
@@ -31,9 +31,9 @@
 
 | 项 | 值 | 级别 |
 |---|---|---|
-| Android / API | ❓ | 未读（模拟器内「设置 → 关于手机」） |
-| 屏幕 / density | ❓ | 未读 |
-| 是否 root | ❓ | 未测 |
+| Android / API | ❓ | 怎么验：模拟器内「设置 → 关于手机」 |
+| 屏幕 / density | ❓ | 怎么验：容器内 `wm size` / `wm density`，或「设置 → 显示」 |
+| 是否 root | ❓ | 怎么验：容器内终端（若有）跑 `su -c id`；无 shell 时只能从产品文档判断 |
 
 ## 3. 投递
 
@@ -44,24 +44,28 @@
 | 地址 | `ftp://172.22.44.17:9527`（2026-10-28 本机实测）；2026-10-27 为 `172.22.39.216:9527` —— **地址和端口每次可能变，以 iApp 服务器控制台为准** |
 | 登录 | 匿名 `anonymous` + 任意邮箱 ✅ 本机 2026-10-28 |
 | FTP 根 | App 级文件区：`ProjectApp/`、`DownloadFileDir/`、`Userimg/`、`screenshot/`、手册副本 |
-| 工程位置 | `/ProjectApp/<项目ID>` ⚠ 他机 |
-| 读 | ⚠（他机）`MLSD` / `NLST` / `SIZE` / `MD5` |
-| 写 | ⚠（他机）`STOR` / `DELE` / `MKD` / `RMD` |
-| 点文件 | `MLSD`/`NLST` **不列** `.project`；`SIZE`/`MD5` 正常 ⚠ 他机 |
-| 父目录 | `STOR` **不会**自动建父目录，先 `MKD` ⚠ 他机 |
+| 工程位置 | `/ProjectApp/<项目ID>` ✅ 本机 2026-10-28（FTP 推 `src/` → 容器内打包 → FTP 取回 `bin/<包名>.apk`） |
+| 读 | `MLSD` / `NLST` / `SIZE` / `MD5` / `RETR` ✅ 本机 2026-10-28/29（WATCH-2 / WATCH-3） |
+| 写（上传 / 建目录） | `STOR` / `MKD` ✅ 本机 2026-10-28/29（`ftp_sync.py` 推 6 个、9 个文件，MD5 全一致） |
+| 写（删除 / 改名 / 追加） | `DELE` / `RMD` / `RNFR` / `APPE` ⚠ 他机 2026-10-27 |
+| 点文件 | `MLSD`/`NLST` **不列** `.project`；`SIZE`/`MD5` 正常 ⚠ 他机 2026-10-27（M2 未单独复验） |
+| 父目录 | `STOR` **不会**自动建父目录；`MKD` 非递归 ⚠ 他机 2026-10-27 |
+| 逐级建目录 | `ftp_sync.py` 逐级 `MKD` 后 push 成功 ✅ 本机 2026-10-28 |
 
-共享目录：❓ 未确认本产品是否有宿主 ↔ 设备共享目录。
+共享目录：❓ 未确认本产品是否有宿主 ↔ 设备共享目录；怎么验：产品设置的「共享文件夹」类选项里找宿主目录映射。
 
-投递命令见 SKILL `references/ftp-delivery.md` 与 `scripts/ftp_sync.py`。
+投递命令见 SKILL `.claude/skills/iapp-development/references/ftp-delivery.md` 与
+`.claude/skills/iapp-development/scripts/ftp_sync.py`。
 
 ## 4. 工程根
 
-iApp 设置里显示的工程根：❓ 未抄回。
-FTP 视角下工程在 `/ProjectApp/<项目ID>`；两者是否同一份文件：⚠ 需在 M2 上确认（用 `SIZE`/`MD5` 对照）。
+iApp 设置里显示的工程根：❓ 未抄回；怎么验：打开容器内 iApp 读取设置页显示的路径。
+FTP 视角下工程在 `/ProjectApp/<项目ID>`；两者是同一份文件 ✅ 本机 2026-10-28（FTP 推 `src/` → 容器内打包 → FTP 取回 `bin/<包名>.apk`，见 WATCH-2）。
 
 ## 5. 权限与 root
 
-全部 ❓。无 adb 时大概率拿不到 shell，root 状态只能从产品界面/文档判断。
+全部 ❓。怎么验：无 adb 时大概率拿不到 shell，root 状态只能从产品界面/文档判断；
+有 shell 后跑 `appops get <包名> MANAGE_EXTERNAL_STORAGE` 与 `su -c id`。
 
 ## 6. 已知坑
 
@@ -80,13 +84,13 @@ FTP 视角下工程在 `/ProjectApp/<项目ID>`；两者是否同一份文件：
 
 | 项 | 级别 | 怎么验 |
 |---|---|---|
-| 容器是否有 adb 通道 | ❓ | `netstat` 见 `Androws.exe` 监听 `0.0.0.0:5555`；`adb connect 127.0.0.1:5555` 未测 |
+| 容器是否有 adb 通道 | ❓ | 怎么验：`netstat` 见 `Androws.exe` 监听 `0.0.0.0:5555` 后，`adb connect 127.0.0.1:5555` |
 | 容器内 iApp 是否能打 32 位包 | ✅ 2026-10-28 | 设置 →【打包设定so库】全勾后可产出四架构 APK |
-| Android / API、屏幕、density | ❓ | 模拟器内「设置 → 关于手机」 |
-| iApp 设置显示的工程根 | ❓ | iApp 界面抄回 |
-| 宿主 ↔ 设备共享目录 | ❓ | 产品设置里找「共享文件夹」类选项 |
-| 设备内 FTP 自连 | ❓ | 设备内终端连 `127.0.0.1:<端口>` |
-| `ftp_sync.py` 端到端真推 | ❓ | 关工程 → 全量推 → 退出码 0 |
+| Android / API、屏幕、density | ❓ | 怎么验：模拟器内「设置 → 关于手机」，或容器内 `wm size` / `wm density` |
+| iApp 设置显示的工程根 | ❓ | 怎么验：打开容器内 iApp，抄设置页显示的路径 |
+| 宿主 ↔ 设备共享目录 | ❓ | 怎么验：产品设置里找「共享文件夹」类选项 |
+| 设备内 FTP 自连 | ❓ | 怎么验：设备内终端连 `127.0.0.1:<端口>` |
+| `ftp_sync.py` 端到端真推 | ❓ | 怎么验：关工程 → 全量推 → 退出码 0 |
 
 ## 8. 取证
 

@@ -10,7 +10,7 @@
 | 宿主 | Windows 10 Pro Education 10.0.19045；Hyper-V 未启用 |
 | 在连设备 | `emulator-5556`（雷电 14）/ API 34 / Android 14 / model 25102RKBEC |
 | 另一台 | 雷电 9 已安装、VM 引擎在跑，但未连 adb（`adb devices` 不出现） |
-| 推荐通道 | 共享目录（主）→ adb（取证/兜底）→ FTP over `adb forward`（已验只读） |
+| 推荐通道 | 共享目录（主）→ adb（取证/兜底）→ FTP over `adb forward`（读写均已验 ✅ 2026-10-28） |
 
 选择规则见根 `CLAUDE.md`「设备选择」；两台同开时的端口冲突见 `environments/ldplayer14.md` §1、§6。
 
@@ -43,7 +43,7 @@ root 授权细节（`su.sqlite` / `uid_policy` / `grant_iapp_root.sh`）见 `env
 ## 共享目录现状
 
 - 宿主 `android-sync/` ↔ 设备 `/mnt/shared/Pictures`（vboxsf，rw，双向实时）
-- 改「已存在」文件后，FUSE 视图（`/sdcard/Pictures`，iApp 实际读的那侧）可能仍是旧内容 → **核 `/sdcard` 侧 md5**
+- 改「已存在」文件后，FUSE 视图（`/sdcard/Pictures`，iApp 实际读的那侧）可能仍是旧内容 → 遇到时核 `/sdcard` 侧 md5 诊断，或改用 `adb push`
 - 可能同步出截断文件 → 核 `wc -c`，不一致就 `adb push`
 - Git Bash 下 `adb push` 前先 `export MSYS_NO_PATHCONV=1`
 - 工程根是软链时，`VisualDesigner.a9` 返回 `Android/data` 侧路径，与共享目录同一份文件（md5 一致）

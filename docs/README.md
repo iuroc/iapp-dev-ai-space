@@ -13,6 +13,5 @@
 | `evidence.md` | 每轮探针的日期、批次、原始读数（先写这里，再提炼进 SKILL） |
 | `reference/` | 官方手册副本（iyu、ijava） |
 | `artifacts/` | 从设备拉下的 APK 与 dex 分析产物 |
-| `superpowers/plans/` | 实施计划（superpowers SDD 标准位置，`YYYY-MM-DD-<feature>.md`） |
-| `superpowers/specs/` | 设计规格（`YYYY-MM-DD-<topic>-design.md`） |
+| `superpowers/plans/` | 跨工程任务的实施计划（`YYYY-MM-DD-<feature>.md`）；单个工程的计划放工程自己的 `docs/superpowers/plans/` |
 | `scripts/` | 本机脚本目录，逐个说明见 `scripts/README.md`（含与 skill 同名副本的「同 / 异」标注） |

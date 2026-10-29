@@ -147,7 +147,7 @@ b_hello();          // 加载后直接调
 3. 【荐】**投递先协商再选通道**：共享目录镜像、`adb push/pull`、iApp 内置 FTP 是三条并列通道，按当前环境实际可用性选，不按产品名预设。
    共享目录可用且核验通过时优先（双向、免认证）；否则有 adb 设备就 `adb push`；adb 不可用而 FTP 暴露工程根时用 FTP
    （先判断宿主能否直达该端口，直达就直连，否则走 `adb forward`）；都不通才手工导入 `.iApp`。
-   任何通道都遵守：**改前关工程、改完全量推、推完核字节**；同一时刻只走一条写通道。
+   任何通道都遵守：**改前关工程、改完全量推**；同一时刻只走一条写通道。不逐次核字节，出问题再查。
    不要用 bind mount（应用 namespace 看不到后加的挂载）。详见 `references/environment-adaptation.md`、`references/ftp-delivery.md`。
 4. 【荐】**双证据**：屏幕现象（screencap）+ 原文日志
    `adb logcat -d -v time 'ygs:V' 'System.err:V' '*:S'`

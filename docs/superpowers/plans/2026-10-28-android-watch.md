@@ -2,7 +2,15 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 >
-> **状态：待排期。** 可行性已确认，功能目标未定；Task 0–2 与功能无关，可以先做。
+> **状态：已被实际执行取代（2026-10-29）。** 执行记录见 `docs/evidence.md` WATCH-2 / WATCH-3 / WATCH-4，
+> 真机档案见 `docs/environments/oppo-watch-x2.md`。本计划保留为历史，但下面两处结论已过时：
+>
+> - Tech Stack「原生库仅 `arm64-v8a`」→ arm64-only 包在纯 32 位设备上安装失败
+>   （`INSTALL_FAILED_NO_MATCHING_ABIS`），需在【打包设定so库】勾齐目标 ABI（WATCH-2）；
+> - Architecture「开发与调试全部在雷电 14」→ 实际在应用宝容器内开发、打包，
+>   经 FTP 投递、宿主 `adb install` 装表（WATCH-2 / WATCH-3）。
+>
+> 可行性已确认，功能目标未定；Task 0–2 与功能无关，可以先做。
 
 **Goal:** 用 iApp 做一款适配圆表盘（主目标 OPPO Watch X2，466×466）的应用，交付形态是 APK，
 经 USB 侧载到手表安装运行。

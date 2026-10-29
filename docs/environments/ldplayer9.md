@@ -15,16 +15,16 @@
 | 判据 | 值 |
 |---|---|
 | 安装目录 | `E:\Program Files\leidian\LDPlayer9` ✅ 2026-10-26 |
-| 引擎版本 | `dnplayer` 9.5.42.0；VM 引擎进程 `Ld9BoxHeadless.exe`（`C:\Program Files\ldplayer9box`）✅ |
+| 引擎版本 | `dnplayer` 9.5.42.0；VM 引擎进程 `Ld9BoxHeadless.exe`（`C:\Program Files\ldplayer9box`）✅ 2026-10-26 |
 | 注册表卸载项 | DisplayName「雷电模拟器9」，DisplayVersion 9.5.42.0 ✅ 2026-10-28 |
-| 实例目录 | `vms\leidian0` ✅ |
-| 宿主端口 | `adb,tcp,,5555,,5555` ✅ |
-| 伪装型号 | 25060RK16C ✅ |
+| 实例目录 | `vms\leidian0` ✅ 2026-10-26 |
+| 宿主端口 | `adb,tcp,,5555,,5555` ✅ 2026-10-26 |
+| 伪装型号 | 25060RK16C ✅ 2026-10-26 |
 
 ## 2. Android 与屏幕
 
-- Android 9 / API 28；`/storage/emulated/0` 是 **sdcardfs**（不是 FUSE）✅
-- 屏幕 1080×1920 / 480dpi（判读 sp/px 的锚点，换设备必须重取）✅
+- Android 9 / API 28；`/storage/emulated/0` 是 **sdcardfs**（不是 FUSE）✅ 2026-10-26
+- 屏幕 1080×1920 / 480dpi（判读 sp/px 的锚点，换设备必须重取）✅ 2026-10-26
 - `getprop ro.build.version.sdk` → `28`
 
 ## 3. 投递
@@ -37,7 +37,7 @@
 ```
 
 前提是 iApp 设置里的工程根已指到 `/sdcard/Pictures/ProjectApp`（这台改过）✅ 2026-10-26。
-`sdcardfs` 没有 FUSE 那层旧缓存问题，但仍建议改完核一次 md5。
+`sdcardfs` 没有 FUSE 那层旧缓存问题，改完不必核。
 
 ### adb push
 
@@ -53,7 +53,7 @@ adb -s <serial> shell "chown <uid>:sdcard_rw /sdcard/Pictures/ProjectApp/<项目
 
 ## 4. 工程根
 
-- iApp 默认（未改设置）：`/data/media/0/iApp/ProjectApp/<项目ID>`，日常视图 `/sdcard/iApp/ProjectApp/<项目ID>` ✅
+- iApp 默认（未改设置）：`/data/media/0/iApp/ProjectApp/<项目ID>`，日常视图 `/sdcard/iApp/ProjectApp/<项目ID>` ✅ 2026-10-26
 - 这台已改成 `/sdcard/Pictures/ProjectApp`；旧路径仍有一份副本，不再使用
 - 与 Android 14 不同：**可以直接在 iApp 设置里改到共享存储**，不需要 root 软链
 
@@ -77,8 +77,8 @@ adb -s <serial> shell "chown <uid>:sdcard_rw /sdcard/Pictures/ProjectApp/<项目
 | 项 | 级别 | 怎么验 |
 |---|---|---|
 | 当前能否正常启动并连 adb | ⚠ | 启动后 `adb devices -l` + `getprop ro.build.version.sdk` |
-| 本机 FTP（宿主 / 设备内） | ❓ | 同 `ldplayer14.md` 的两条路径 |
-| 应用宝同款问题的低版本表现 | ❓ | 需要时再测，不主动投入 |
+| 本机 FTP（宿主 / 设备内） | ❓ | 怎么验：宿主侧 `adb forward tcp:<端口> tcp:<端口>` 后连 `127.0.0.1:<端口>`；设备内终端连自身 `127.0.0.1:<端口>` |
+| 应用宝同款问题的低版本表现 | ❓ | 怎么验：启用后跑 `docs/scripts/detect_env.py`，与 `tencent-appstore-pc.md` 的同类 ❓ 项逐条对照 |
 
 ## 8. 取证
 

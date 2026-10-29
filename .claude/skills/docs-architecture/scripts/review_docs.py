@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import datetime
 import json
 import re
 import subprocess
@@ -455,13 +456,15 @@ def check_numeric(files, root, cfg):
     for key, values in groups.items():
         if len(values) <= 1:
             continue
-        if key in cfg.get("known_split", []):
-            sev, note = "minor", "已知分口径指标，只提示"
+        if key in cfg.get("known_nonconflict", []):
+            sev, note = "minor", "已人工判定为非冲突（不同时间快照），无需再查"
+        elif key in cfg.get("known_split", []):
+            sev, note = "minor", "已知分口径指标，只提示；确认是否同一对象/同一时间"
         else:
-            sev, note = "major", "可能冲突，需人工确认"
+            sev, note = "major", "可能冲突，需人工确认；确认是否同一对象/同一时间"
         out.append(finding("NUM-01", sev, "（多处）", 0,
                            f"同一指标出现多个取值：{key}", evidence=", ".join(sorted(values)),
-                           hint=note + "；确认是否同一对象/同一时间", confidence="needs_human"))
+                           hint=note, confidence="needs_human"))
     return out
 
 
@@ -606,7 +609,8 @@ def summarize(findings):
 
 
 def human_report(findings, summary, by_check, files, rev):
-    lines = [f"== 文档架构体检 {RULES_VERSION} / 基线 {rev or 'n/a'} ==",
+    today = datetime.date.today().isoformat()
+    lines = [f"== 文档架构体检 {today}（规则 v{RULES_VERSION}） / 基线 {rev or 'n/a'} ==",
              f"扫描 {len(files)} 个 Markdown 文件；阻断 {summary['blocker']} / "
              f"应修 {summary['major']} / 建议 {summary['minor']}"]
     if by_check:

@@ -122,6 +122,10 @@
   "known_split": [
     "targetSdk"
   ],
+  "known_nonconflict": [
+    "serial",
+    "UID"
+  ],
   "arg_scripts": [
     ".claude/skills/iapp-development/scripts/ftp_sync.py",
     "docs/scripts/detect_env.py"

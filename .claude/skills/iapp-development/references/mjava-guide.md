@@ -142,14 +142,14 @@ iApp 5.0.1013 的 `base.apk` 里能读到 BeanShell `2.0b4`，早于 Java 7/8：
 - BeanShell 不能直接调用形参是 `int...` / `Object...` 的方法（Material 里常见，如
   `ProgressIndicator.setIndicatorColor(int...)`）：解析失败，整个方法中断，`catch` 接不住
 - 退到父类或等价 API：如进度条颜色改用 `ProgressBar.setProgressTintList(ColorStateList)`（⚠ 未实测）
-- **可变参数方法要显式传数组**，否则按固定参数匹配失败 ✅（API 34，2026-10-28，青简 QJ-P7）：
+- **可变参数方法要显式传数组**，否则按固定参数匹配失败 ✅（API 34，2026-10-28，批次 QJ-P7）：
   `ObjectAnimator.ofFloat(v, "alpha", 0.45f, 1f)` →
   `JavaErr: Static method ofFloat( android.widget.LinearLayout, java.lang.String, float, float ) not found`，
   改成 `ObjectAnimator.ofFloat(v, "alpha", new float[]{0.45f, 1f})` 即正常；
   `int...` 同理（`setIndicatorColor(new int[]{c})`）
 - 调用了不存在的方法同样中断：`Command not found: xxx( … )`，是 EvalError
 - **重载要按目标版本的签名写**：`MaterialShapeDrawable` 在这个版本里只有
-  `setFillColor(ColorStateList)`，**没有** `setFillColor(int)` ✅（API 34，2026-10-28，青简 QJ-P8）：
+  `setFillColor(ColorStateList)`，**没有** `setFillColor(int)` ✅（API 34，2026-10-28，批次 QJ-P8）：
   `Method setFillColor( int ) not found in class 'com.google.android.material.shape.MaterialShapeDrawable'`。
   改法：`setFillColor(ColorStateList.valueOf(color))`。同名方法先确认重载表，别按新版本 SDK 的印象写
 - **EvalError 会穿破 `catch (Throwable)`，破坏面和“解析失败”一样大** ✅（同上，API 34）：
@@ -170,7 +170,7 @@ iApp 5.0.1013 的 `base.apk` 里能读到 BeanShell `2.0b4`，早于 Java 7/8：
 ### 原生底部抽屉里的滚动与上色
 
 - 抽屉内容要能滚动就用 `androidx.core.widget.NestedScrollView`，**不要用** `android.widget.ScrollView`
-  ✅（API 34，2026-10-28，青简 QJ-P8）：`ScrollView` 不是 NestedScrollingChild，
+  ✅（API 34，2026-10-28，批次 QJ-P8）：`ScrollView` 不是 NestedScrollingChild，
   `BottomSheetBehavior` 看不到内容滚到哪，手指往回拖会被当成拖抽屉 → 直接收起，内容回滚不了。
   换成 `NestedScrollView` 后内容先滚、滚到顶才轮到抽屉，`setSkipCollapsed(true)` 照旧
 - 抽屉底色要在**首帧之前**刷：`setContentView()` 之后、`show()` 之前沿 `root.getParent()` 往上遍历几层，
@@ -201,7 +201,7 @@ int n = b_add(2, 3);  // 有返回值也直接接
 
 ### 铁律：先加载，再调用
 
-- **每个 iyu 事件入口都要自己 `i.fn(...)`** ✅（API 34，2026-10-28，青简 QJ-P8）：
+- **每个 iyu 事件入口都要自己 `i.fn(...)`** ✅（API 34，2026-10-28，批次 QJ-P8）：
   iyu 每触发一次事件就是新解释器，上一次入口 `i.fn` 过什么不会带过来。`prev/next` 只 import 了
   `qj_ui/qj_core/qj_store`，内部改成调 `qj_set` 的 `set_css()` 后立刻
   `Command not found: set_css()`（不崩，但翻页失效）。会被多个入口复用的方法（渲染、取色、格式化）

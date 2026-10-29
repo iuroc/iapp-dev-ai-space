@@ -84,7 +84,7 @@ python .claude/skills/iapp-development/scripts/ftp_sync.py \
 ```
 
 宿主连不上时先试 `adb forward tcp:<端口> tcp:<端口>`（连 `127.0.0.1:<端口>`）；
-仍不通就只能在设备内终端验证。详见 `docs/environments/` 对应档案与 SKILL `references/ftp-delivery.md`。
+仍不通就只能在设备内终端验证。详见 `docs/environments/` 对应档案与 SKILL `.claude/skills/iapp-development/references/ftp-delivery.md`。
 
 ## 4. 取证
 

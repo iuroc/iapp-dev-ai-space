@@ -1107,7 +1107,7 @@ com.demo.newproject / scaffold / com.i7f3d3b94b508ff9f → 九宫格
 
 ### 回填
 
-`SKILL.md`、`references/icon-guide.md`（新建）、`project-structure.md`、`pitfalls.md` 第 19 条、
+`SKILL.md`、`.claude/skills/iapp-development/references/icon-guide.md`（新建）、`project-structure.md`、`pitfalls.md` 第 19 条、
 `docs/scripts/make_icon.py`、`docs/scripts/create_project.py`。
 
 ---
@@ -1165,7 +1165,7 @@ com.demo.newproject / scaffold / com.i7f3d3b94b508ff9f → 九宫格
 - 模块化可行：一个 facade 统一 `i.d.f` 导入，子模块方法加前缀，直接互调。
 - 导入必须发生在调用之前；不能把“可能未导入”的调用包在 try/catch 里兜底。
 - 拆分层次要避免环：`util ← core/store/ui/anim ← game`，动画只放原语，回调留在 facade。
-- 详见 `references/modularization-guide.md` 与 `cases/15-modularization.md`。
+- 详见 `.claude/skills/iapp-development/references/modularization-guide.md` 与早期案例 15（模块化，该目录已删）。
 
 ### 2048 七模块拆分首轮失败（14:33）
 
@@ -1685,7 +1685,7 @@ Android 9 上行为不变（多两次权限调用）。
 其他智能体工具的网络出口与内置抓取工具不同，结论不一定成立，换工具时重新探测。
 
 结论：本环境下 WebFetch 对 Google 系域名不可用；`curl -k` 落盘 + 阿里云/腾讯镜像是稳定路径。
-已沉淀到 SKILL 的 `references/network-and-mirrors.md`，离线解析脚本见 `docs/scripts/fetch_text.py`。
+已沉淀到 SKILL 的 `.claude/skills/iapp-development/references/network-and-mirrors.md`，离线解析脚本见 `docs/scripts/fetch_text.py`。
 
 ---
 
@@ -2115,8 +2115,8 @@ TextInputLayout id=10 n=2
 ```
 
 - 短名 `TextInputLayout` 与全类名**都**解析为 `com.google.android.material.textfield.TextInputLayout`（"短名指向 support 包"的怀疑被推翻）
-- ppt 建的四个 TIL 全部 `attached=true`、hash 与树一致、`addView` 后 children 1→2 → **本机不是影子实例**（与 `cases/11` 的 API 28 结论冲突，疑为版本差异 ⚠）
-- FrameLayout 内含 `StartCompoundLayout`/`EndCompoundLayout` → 是 TIL 自带 `inputFrame`，**不是 iApp 套的**；`cases/11` 的归因需修正
+- ppt 建的四个 TIL 全部 `attached=true`、hash 与树一致、`addView` 后 children 1→2 → **本机不是影子实例**（与早期案例 11 的 API 28 结论冲突，疑为版本差异 ⚠）
+- FrameLayout 内含 `StartCompoundLayout`/`EndCompoundLayout` → 是 TIL 自带 `inputFrame`，**不是 iApp 套的**；早期案例 11 的归因需修正
 - 子控件 ctx 全为 `com.iapp.app.run.mian`（activity）；动态 D 用 `til.getContext()`，外观差异待屏幕确认
 - 页面上的「X」是探针里影子测试加的 TextView，不是控件本身
 
@@ -2595,7 +2595,7 @@ NAV-EMBED-RET file=p_b.iyu view=android.widget.LinearLayout ret=null children=0
   SearchBar / SearchView / Carousel / MaskableFrameLayout / ShapeableImageView / MaterialDivider /
   MaterialSplitButton / MaterialButtonToggleGroup）
 - 运行时扫描页：`com.demo.m3showcase/src/material.iyu` + `matsupport.mjava`（日志 tag `MAT`）
-- 规范落点：`references/material-components.md`、`SKILL.md` 控件类型一节、`builtin-controls.md`
+- 规范落点：`.claude/skills/iapp-development/references/material-components.md`、`SKILL.md` 控件类型一节、`builtin-controls.md`
 
 ### NAV-8：内嵌页事件 / 原生查找 / 多页 addv（12:05:28 ~ 12:07:20）
 
@@ -2918,7 +2918,7 @@ CountDownButton / AutoMoveTextView / ClearEditText / 进度条全部上屏；检
   `/sdcard/Pictures/...`（FUSE 视图）仍是旧内容（8312 vs 10836 字节），iApp 跑的是旧代码；
   `adb push` 该文件后两侧 md5 一致。新建文件（`__marker.txt`）则两侧立刻可见
 
-### 复现命令（`scripts/build_aar_dex.py`）
+### 复现命令（`.claude/skills/iapp-development/scripts/build_aar_dex.py`）
 
 ```bash
 export BUILD_TOOLS=<build-tools 目录>; export JDK_BIN=<jdk bin 目录>
@@ -3297,7 +3297,7 @@ sget R$id.open_search_bar_text_view / open_search_bar_placeholder_text_view /
 
 > 收尾（2026-10-27）：`com.demo.xui` 工程与 `build/xui` 中间产物已按「探针用完即删」清理。
 > 复建时按上面的复现命令重新下载依赖、生成 `xui.dex` / `xui-res.apk`，放进新工程的 `apk/assets/`；
-> 运行期代码照 `SKILL references/external-library-guide.md` 的「接入骨架」抄。
+> 运行期代码照 `.claude/skills/iapp-development/references/external-library-guide.md` 的「接入骨架」抄。
 
 ---
 
@@ -3686,7 +3686,7 @@ w=2000&h=2000            -> pageAll=85
 ## 2026-10-28 DOC-1 三层文档架构体检与 review skill 落地
 
 **新建** `.claude/skills/docs-architecture/`：`SKILL.md` + 4 份 references（architecture / evidence-and-levels / maintenance / review-checklist）
-+ `scripts/review_docs.py` + `review_config.json` + `scripts/README.md`。
++ `.claude/skills/docs-architecture/scripts/review_docs.py` + `review_config.json` + `scripts/README.md`。
 根 `CLAUDE.md` 的三层判据、目录约定、知识沉淀细则迁入该 skill，`CLAUDE.md` 只留 8 条要点 + 指针。
 
 **体检输出（`e55723b` 基线，59 个 Markdown）**：
@@ -4092,3 +4092,274 @@ WebView 出现水平滚动条
 2. 翻页后 `scrollTo(0,0)` 需延迟 300ms（`loadDataWithBaseURL` 异步）
 3. 圆屏内容统一收进 165dp 内接方框；标题钉在顶部圆边（9sp / 110dp 宽）
 4. 阅读页不做横滑返回；退出走菜单页「关闭阅读器」（`quit` 标志 + `resume` 检测）
+
+## 2026-10-29 DOC-2 三层文档体检与修复（M1）
+
+**起因**：复核上一轮的三层文档一致性计划（该计划已删除，见 git 历史）是否仍可执行。
+结论：**已过期，废弃**，改为按现行体检结果直接修复。
+
+过期证据：
+
+```
+基线 commit fb190e0 → git cat-file -t 报 Not a valid object name（仓库仅 16 个 commit）
+本计划基线 阻断 0 / 应修 64 / 建议 22  →  现行 阻断 0 / 应修 75 / 建议 22
+Task 6（DUP-01 跨层重复）现行 0 条，已无对象
+计划内部数字不一致：File Structure 写 LINK-03 20 处，Task 3 标题写 12 处，实际 22 条
+```
+
+**修复前基线**（`HEAD=eec1fc0`，工作区 clean，扫描 62 个 Markdown 文件）：
+
+```
+by_check: LEVEL-03 28  LEVEL-05 20  LINK-03 13+9  LINK-04 11  LINK-02 12  NUM-01 2+1  LINK-01 1
+归档文件（docs/evidence.md、docs/superpowers/**）占 12 major + 21 minor，按规范「历史，仅提示」
+真正需要动的活跃 major：63 条
+```
+
+**本轮修复范围**：只动本工作区三层架构（`CLAUDE.md` / `docs/` / `.claude/skills/iapp-development` /
+`.claude/skills/docs-architecture`）；`skills-lock.json` 登记的外部 skill（`material-3`、
+`mobile-app-ui-design`）内容不动，只修正指向它们时的引用前缀。
+
+| 文件 | 处理 |
+|---|---|
+| `docs/environments/ldplayer14.md` | 8 条 ✅ 补日期 + 1 条 LINK-03 前缀 |
+| `docs/environments/ldplayer9.md` | 7 条 ✅ 补日期 + 2 条 ❓ 补「怎么验」 |
+| `docs/environments/oppo-watch-x2.md` | 6 条 ✅ 补日期 + 3 条 ❓ 补「怎么验」+ 1 条 LINK-03 |
+| `docs/environments/tencent-appstore-pc.md` | 10 条 ❓ 补「怎么验」+ 1 条 LINK-03 |
+| `docs/environments/README.md` | 6 条 ✅ 补日期 + 5 条 ❓ 补「怎么验」+ 4 条 LINK-03 |
+| `docs/ui-skills.md` | 3 条 ✅ 补日期 + 1 条 ❓ 补「怎么验」 |
+| `docs/dev-env-setup.md` / `CLAUDE.md` / `review-checklist.md` | LINK-03 前缀共 5 处 |
+| skill `.claude/skills/iapp-development/references/watch-app-guide.md`、`md-components-guide.md`、`pitfalls.md`、`mjava-guide.md` | 把内部项目名改为可自解释的「示例工程」，并去掉 skill 内的 `docs/` 路径（便携违规） |
+
+**修复后读数**：
+
+```
+阻断 0 / 应修 14 / 建议 22     portable check: OK
+剩余应修 14 条全部落在归档文件：docs/evidence.md（LINK-04 ×3）、
+docs/superpowers/specs/*（LINK-04 ×10、LINK-01 ×1）—— 按「历史文档仅提示」不修
+NUM-01 ×2（serial 5554/5556、UID 10050/10072）已人工确认为不同时间的不同快照，非冲突
+```
+
+**过程中引入并已修正的问题**：首次回填时在 skill 里写了「见 `docs/evidence.md`」与「本工作区」，
+触发 5 条 SKILL-01 便携阻断；改为只留批次号与通用描述后归零。教训：**skill 里不能出现
+`docs/` 路径或工作区视角措辞**。
+
+**留作待办**：`docs/superpowers/specs/` 两份历史 spec 的 10 条 `cases/` 死链（仅提示，不影响使用）。
+
+## 2026-10-29 DOC-3 工程私有文档区规范（M1）
+
+**用户确认（2026-10-29）**：iApp 工程根可以新增任意文件与目录，iApp 只读 `src/` 里**已有**的文件，
+新增内容不影响打开与打包；前提是**不改动已有文件**。
+
+**背景**：`android-sync/` 只是挂载到本工作区的临时工作区，工程随时会单独成库、
+脱离本工作区长期维护。原先工程的规格与计划放在工作区 `docs/superpowers/`，脱离时带不走。
+
+**新规则**（主文件 `.claude/skills/docs-architecture/references/architecture.md` §1/§3/§5）：
+
+```
+<工程根>/
+├── src/                            # iApp 只读这里
+├── docs/                           # 工程私有资料区（类型不限）
+│   └── superpowers/{plans,specs}/
+└── .claude/skills/iapp-development/   # 脱离时整目录复制进来
+```
+
+- 归属：只对该工程成立 → 工程 `docs`；跨工程且只对本机成立 → 工作区 `docs`；换机器仍成立 → SKILL
+- 引用：工程内文档一律写工程根相对路径，禁写工作区绝对路径或跨层相对路径
+- SDD 位置分两级：单个工程的 plans/specs 进工程，跨工程任务留工作区 `docs/superpowers/`
+
+**落地**：
+
+| 文件 | 改动 |
+|---|---|
+| `docs-architecture/references/architecture.md` | 新增「工程私有文档区」节；§3 主文件表 2 行；§5 目录布局与 SDD 两级说明 |
+| `docs-architecture/SKILL.md` | 三问定位加第 4 问（指针，不复制结论） |
+| `iapp-development/references/project-structure.md` | 新增「工程自包含与随行文档」节，含用户确认的可新增文件结论 |
+| `CLAUDE.md` | 目录约定加工程私有文档区一行；开发取向的 SDD 位置改为两级 |
+| `docs/README.md` | `superpowers/plans/` 说明改为「跨工程任务」 |
+
+**迁移**：`2026-10-27-qingjian.md` 从工作区 `docs/superpowers/plans/` 移入
+`com.qingjian.reader/docs/superpowers/plans/`；文中 3 处 `docs/evidence.md` 改指「原工作区」。
+工作区层 plans 现仅存 `2026-10-28-android-watch.md`（手表计划，功能暂停，无归属工程）。
+
+**踩坑**：`check_portable.py` 用正则 `docs[/\]` 判定「外部 docs 路径」，skill 里连
+目录树中的 `docs/` 都会被判阻断；改写为不带斜杠的 `docs` 后通过。
+
+## 2026-10-29 DOC-4 工程 git 规范（M1）
+
+**由来**：用户要求强化 git 提交规范，逐条问答后定性。以下均为**用户决定**，非推断。
+
+| 议题 | 决定 |
+|---|---|
+| init 时机 | 正式工程创建即 init；临时探针（`iapp-demo/<批次>/`）不 init |
+| `create_project.py` | 加 `--git`，**默认不传**；本工作区调用 `ProjectApp/*` 时一律传 |
+| 提交时机 | 改完一个小环节 + 验收通过即提交，粒度要碎，便于回退与溯源 |
+| 提交信息 | `<type>: <message>`，单行中文，无 scope；type = feat/fix/refactor/test/docs/chore |
+| 分支 | 单分支，不做分支模型，靠 commit 回退 |
+| 远程 | **从不主动 push**，也不加 remote——远程很可能是 ghproxy 镜像，push 会失败 |
+| 产物 | `bin/<包名>.apk` 不入库，留档只记读数 |
+
+**青简工程实测文件清单**（17 个文件，用于定 `.gitignore`）：
+
+```
+5004558  bin/com.qingjian.reader.apk          ← 产物，忽略
+  51176  src/qj_pages.mjava
+  46580  bin/com.qingjian.reader.apk.idsig    ← 忽略
+  22662  src/qj_set.mjava
+  20533  src/qj_reader.mjava
+  19891  icon.png                             ← 二进制，必须入库
+  17939  src/qj_list.mjava
+  10334  src/qj_ui.mjava
+   9155  src/qj_core.mjava
+   5963  src/qj_store.mjava
+   4717  src/mian.iyu  2595 detail.iyu  2517 reader.iyu  1899 search.iyu
+   1295  build.xml      1003 sdk/iapp.sdk    537 AndroidManifest.xml
+    145  .project         24 apk/assets/extra_conf1g.xml
+```
+
+- 二进制只有 `icon.png`、`bin/*.apk`、`bin/*.idsig` 三处；**没有 dex / jar / aar**
+- `files/`、`res/` 为空目录
+
+**`.gitignore` 模板**（实测后定稿）：
+
+```
+bin/
+*.apk
+!apk/assets/*-res.apk
+*.idsig
+*.flock
+apk/assets/oat/
+```
+
+**两处依据修正**（原先凭文档推断错了）：
+
+1. `files/` **不能忽略**：它是开发期资源区，放初始资源与开发期库；`delivery-guide.md` 记「工程 `files/` 不进 APK」
+2. `apk/` **不能整体忽略**：`apk/assets/` 是外部 dex 库与 `*-res.apk` 的正规位置（`external-library-guide.md`），
+   属于源码；只忽略 iApp 生成的 `apk/assets/oat/`（odex/vdex）与 `.flock`
+
+**落地**：`create_project.py` 加 `--git/--no-git`（默认 False）；青简工程 `.gitignore` 更新并提交（`b92ecaf`）；
+主仓库 `CLAUDE.md` 新增「git 约定」节；模板与提交规范主体在
+`iapp-development/references/project-structure.md` §工程自带 git 仓库。
+
+**验证**：临时目录跑 `create_project.py --git` → 生成 `.git`、`.gitignore`、首次提交 `deb0964`；
+测试目录已删。
+
+## 2026-10-29 DOC-5 三层文档体检与修复（M1）
+
+**基线** `716c115`；扫描 57 个 Markdown 文件。
+
+**修复前读数**：
+
+```
+review_docs.py  -> 阻断 0 / 应修 2 / 建议 7（LINK-03×6、NUM-01×3）
+                   应修 2 条均为 NUM-01（serial 5554/5556、UID 10050/10072）
+check_portable  -> OK
+```
+
+**语义审新发现 4 条应修**（脚本判不了）：
+
+1. FTP over `adb forward` 写入：CLAUDE.md / runtime-env 仍写「已验只读」，ENV-4 已实测写入可用
+2. `docs/scripts/create_project.py` 标注「同」，实际缺 `--git/--no-git`（30 行差）
+3. 应用宝档案「最后核验」自相矛盾，FTP 读/写未随 WATCH-2/3 升级
+4. 通道优先级表在 `environments/README.md` 与 `CLAUDE.md` 双写且已漂移
+
+**修复后读数**：
+
+```
+review_docs.py  -> 阻断 0 / 应修 0 / 建议 3（全部 NUM-01 提示）
+                   表头改为真实日期 + 「规则 v<RULES_VERSION>」
+check_portable  -> OK；--fail-on blocker 退出码 0
+```
+
+**工具改动**：`review_config.json` 新增 `known_nonconflict`（现为 `serial`、`UID`），
+命中时降为提示并写「无需再查」；`RULES_VERSION` 只作规则版本，不再当日期打印。
+
+**过程中的坑**：升级 M2 档案时把 ✅ 与 ⚠ 写进同一表格单元，触发 LEVEL-02（同格多级别）
+与 LEVEL-04（他机读数标 ✅）共 4 条**阻断**；按「一格一级别」拆成「已验证 / 未验」两行后归零。
+教训：档案表格里「部分验过」不能靠一句话混写，必须拆行。
+
+**提交**：`ada9f2e`（FTP 写入级别）、`0dec233`（M2 档案升级）、`f8fad04`（索引去重 + 脚本同步）、
+本轮（体检工具与历史引用）。
+
+## 2026-10-29 WATCH-5 模拟器圆表盘罩层（开发期预览，不改显示尺寸）
+
+**目标**：在雷电 14（API 34）上预览手表 UI，与手机开发共用同一实例。
+用户明确要求**不要改** `wm size` / `wm density`。
+
+**工程**：`android-sync/ProjectApp/com.demo.watchmask`（探针，未 init git）；
+`src/mian.iyu` + `src/mask.mjava`。
+实现：`WindowManager` + `TYPE_APPLICATION_OVERLAY` 全屏窗口；位图 = 黑底 +
+`PorterDuff.CLEAR` 挖圆；`FLAG_NOT_TOUCHABLE` 让点击穿透；圆直径固定 `233dp`。
+
+**原始读数**
+
+```
+设备 emulator-5556 / API 34 / iApp 5.0.1013 / uid 10072
+appops get com.iapp.app SYSTEM_ALERT_WINDOW
+  → SYSTEM_ALERT_WINDOW: allow; time=+1m11s291ms ago (running)
+还原后 wm size / wm density
+  → Physical size: 1080x1920 / Physical density: 480
+logcat -s watchmask:V
+  14:26:56.561 I/watchmask: screen 1080x1920 density 3.0 overlay=true held=false
+  14:27:02.608 I/watchmask: overlay added 1080x1920
+screencap 1080x1920：圆直径 699px（= 233dp × 3.0）居中，状态栏消失
+```
+
+**结论**
+
+| 结论 | 级别 | 依据 |
+|---|---|---|
+| iApp 开发模式已有 `SYSTEM_ALERT_WINDOW` 授权 | ✅ 2026-10-29 | appops 读数 |
+| mjava 里 `TYPE_APPLICATION_OVERLAY` + `addView` 可用 | ✅ 2026-10-29 | log + 用户确认上屏 |
+| `FLAG_NOT_TOUCHABLE` 圈外点击穿透到下层 app | ✅ 2026-10-29 | 用户确认 |
+| `FLAG_FULLSCREEN` 单独设置**不隐藏**状态栏 | ✅ 2026-10-29 | 截图仍有状态栏 |
+| 加 `SYSTEM_UI_FLAG_IMMERSIVE_STICKY` + `LAYOUT_FULLSCREEN` 后隐藏 | ✅ 2026-10-29 | 用户确认「消失了」 |
+| 罩层不能覆盖系统状态栏（`APPLICATION_OVERLAY` 在状态栏层下） | ✅ 2026-10-29 | 设计 + 实测 |
+| `wm size` / `wm density` 是**整实例全局**，影响所有 app | ✅ 2026-10-29 | 用户反馈 iApp 无法调试；`dumpsys window displays` 读数 |
+| 不改尺寸时，固定 `233dp` 圆即可对应真表画布 | ✅ 2026-10-29 | 1080×1920@480 下 699px，用户确认居中 |
+| 罩层只遮挡、不改变下层布局；内容要自己居中在 233dp 内 | ✅ 2026-10-29 | 设计；圆外内容被遮但仍占位 |
+| `i.sss` 存 View 后跨 call 取回为 null（同 run 重复 add 3 次） | ⚠ 2026-10-29 | 同一 pid 三条 `overlay added`；改 `decorView.setTag(int, View)` 后 `off` 正常 |
+| `Settings.canDrawOverlays` 曾返回 false、稍后又 true | ❓ 2026-10-29 | 14:19:50 `overlay=false`、14:26:56 `overlay=true`；怎么验：重启 iApp 后连续两次读日志并对照 `appops get` |
+
+**回填**：
+- SKILL `.claude/skills/iapp-development/references/watch-app-guide.md` §10 模拟器预览圆表盘
+- 本机档案 `docs/environments/ldplayer14.md` §2 / §5 / §6（屏幕读数更正、appop、全局尺寸坑）
+
+## 2026-10-29 WATCH-6 手表版 2048 与注入式罩层
+
+**目标**：在手机模拟器上做出可玩的手表 2048，并验证「罩层作为可复用模块」而非工程内代码。
+
+**工程**：`android-sync/ProjectApp/com.demo.watch2048`（探针/演示，未 init git）；
+`bezel.mjava` 模板同时入库到 SKILL `scripts/bezel.mjava`。
+
+**原始读数**
+
+```
+logcat -s ygs:V（改 mjava 定尺寸前）
+  W2048 metrics density=3.0 container=932 board=660
+  探针 130dp 按钮截图实测 520px = 130 × 4.0
+logcat -s ygs:V（改 mjava 定尺寸后）
+  W2048 metrics density=3.0 side=495
+罩层日志
+  bezel installed 1080x1920 d=699 smallDp=360.0
+用户反馈原文
+  「棋盘可以无需和周围的背景那么对比强烈」→ 改背景
+  「重开要弹窗二次确认」→ 加确认面板
+  「运动速度快一些」→ 减半后「算了，恢复原速」
+  「没问题了」（最终验收）
+```
+
+**结论**
+
+| 结论 | 级别 | 依据 |
+|---|---|---|
+| 开发模式 `.iyu` 的 `dp` 可能按 4.0 解析，而 mjava `density=3.0` | ✅ 2026-10-29 | `container=932=233×4.0`；130dp 按钮实测 520px |
+| 关键尺寸改由 mjava `u_dp()` 设置后与实时密度一致 | ✅ 2026-10-29 | `side=495`（165dp×3.0），用户确认棋盘进圆 |
+| 注入 `DecorView` 的罩层可用，手机显示、无需 `SYSTEM_ALERT_WINDOW` | ✅ 2026-10-29 | 用户验收；未申请权限 |
+| 环境判断 `min(dp) < 300` 或圆屏 → 跳过 | ⚠ 2026-10-29 | 手机分支实测；手表分支未在 iApp 内跑过（表上不跑 iApp） |
+| 罩层半透明黑 + 点击穿透 | ⚠ 2026-10-29 | 按需求实现；用户整体验收，未单独读数 |
+| 表盘内二次确认面板可用（不用系统 dialog，避免超出圆） | ✅ 2026-10-29 | 用户验收 |
+
+**回填**：
+- SKILL `watch-app-guide.md` §2（ppt dp 与 mjava density 不一致）、§10（注入式罩层，只传直径）
+- SKILL `scripts/bezel.mjava`（可复用模板）
+- 提交：`6d622f7`（模块与流程）、`bd6037b`（只传直径、纯黑）、`533f9b5`（半透明）

@@ -7,7 +7,7 @@
 | 环境 ID | W1（手表侧载目标，不是开发主机） |
 | 宿主 | M2（应用宝电脑版，实测 adb 直连）；M1 亦可 |
 | 核验时间 | 2026-10-28 |
-| 当前状态 | adb 直连可用；API 30 / 纯 32 位；三架构 APK 可装可跑；青简手表版 8 页已跑通 ✅ |
+| 当前状态 | adb 直连可用；API 30 / 纯 32 位；三架构 APK 可装可跑；iApp 打包的手表版八页示例工程已跑通 ✅ 2026-10-29 |
 | 用途 | 手表应用（圆表盘 466×466）的唯一真机验收环境 |
 
 开发与打包在**应用宝容器内的 iApp** 完成，手表只负责安装、运行与取证。
@@ -27,10 +27,10 @@
 | 固件 | `OWW251_11_A.265`，构建 2026-08-27，安全补丁 2024-03-05 | ✅ adb 2026-10-28 |
 | ColorOS Watch 版本 | ❓ | 怎么验：表内「设置 → 关于手表」 |
 | ABI | `armeabi-v7a`、`armeabi`；`abilist64` 为空，`ro.zygote=zygote32` | ✅ adb 2026-10-28 |
-| CPU | Qualcomm MONACO，ARMv7 rev4 ×4 | ✅ `/proc/cpuinfo` |
-| 屏幕 | 466×466，圆屏（`ro.oplus.wear.screen.round=true`） | ✅ `wm size` |
+| CPU | Qualcomm MONACO，ARMv7 rev4 ×4 | ✅ `/proc/cpuinfo` 2026-10-28 |
+| 屏幕 | 466×466，圆屏（`ro.oplus.wear.screen.round=true`） | ✅ `wm size` 2026-10-28 |
 | 密度 | 320（`wm density` 与 `ro.sf.lcd_density` 一致，比例 2.0 → 画布 233dp） | ✅ adb 2026-10-28 |
-| 内存 | MemTotal 1,873,636 kB | ✅ `/proc/meminfo` |
+| 内存 | MemTotal 1,873,636 kB | ✅ `/proc/meminfo` 2026-10-28 |
 | root | ❌ `su` 不存在（`shell` uid=2000） | ✅ adb 2026-10-28 |
 
 **架构结论**：这块表是**纯 32 位用户空间**。APK 的 `lib/` 必须含 `armeabi-v7a`，
@@ -50,8 +50,8 @@
 
 | 通道 | 前置 | 命令 | 取证能力 |
 |---|---|---|---|
-| USB adb（主） | 开发者选项 + USB 调试 + 充电底座接电脑 | `adb install -r` | logcat / screencap / pidof ✅ |
-| 无线 adb | 固件有无「无线调试」 ❓ | `adb pair` / `adb connect` | 同上，未验 |
+| USB adb（主） | 开发者选项 + USB 调试 + 充电底座接电脑 | `adb install -r` | logcat / screencap / pidof ✅ 2026-10-28 |
+| 无线 adb | 固件有无「无线调试」 ❓ | 怎么验：表内开发者选项找「无线调试」，开 `adb pair` / `adb connect` | 同上，未验 |
 
 - 打包产物在容器内 `/ProjectApp/<项目ID>/bin/<包名>.apk`，可用 `ftp_sync.py` 或 `ftplib` `RETR` 取回。
 - 启动组件统一是 `<包名>/com.iapp.app.run.mian`（`cmd package resolve-activity --brief` 可查）。
@@ -67,14 +67,14 @@
 |---|---|
 | root | ❌ `su` 不存在 ✅ 2026-10-28 |
 | `MANAGE_EXTERNAL_STORAGE` | ❓ 怎么验：`adb shell appops get <包名> MANAGE_EXTERNAL_STORAGE` |
-| `POST_NOTIFICATIONS` | ❓ 运行时权限，首启是否弹窗未验 |
+| `POST_NOTIFICATIONS` | ❓ 运行时权限，首启是否弹窗未验；怎么验：装包后首启观察是否弹权限窗，或 `adb shell dumpsys package <包名>` 查 `POST_NOTIFICATIONS` 授权态 |
 
 **建议**：文件读写走应用私有目录（`getFilesDir()` / `getExternalFilesDir()`）。
 
 ## 已知坑
 
 1. **ABI 默认只勾 arm64**：iApp 设置 →【打包设定so库】必须勾上 `armeabi-v7a`，
-   否则产物装不上这块表（详见 SKILL `references/delivery-guide.md` §产物可移植性）。
+   否则产物装不上这块表（详见 SKILL `.claude/skills/iapp-development/references/delivery-guide.md` §产物可移植性）。
 2. **圆屏裁切**：466px 圆形，四角不可见；按约 233dp 画布、内容收在中央安全区。
 3. **息屏很积极**：界面静置即息屏；`screencap` 可能拿到全白图。
    取证优先用 `logcat`，截图前先唤醒或由用户操作。✅ 2026-10-28
@@ -87,7 +87,8 @@
    - **页面放进 `ScrollView` 后，表冠可直接原生滚动，无需写代码** ✅ 2026-10-29（用户观察）
    - 侧键 / 表冠按下走 `gpio-keys`：`131`（F1）= **回桌面**、
      `132`（F2）= **打开运动功能页**（骑行/跑步等运动模式列表，用户确认 ✅ 2026-10-29）、
-     `138`（F8）用途未确认 ❓ —— 都是系统占用，应用不要拿来做功能键
+     `138`（F8）用途未确认 ❓，怎么验：`adb shell getevent -l` 后逐个按侧键，对照 `kc=138` 触发的系统界面
+     —— 都是系统占用，应用不要拿来做功能键
    - 其它厂商的手表**不一定**沿用同样的映射（用户提示），跨机型要重新测 ⚠
 6. **左滑返回对第三方应用不生效**：滑动是纯触摸事件（`fts_ts` 的 `BTN_TOUCH` +
    `ABS_MT_POSITION`），系统**不翻译成按键**；三种方向的 `input swipe` 都无法退出应用。
@@ -98,7 +99,7 @@
 7. **iApp 做不了**：表盘（watch face）、磁贴（Tile）、complication、环境模式专属 API。
 8. **国行无 GMS**：依赖 Google 服务的功能不可用。
 9. **启动噪声**：`FileNotFoundException: userencryption.xml` 与
-   `ClassNotFoundException: <包名>.IConfig` 会出现在 `System.err`，不影响运行 ✅。
+   `ClassNotFoundException: <包名>.IConfig` 会出现在 `System.err`，不影响运行 ✅ 2026-10-28。
 
 ## 取证（✅ 2026-10-29）
 

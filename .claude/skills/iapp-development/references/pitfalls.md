@@ -13,7 +13,7 @@ iApp 编辑器以内存中的工程为准。点运行 / 保存 / 退出保存都
   - 应用 namespace 由 zygote 派生，后加的挂载不传播
   - 验证方法：`grep <目标目录> /proc/<iApp pid>/mountinfo`；或 `cat /proc/<pid>/root/...`
 
-**做法**：有共享目录/同步盘就改共享目录；没有或核不上 md5 时再用 `adb push`。不要用 bind mount。
+**做法**：有共享目录/同步盘就改共享目录；共享目录不可用时再用 `adb push`。不要用 bind mount。
 
 ## 3. Git Bash 改写路径
 
@@ -431,13 +431,13 @@ public void menu(Object arg) { ... }  // ✅ 正常
 **做法**：
 - 事件体里带了 `0`（或任何实参），被调方法就写 `public void xxx(Object arg)`；
   `clicki` / `downkey` 这类习惯性带参的入口一律按带参写
-- 手机版青简的 `prev/next/settings/back` 全是 `Object arg`，就是这个原因
+- 阅读器示例工程手机版的 `prev/next/settings/back` 全是 `Object arg`，就是这个原因
 - 排查时不要只看 `logcat`：这条失败**不打印任何东西**。要么给方法加 `android.util.Log`，
   要么干脆在 mjava 里 `setOnClickListener` 挂监听（本书架/菜单页最终采用的方案）
 
 ## 31. 后台线程的匿名 Runnable 里调模块方法，必须先 `i.fn`
 
-实测（2026-10-29，打包版 / API 30 手表青简）：
+实测（2026-10-29，打包版 / API 30，手表阅读器示例）：
 
 ```
 E/AndroidRuntime: FATAL EXCEPTION: Thread-10

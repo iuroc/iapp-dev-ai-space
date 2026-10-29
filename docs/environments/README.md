@@ -25,7 +25,7 @@ python docs/scripts/detect_env.py --json     # 机器可读
 
 | 记号 | 含义 |
 |---|---|
-| ✅ | 在本机（或注明的那台机器上）实测通过，带日期 |
+| ✅ | 在本机（或注明的那台机器上）实测通过，必须带日期（写法示例：`✅ 2026-10-28`） |
 | ⚠ | 有条件成立 / 他机读数 / 口述，本机未复验 |
 | ❓ | 未测，必须在条目里写「怎么验」 |
 | ❌ | 实测不可用 |
@@ -39,14 +39,14 @@ python docs/scripts/detect_env.py --json     # 机器可读
 |---|---|---|---|
 | 宿主 OS | Win10 Pro Education 10.0.19045 ✅ 2026-10-28 | 同左 ✅ | Windows 11（具体版本 ⚠ 他机） |
 | 宿主虚拟化 | Hyper-V 未启用（`HypervisorPresent=False`）✅ 2026-10-28 | 同左 ✅ | 必须开 Hyper-V ⚠ 他机口述 |
-| 产品版本 | 雷电 14.0.32.1 ✅ | 雷电 9.5.42.0 ✅ | 应用宝电脑版（版本 ❓） |
-| Android / API | 14 / 34 ✅ | 9 / 28 ✅ | ❓（>11 猜测，无读数） |
+| 产品版本 | 雷电 14.0.32.1 ✅ 2026-10-28 | 雷电 9.5.42.0 ✅ 2026-10-26 | 应用宝电脑版 ❓ 怎么验：产品「关于」页或安装目录版本号 |
+| Android / API | 14 / 34 ✅ 2026-10-28 | 9 / 28 ✅ 2026-10-26 | ❓（>11 猜测，无读数）；怎么验：容器内「设置 → 关于手机」 |
 | adb | ✅ `emulator-5556`（或 `127.0.0.1:5557`） | ✅ 宿主端口 5555（未连接时 `adb devices` 为空） | ❌ 容器不可见；✅ 外接 USB 设备可见 ✅ 2026-10-28 |
-| root | `su -c id` → uid=0 ✅ | `adb root` → uid=0 ✅ | ❓ |
-| 共享目录 | `android-sync/` ↔ `/sdcard/Pictures` ✅ | 同左 ✅ | ❓ |
+| root | `su -c id` → uid=0 ✅ 2026-10-28 | `adb root` → uid=0 ✅ 2026-10-26 | ❓ 怎么验：容器内终端跑 `su -c id`，无 shell 时无法判断 |
+| 共享目录 | `android-sync/` ↔ `/sdcard/Pictures` ✅ 2026-10-28 | 同左 ✅ 2026-10-26 | ❓ 怎么验：产品设置的「共享文件夹」类选项 |
 | iApp 工程根 | `Android/data/com.iapp.app/files/iApp/ProjectApp` → 软链 `Pictures/ProjectApp` ✅ | `/sdcard/iApp/ProjectApp`（可直接改）✅ | ❓ |
-| 工程根可否改 | 只能在 app 内改到 `Android/data` 内，出界需 root 软链 | 可在 iApp 设置里直接改到 `Pictures/ProjectApp` | ❓ |
-| 存储权限 | `MANAGE_EXTERNAL_STORAGE=allow` ✅ | `READ/WRITE_EXTERNAL_STORAGE`（运行时）✅ | ❓ |
+| 工程根可否改 | 只能在 app 内改到 `Android/data` 内，出界需 root 软链 | 可在 iApp 设置里直接改到 `Pictures/ProjectApp` | ❓ 怎么验：容器内 iApp 设置页看是否允许改到共享存储 |
+| 存储权限 | `MANAGE_EXTERNAL_STORAGE=allow` ✅ 2026-10-28 | `READ/WRITE_EXTERNAL_STORAGE`（运行时）✅ 2026-10-26 | ❓ 怎么验：容器内 `appops get <包名> MANAGE_EXTERNAL_STORAGE` |
 | FTP（宿主→设备） | ❌ 直连不通；✅ 经 `adb forward`（含逐数据端口）2026-10-28 | ❓ | ✅ 直连匿名可登录、`MD5`/`STOR` 可用 ✅ 本机 2026-10-28 |
 | FTP（设备内→自身） | ❓ 待设备内终端探测 | ❓ | ❓ |
 | 推荐通道 | 共享目录（adb 兜底） | 共享目录 / adb | FTP |
@@ -56,20 +56,14 @@ python docs/scripts/detect_env.py --json     # 机器可读
 
 | 通道 | 什么时候用 | 详见 |
 |---|---|---|
-| 共享目录镜像 | 宿主目录与设备目录双向映射 | 各档案「投递」节 + SKILL `references/emulator-setup.md` |
+| 共享目录镜像 | 宿主目录与设备目录双向映射 | 各档案「投递」节 + SKILL `.claude/skills/iapp-development/references/emulator-setup.md` |
 | `adb push/pull` | `adb devices` 有 `device` 行 | 各档案「投递」节 |
-| iApp 内置 FTP（直连） | 设备装 iApp、控制台已开、**宿主能直达端口** | SKILL `references/ftp-delivery.md` |
+| iApp 内置 FTP（直连） | 设备装 iApp、控制台已开、**宿主能直达端口** | SKILL `.claude/skills/iapp-development/references/ftp-delivery.md` |
 | iApp 内置 FTP（`adb forward`） | 同上，但宿主到设备网络不通、有 adb | 同上 §7 |
-| 手工导入 | 以上都不通 | SKILL `references/delivery-guide.md` |
+| 手工导入 | 以上都不通 | SKILL `.claude/skills/iapp-development/references/delivery-guide.md` |
 
-**本工作区推荐顺序**（按开发用途，详见 SKILL `references/environment-adaptation.md`）：
-
-1. 共享目录（日常改码）
-2. `adb push/pull` + `logcat`（单文件 / 取证 / 共享目录核不上）
-3. FTP —— 先看能否直达：雷电 14 上 ❌，需 `adb forward`；应用宝 M2 上 ⚠（他机）可直连
-4. 手工导入
-
-判断「能否直达」用 `Test-NetConnection <设备IP> -Port <端口>`，不要只看 `ping`。
+**本工作区推荐顺序**：主文件在根 `CLAUDE.md`「投递链路」的「本机优先级」节，本文件不复制；
+通用排序理由见 SKILL `.claude/skills/iapp-development/references/environment-adaptation.md`。
 
 ## 档案骨架
 

@@ -12,7 +12,7 @@
 完整规范在 `.claude/skills/docs-architecture/`（含只读体检脚本），这里只留每轮都要用的几条：
 
 1. 换台机器仍成立 → SKILL；只对本机 → 本文件；读数/快照 → `docs/`。
-2. 一条结论只放一个主文件，别处只写一行指针（主文件查表见 `references/architecture.md`）。
+2. 一条结论只放一个主文件，别处只写一行指针（主文件查表见 `.claude/skills/docs-architecture/references/architecture.md`）。
 3. 每条结论带级别 + 来源 + 日期；他机读数最高 ⚠；标 ❓ 必须写「怎么验」。
 4. 先证据后结论：原始读数先进 `docs/evidence.md`，提炼后再往上搬。
 5. 新增/改名/删除文件，同一次提交更新最近一层 README 索引。
@@ -100,15 +100,15 @@ adb -s <serial> shell getprop ro.build.version.sdk
 
 | 通道 | 前置 | 写入 | 校验 | force-stop / logcat | 失败后 |
 |---|---|---|---|---|---|
-| 共享目录 | 宿主 `android-sync/` ↔ 设备 `Pictures` | 直接改宿主文件 | 核设备侧 md5 | 需另配 adb | 核不上就 `adb push` |
-| adb | `adb devices` 有设备 | `adb push/pull` | `md5sum` / `wc -c` | 能 | 换共享目录 |
-| FTP | 控制台已开 + 宿主可达（直连或经 adb forward） | `ftp_sync.py` | `SIZE` + `MD5` | 不能 | 修通道或换环境 |
+| 共享目录 | 宿主 `android-sync/` ↔ 设备 `Pictures` | 直接改宿主文件 | 不核；出问题再查 | 需另配 adb | 换 `adb push` |
+| adb | `adb devices` 有设备 | `adb push/pull` | push 退出码 | 能 | 换共享目录 |
+| FTP | 控制台已开 + 宿主可达（直连或经 adb forward） | `ftp_sync.py` | 脚本退出码 | 不能 | 修通道或换环境 |
 
 **本机优先级（2026-10-28）**：
 
 1. 共享目录 —— 日常改码
 2. `adb push/pull` + `logcat` —— 单文件、取证、共享目录核不上
-3. FTP over `adb forward` —— 共享目录不可用且有 adb（本机已验到只读；写入待验）
+3. FTP over `adb forward` —— 共享目录不可用且有 adb（读写均已验 ✅ 2026-10-28，见 `docs/environments/ldplayer14.md` §3）
 4. 手工导入 —— 都不通
 
 先判断 FTP 能不能直达：`Test-NetConnection <设备IP> -Port <端口>`（不要只看 `ping`）。
@@ -121,12 +121,11 @@ adb -s <serial> shell getprop ro.build.version.sdk
 ```
 
 1. 改文件前 `am force-stop com.iapp.app`（iApp 以内存为准）。
-2. 直接改宿主机文件即等于改设备工程；**但改「已存在」文件后必须核 `/sdcard/Pictures/...` 的 md5**——
-   vboxsf 直挂（`/mnt/shared/Pictures`）会立刻更新，FUSE 视图（iApp 实际读的那侧）可能仍是旧内容；
-   新建文件则两侧立刻可见。不一致就 `adb push` 兜底。工程必须在 iApp 里关着。
+2. 直接改宿主机文件即等于改设备工程。FUSE 视图（iApp 实际读的那侧）偶尔仍是旧内容；
+   若出现「改了没生效」，关工程重开或 `adb push` 兜底。工程必须在 iApp 里关着。
 3. 改完**不要再次 force-stop**；交给用户重新打开工程。用户负责运行并回报，Claude 不代点界面。
 
-**adb 兜底**（共享目录不可用或核不上 md5）：
+**adb 兜底**（共享目录不可用）：
 
 ```
 adb shell am force-stop $IAPP_PKG
@@ -161,15 +160,31 @@ python tools/ftp-sync.py --adb-forward emulator-5556   # 退出码 0 才算投�
   - 临时探针放 `android-sync/iapp-demo/<批次>/`，用完即删
   - `android-sync/cache`、`android-sync/data` 是 LDPlayer 共享目录自带，忽略
   - **镜像是手动快照，不与设备自动同步**；设备上的新增文件需 `adb pull` 刷新（`docs/scripts/refresh-mirror.sh`）
+  - **每个工程自带私有文档区**：`<工程根>/docs/`（规格、计划、报告等，类型不限）+ 脱离时复制进来的
+    `.claude/skills/iapp-development/`；工程可能随时独立成库，引用一律写工程根相对路径。
+    判据与布局见 `.claude/skills/docs-architecture/references/architecture.md` §1/§5
 - `tools/`：本机薄包装（`ftp-sync.py`），不含实现
 - `docs/` 与 `.claude/skills/` 的完整布局、免登记目录见
   `docs-architecture/references/architecture.md`；docs 索引本身在 `docs/README.md`
 - 文档和代码用 `<包名>` / `<项目ID>` 占位，不写死；本机实际值只在本文件的变量区定义
 
+## git 约定
+
+- **提交时机**：改完一个小环节、验收通过就提交，粒度要碎，方便回退到节点与溯源。不攒批量。
+- **提交信息**：`<type>: <message>`，单行中文，type 取 `feat` / `fix` / `refactor` / `test` / `docs` / `chore`。
+- **新建工程**：`ProjectApp/<包名>/` 一律带 `--git`（init + `.gitignore` + 首次提交）；
+  `iapp-demo/<批次>/` 探针不 init。`.gitignore` 模板见
+  `.claude/skills/iapp-development/references/project-structure.md` §工程自带 git 仓库。
+- **单分支**：不做分支模型，靠 commit 回退。
+- **不推送远程**：远程很可能是镜像地址（如 `ghproxy`），push 会失败；只管本地仓库，
+  不要 `push`、不要加 remote。
+- 产物 `bin/<包名>.apk` 不入库；要留档就在 `docs/` 记读数，不提交 APK 本身。
+
 ## 开发取向
 
 - **默认按 iApp 工程交付**（`.iyu` + `.mjava` + 本机投递链路）；只有用户明确说要别的介质时才例外。
-- **采用标准 superpowers SDD 模式**：计划放 `docs/superpowers/plans/`、规格放 `docs/superpowers/specs/`；
+- **采用标准 superpowers SDD 模式**：计划放 `plans/`、规格放 `specs/`；
+  **单个工程的任务放该工程 `<工程根>/docs/superpowers/`，跨工程任务才放工作区 `docs/superpowers/`**；
   分层与索引规则见 `.claude/skills/docs-architecture/references/architecture.md` §5。
 - 官方两份 txt 手册（`docs/reference/iyu-helpV3.0.txt`、`ijava-helpV3.0.txt`）不完整、偶有错别字和过时内容，
   **只作参考**，不要当权威。
@@ -205,14 +220,14 @@ python tools/ftp-sync.py --adb-forward emulator-5556   # 退出码 0 才算投�
 - 级别升降、❓ 怎么写、去重三步：见 `.claude/skills/docs-architecture/references/evidence-and-levels.md`
   与 `maintenance.md`。
 - 换环境得到的可复用经验，按「当用户处于 X、在做 Y 时，或许可以这样 Z」写进
-  `references/environment-adaptation.md` 的「环境提示」表，注明「实际可用性需实测」。
+  `.claude/skills/iapp-development/references/environment-adaptation.md` 的「环境提示」表，注明「实际可用性需实测」。
 
 ## 每轮探针流程
 
 1. 探针源码写进 `android-sync/iapp-demo/<批次>/`；`type=` 含点号时，工程首次打开后在 `build.xml` 补登记
 2. 按通道投递：
    - 共享目录 / adb：force-stop → 写共享目录 → 清 logcat
-   - 仅 FTP：请用户先关工程 → `ftp_sync.py` 推 → 核 SIZE/MD5（没有 logcat）
+   - 仅 FTP：请用户先关工程 → `ftp_sync.py` 推（退出码 0 即完成；没有 logcat）
 3. 用户运行并回报现象
 4. 取证：有 adb 就拉 logcat + screencap；没有就让用户截图，探针结果必须上屏
 5. 把日期、批次号、原始读数写进 `docs/evidence.md`

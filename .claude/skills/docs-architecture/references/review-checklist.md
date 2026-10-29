@@ -15,7 +15,7 @@
 
 | 判据 | 合格标准 | 真实反例 |
 |---|---|---|
-| A1 SKILL 无本机事实 | 无 IP、端口、serial、盘符、真实包名、单机日期 | `.claude/skills/iapp-development/references/ftp-delivery.md` 写了具体 IP 与端口；`scripts/ftp_sync.py` docstring 写 IP 和盘符 |
+| A1 SKILL 无本机事实 | 无 IP、端口、serial、盘符、真实包名、单机日期 | `.claude/skills/iapp-development/references/ftp-delivery.md` 写了具体 IP 与端口；`.claude/skills/iapp-development/scripts/ftp_sync.py` docstring 写 IP 和盘符 |
 | A2 CLAUDE.md 不教语法 | 只讲「这台机器怎么做事」 | 文档里出现某控件怎么写、某 API 怎么调 |
 | A3 docs 不写通用方法 | 通用结论在 SKILL，docs 只写读数 | 环境档案里写「安卓 14 建软链要用 su」的完整步骤（应指向 SKILL） |
 | A4 决策规则在 CLAUDE.md | 优先级、设备选择、变量顺序 | 同一优先级表同时出现在 CLAUDE.md 与 `environments/README.md` |
@@ -45,7 +45,7 @@
 | D1 索引完整 | 实际文件 ⊆ 最近一层索引 | `scripts/README.md` 漏 `dex_common.py` |
 | D2 无死链 | 引用目标存在或已注明归档 | `cases/` 已删仍有 11 处引用 |
 | D3 无行号引用 | 用文件 + §小节 | 历史 spec 里 5 处行号引用全部漂移 |
-| D4 跨 skill 带前缀 | `.claude/skills/<skill>/references/…` | `docs/ui-skills.md` 裸写 `references/industry-conventions.md` |
+| D4 跨 skill 带前缀 | `.claude/skills/<skill>/references/…` | `docs/ui-skills.md` 曾裸写 `industry-conventions.md` 这种短路径（正确写法要带 `.claude/skills/<skill>/references/` 前缀） |
 
 ## E 脚本与文档
 
