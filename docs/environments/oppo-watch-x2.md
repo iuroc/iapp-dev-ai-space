@@ -131,6 +131,8 @@ scrcpy -s <serial> --stay-awake --no-audio --window-title "<型号>"
 - `Ctrl+H` 回主页、`Ctrl+P` 电源键、`Ctrl+O` 熄屏
 - 表仍会积极息屏：用 `--stay-awake` 即可；若改用上面的 `svc power stayon usb`，
   测完要 `svc power stayon false` 还原
+  （该命令把 `global stay_on_while_plugged_in` 置为 `7`＝AC|USB|无线，还原即回到 `0`；
+  等价写法 `adb shell settings put global stay_on_while_plugged_in 0`，可先 `settings get` 核对）
 - 自带 adb 与应用宝自带 adb 共用 5037，实测不冲突（设备未掉线）
 - 画面正常不等于控制可用：鼠标注入这条未单独验收，见下方未测项
 
