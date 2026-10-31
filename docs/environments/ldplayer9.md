@@ -29,14 +29,17 @@
 
 ## 3. 投递
 
-### 共享目录镜像
+### 共享目录镜像（⚠ 已停用，仅历史）
+
+> 2026-10-30 起共享目录通道停用：宿主 `android-sync/` 已移除，设备侧
+> `/sdcard/Pictures/ProjectApp` 已删。本节只记录停用前的拓扑，**不要再按它投递**。
 
 ```
 宿主 android-sync/                       ↔  设备 /mnt/shared/Pictures
 宿主 android-sync/ProjectApp/<项目ID>/   ≡  设备 /sdcard/Pictures/ProjectApp/<项目ID>/
 ```
 
-前提是 iApp 设置里的工程根已指到 `/sdcard/Pictures/ProjectApp`（这台改过）✅ 2026-10-26。
+停用前的前提是 iApp 设置里的工程根已指到 `/sdcard/Pictures/ProjectApp`（这台当时改过）✅ 2026-10-26。
 `sdcardfs` 没有 FUSE 那层旧缓存问题，改完不必核。
 
 ### adb push
@@ -54,8 +57,10 @@ adb -s <serial> shell "chown <uid>:sdcard_rw /sdcard/Pictures/ProjectApp/<项目
 ## 4. 工程根
 
 - iApp 默认（未改设置）：`/data/media/0/iApp/ProjectApp/<项目ID>`，日常视图 `/sdcard/iApp/ProjectApp/<项目ID>` ✅ 2026-10-26
-- 这台已改成 `/sdcard/Pictures/ProjectApp`；旧路径仍有一份副本，不再使用
+- 停用前这台曾把工程根指到 `/sdcard/Pictures/ProjectApp`；该目录已于 2026-10-30 删除。
+  **现在以 iApp 设置里显示的路径为准**（多半已回落到默认位置），不要照旧路径投递
 - 与 Android 14 不同：**可以直接在 iApp 设置里改到共享存储**，不需要 root 软链
+  （这条是能力差异，不是推荐的投递路径）
 
 ## 5. 权限与 root
 

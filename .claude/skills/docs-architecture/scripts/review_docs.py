@@ -310,7 +310,11 @@ def check_portable(root, cfg):
         return []
     script = root / portable_rel
     if not script.is_file():
-        return []
+        return [finding("SKILL-01", "major", portable_rel, 0,
+                        "便携性检查脚本不存在，SKILL-01 已跳过",
+                        evidence=f"配置了 portable_script，但找不到 {portable_rel}",
+                        hint="核对 review_config.json 的 portable_script；"
+                             "路径错误会让便携检查静默失效")]
     proc = subprocess.run([sys.executable, str(script)], capture_output=True,
                           text=True, encoding="utf-8", errors="replace")
     out = []
@@ -341,6 +345,14 @@ def path_allowed(p: str, cfg: dict) -> bool:
 
 def check_skill_facts(root, cfg):
     out = []
+    # 具体工程包名不该出现在 skill 里：以工作区 project/ 下真实存在的目录为准，
+    # 探针工程（com.demo.* / com.showcase.*）作为取证来源可以有
+    probe_prefix = tuple(cfg.get("skill_probe_prefixes", ("com.demo.", "com.showcase.")))
+    proj_names = []
+    proj_dir = root / "project"
+    if proj_dir.is_dir():
+        proj_names = [d.name for d in proj_dir.iterdir()
+                      if d.is_dir() and not d.name.startswith(probe_prefix)]
     for skill_dir in cfg.get("skill_dirs", []):
         base = root / skill_dir
         if not base.is_dir():
@@ -353,6 +365,11 @@ def check_skill_facts(root, cfg):
                 continue
             rp = rel(path, root)
             for idx, line in enumerate(read_lines(path), 1):
+                for pname in proj_names:
+                    if pname in line:
+                        out.append(finding("SKILL-04", "major", rp, idx,
+                                           "skill 里出现具体工程包名", evidence=pname,
+                                           hint="换成「某类 App 工程」之类的泛称；工程名与读数放 docs/evidence.md"))
                 if any(tag in line for tag in cfg.get("ip_context_allow", [])):
                     line_for_ip = ""
                 else:
@@ -565,7 +582,7 @@ def check_args(files, root, cfg):
 CHECKS = {
     "LINK": ("LINK-01", "LINK-02", "LINK-03", "LINK-04"),
     "INDEX": ("INDEX-00", "INDEX-01", "INDEX-02"),
-    "SKILL": ("SKILL-01", "SKILL-02", "SKILL-03"),
+    "SKILL": ("SKILL-01", "SKILL-02", "SKILL-03", "SKILL-04"),
     "LEVEL": ("LEVEL-02", "LEVEL-03", "LEVEL-04", "LEVEL-05"),
     "DUP": ("DUP-02",),
     "NUM": ("NUM-01",),

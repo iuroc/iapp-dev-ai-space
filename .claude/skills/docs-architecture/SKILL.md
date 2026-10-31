@@ -26,7 +26,8 @@ MD3 组件合规审计 —— 走 `material-3` 的 audit 模式。
 | 根 `CLAUDE.md` | 本机编排策略：怎么探测、选哪台设备、走哪条通道、流程 | 只对本机成立 |
 | `docs/` | 本机事实与证据：环境档案、快照、原始读数 | 是读数不是结论 |
 
-拿不准就先写 `docs/evidence.md`，提炼后再往上搬。完整判据与「结论 → 主文件」查表见
+拿不准就先把原始读数写进当月账本 `docs/archive/evidence-<YYYY-MM>.md`、在 `docs/evidence.md`
+加一行索引，提炼后再往上搬。完整判据与「结论 → 主文件」查表见
 `references/architecture.md`。
 
 ## 三问定位
@@ -34,22 +35,37 @@ MD3 组件合规审计 —— 走 `material-3` 的 audit 模式。
 1. **换台机器还成立吗？** 成立 → SKILL；只对这台机器 → `CLAUDE.md`。
 2. **是行为，还是读数？** 行为 → SKILL；读数/快照 → `docs/`。
 3. **是本工作区的决策规则吗？** 是 → `CLAUDE.md`；元规则（级别、引用、索引）→ 本技能。
-4. **只对这个 iApp 工程成立吗？** → 工程根下的 `docs` 目录（工程私有区，随工程脱离）；
-   判据见 `references/architecture.md` §1「工程私有文档区」。
+4. **只对这个 iApp 工程成立吗？** → 工程根下的 `openspec/` 或 `docs/`（工程私有区，随工程脱离）；
+   工程不搭 AI 工作区（不放 `.claude/`、不放 skill 副本），判据见
+   `references/architecture.md` §1「工程私有文档区」。
 
 ## 审阅流程
 
 ```
 0 记基线        git rev-parse --short HEAD（报告里带上，便于判断行号是否还成立）
-1 机械体检      python .claude/skills/docs-architecture/scripts/review_docs.py
-2 语义审        按 references/review-checklist.md 的五问逐文件过
-3 分级          阻断 / 应修 / 建议（判据是「照文档做会不会出错」）
-4 出报告        阻断 → 应修 → 建议 → 语义结论 → 已通过项
-5 修复建议      每条给「文件 + 改法 + 理由」；默认只报告，不改文件
-6 复跑          改完先 --check 跑相关项，最后全量 + check_portable
+1 读规范        把 SKILL.md + architecture.md + review-checklist.md + evidence-and-levels.md 读进去
+2 逐份读文档    范围内每个文件至少通读一遍，对着规范判（这一步是主力，不能跳过）
+3 机械体检      python .claude/skills/docs-architecture/scripts/review_docs.py（交叉检查，兜底）
+4 分级          阻断 / 应修 / 建议（判据是「照文档做会不会出错」）
+5 出报告        阻断 → 应修 → 建议 → 语义结论 → 已通过项
+6 修复建议      每条给「文件 + 改法 + 理由」；默认只报告，不改文件
+7 复跑          改完先 --check 跑相关项，最后全量 + check_portable
 ```
 
+**先读后跑，不是先跑后读。** 脚本能判的只有措辞层面的模式（死链、索引缺项、级别缺失、
+重复结论、数值冲突、skill 里混入真实 IP / 盘符 / 工程包名）。它判不了：
+
+- 这条结论**还成不成立**（要和代码/证据核对）
+- 这段**该放哪一层**（要理解内容性质，不是匹配关键词）
+- 两处说法**是不是真的冲突**（要看对象与时间是否同一个）
+- 「改了一处、另两处没跟着改」这类**漂移**（要跨文件对读）
+
+这些都得靠人读。报告里要能看出读过：引用段落内容，而不只是行号。
+
 脚本只覆盖机械可判的部分；跨层重复、结论是否仍成立、级别是否越级这类判断必须人工做。
+
+**改文档一律用 `Write` / `Edit`（先 Read 目标区间），不用脚本做批量替换** ——
+判据与例外见根 `CLAUDE.md` §改动文件的方式；理由是替换不透明，读者无法核对 diff。
 
 ## 检查项速查
 
@@ -59,7 +75,7 @@ MD3 组件合规审计 —— 走 `material-3` 的 audit 模式。
 |---|---|
 | LINK | 死链、行号引用、跨 skill 缺前缀、已删目录（`cases/` 等） |
 | INDEX | 索引漏登记、索引指向不存在的文件 |
-| SKILL | 便携违规（调用 `check_portable.py`）、真实 IP/端口/盘符、混入单机事实 |
+| SKILL | 便携违规（调用 `check_portable.py`）、真实 IP/端口/盘符、混入单机事实、**出现具体工程包名**（`project/` 下真实存在且非 `com.demo.*`/`com.showcase.*` 的目录名，`SKILL-04`） |
 | LEVEL | 同格多级别、✅ 缺日期、他机写成 ✅、❓ 缺验证法 |
 | DUP | 元规则双写；近似重复仅报告不拦 |
 | NUM | 同一指标多处取值不同（**只报组，不判错**） |
@@ -96,7 +112,8 @@ MD3 组件合规审计 —— 走 `material-3` 的 audit 模式。
 - **`targetSdk 37` 与 `36` 不是冲突**：前者是安装包、后者是打包产物，属两个对象（见 `references/evidence-and-levels.md`）。
 - **他机读数**：凡是「他机 / M2 / 交接文档 / 未复验 / 口述」的条目，上限是 ⚠，不能升 ✅。
 - **占位符路径**：含 `< > * ?` 的引用是示例，不该判死链。
-- **历史文档**：`docs/evidence.md`、`docs/superpowers/plans/`、`docs/superpowers/specs/` 是归档，旧引用标「历史，仅提示」，不计阻断。
+- **历史文档**：`docs/evidence.md`、`docs/archive/`、`docs/superpowers/plans/`、`docs/superpowers/specs/`
+  是归档，旧引用标「历史，仅提示」，不计阻断。
 - **图例与索引行**：允许与正文重复短语，不判跨层重复。
 
 ## 导航

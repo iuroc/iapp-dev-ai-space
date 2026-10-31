@@ -284,6 +284,10 @@ orientation=vertical</ppt><event></event></View>
 
   ✅ 实测：改完后子控件从 `vis=4 / x=-348` 变成 `vis=0 / x=0`，`isDrawerOpen=true`，第二页正常滑出。
 
+  **失败签名**：漏掉第 2 步（没把第二个子控件的 `gravity` 改成 `Gravity.START`）时，
+  `openDrawer(Gravity.START)` 抛 `IllegalArgumentException: No drawer view found with gravity LEFT`，
+  页面看不出任何抽屉。看到这条异常先回去补 gravity，不要以为是 `addv` 不支持。
+
 ## 清栈回首页
 
 手册里 **没有**这个功能：`uigo` 只有 4 个 flag，`67108864` 又因所有页共用 `run.mian` 组件而清不掉中间页。可行做法只有两条：

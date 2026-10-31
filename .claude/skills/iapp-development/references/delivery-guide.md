@@ -46,15 +46,16 @@ src/*.iyu, *.mjava
 
 ## 产物可移植性（侧载到其它设备）
 
-- 打包 APK **自包含**（解释器 dex + 资源 + 原生库），目标设备**不需要装 iApp 本体** ⚠（推断：APK 结构）
-- 侧载到 **OPPO Watch X2（圆表盘）** 可安装并启动 ⚠（用户口述 2026-10-28，未取 logcat）
+- 打包 APK **自包含**（解释器 dex + 资源 + 原生库），目标设备**不需要装 iApp 本体** ✅
+  （2026-10-29，OPPO Watch X2 侧载后启动并跑通全链路，见 `watch-app-guide.md` §0）
+- 侧载到 **OPPO Watch X2（圆表盘）**：`adb install` → 启动 → 界面交互 → `logcat` 取证全链路成立 ✅（2026-10-29）
 - **打包前先选 ABI**：iApp **设置 →【打包设定so库】** 弹出「选择需要的ABI架构so库」，
   四项 `armeabi-v7a` / `arm64-v8a` / `x86` / `x86_64`，**默认只勾 `arm64-v8a`**，
   产物 `lib/` 就只留该架构。✅（2026-10-28 设置界面 + 产物对照）
   - 只勾 arm64 的包在**纯 32 位用户空间**设备上装不上：
     `INSTALL_FAILED_NO_MATCHING_ABIS: Failed to extract native libraries, res=-113`
     ✅（2026-10-28，OPPO Watch X2 / API 30：`abilist64` 为空、`ro.zygote=zygote32`）
-  - 全勾 = 通用包；手表上已装的 `com.iuroc.watch` 就是 `armeabi-v7a` + `arm64-v8a` + `x86` 三架构包 ✅
+  - 全勾 = 通用包；手表上装的一个三方应用就是 `armeabi-v7a` + `arm64-v8a` + `x86` 三架构包 ✅
   - 三个原生库要同时带：`libygsiyu.so`（裕语言引擎，`.iyu` 解析依赖它）、`libluajava.so`、`libpl_droidsonroids_gif.so`
   - 删 `lib/` 重签救不回来（缺引擎）；跨架构只能靠这个勾选，不要手工改 zip
 - 小圆屏 UI：`466px / 310dpi` 这类屏幕按 dp 画布（约 233dp）设计，四角会被裁掉

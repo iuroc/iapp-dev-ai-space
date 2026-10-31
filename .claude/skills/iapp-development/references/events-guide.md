@@ -61,6 +61,12 @@ iApp 设计器支持的事件类型就是下面这些，`<eventItme type="…">`
 | `st_eA` / `st_eX` / `st_eY` / `st_rX` / `st_rY` | 动作 / 坐标 / 原始坐标 | 触摸类 |
 | `st_eR` / `st_kC` / `st_eK` | 按键相关字段 | `keyboard` `editormonitor` |
 | `st_x` / `st_y` / `st_z` | 三轴数值 | `sensor` |
+| `st_vW2` | 第二个控件（如 Spinner 自身） | `onitemselected` `onnothingselected` ⚠ |
+| `st_tT` / `st_taB` | tab 文本 / tab 索引 | `ontab*` ⚠ |
+| `st_pS` / `st_pT` | 页面状态 / 上一页位置 | `onpage*` ⚠ |
+| `st_dX` / `st_dY` / `st_isB` | 滚动 dx / dy / 是否到达边界 | RecyclerView `onscrolled` ⚠ |
+
+⚠ = DEX 里确认存在、运行期未逐个验；用之前先打一行日志确认值非空。
 
 用法：
 
@@ -93,6 +99,15 @@ iApp 设计器支持的事件类型就是下面这些，`<eventItme type="…">`
 | `destroy` | 退出页面 |
 
 实测顺序：打开 `loading → start → loadingComplete`；Home `pause → stop`；回来 `restart → start → resume`。
+
+**旋转屏幕**会重建页面并重跑 `loading`：`loading` 里宽高仍为 0，`loadingComplete` 才有真实尺寸；
+`addOnLayoutChangeListener` 可用作尺寸变化的兜底 ✅（API 28）。
+
+文本变化链的完整顺序是 `keyboard → editormonitor → beforetextchanged → ontextchanged → aftertextchanged`，
+其中 `keyboard` 在**最前**，且之后每次按键都会持续重发（高频，别在里面做重活）✅（API 28 实测）。
+
+`addTab()` 添加**第一枚**页签时会自动选中并回调一次 `ontabselected`；之后切换 tab 时
+`ontabunselected` 与 `ontabselected` **成对**出现——按「成对」写状态机，别假设只收到一个 ✅（API 28 实测）。
 
 ## 按键参数（downkey / upkey）✅
 
@@ -127,6 +142,7 @@ call(null, "mjava", "game.keyCode", st_kC)
   应用收不到 `kc=4`，表现为「退到后台但没 finish」。需要可靠退出时，别只依赖返回键，
   另放页面内入口（按钮/长按）调 `activity.finish()` ⚠（2026-10-28，OPPO Watch X2 / API 30）
 - 反编译 `main2` 的 UIEventset 参数表为 `st_kC,st_eA,st_eR`；方向键在 API 28 实测（2026-10-26）
+- 返回键的页面语义（吞键、弹栈、`finish()`）以 `navigation-guide.md` §返回 为准，本节只管键码与参数
 
 ## touchmonitor 能拿到什么 ⚠/❓
 
@@ -228,6 +244,8 @@ public void onrefresh() {
 - 需要区分时用标志位，或用 `onTouch`/`clicki` 判断是否用户主动打开
 
 ## WebView（✅ 实测）
+
+双向桥接（JS 调 mjava、mjava 调 JS）见 `references/webview-bridge.md`。
 
 | 事件 | 结果 |
 |---|---|

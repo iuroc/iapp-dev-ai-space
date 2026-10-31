@@ -5,16 +5,17 @@
 
 ## 选型规范（按顺序）
 
-1. **ppt 里声明：`com.google.android.material.*` 完整类名**
-   - `.iyu` 的 `type=` 写全类名，并在 `build.xml` 登记
-   - 理由：设计器能看到控件树与预览，布局在编辑阶段就能验证；mjava 只补颜色、内容和 ppt 表达不了的配置
-   - 分工：尺寸/边距/权重/文本写在 ppt；tint、描边、选中态、运行期内容由 mjava 补。`padding` 在 ppt 里是 px，不是 dp
-   - 运行期内容（文字、选项、tab、菜单、进度值、adapter）在 mjava 里填，**不改变声明方式**
-2. **ppt 短名兜底**：没有可靠 Material 映射时使用；注意部分短名指向 iApp 封装或 androidx
-3. **mjava 动态创建仅限两种**：① 整类无法在 ppt 声明（**必须带构造参数**）；② ppt 路径经实测不可用
-   （`SearchBar` 写进 ppt 后设计器保存/序列化时会崩，与登记无关；`TabLayout`/`ChipGroup`/`MaterialDivider` 已排除，见 `pitfalls.md` #7）。
-   适配器**不是**理由（`RecyclerView` 可在 ppt 声明后 `setAdapter`）。**不要因为“保险”把整页改成 mjava 创建**
-4. **判断依据**：`type` 值含点号 → 完整类名 → 登记；无点号 → 短名 → 先查 `builtin-controls.md` 指向哪个类
+1. **mjava 里 `new`（默认）**：`new TextInputLayout(activity)`、`new MaterialCardView(activity)`……
+   子控件 Context 天然正确，不需要 `md-components-guide.md` 里那条 TIL 修复配方；
+   尺寸/边距/颜色/选中态全部用 setter 写（`ui.mjava` 的工厂函数见 `ui-kit.md`）
+2. **例外：`.iyu` 里用 `type=` 声明**（历史工程、静态探针页）
+   - 写 `com.google.android.material.*` 完整类名，并在 `build.xml` 登记，否则设计器显示“未知”
+   - `padding` 在 ppt 里是 **px**，不是 dp；`layout_gravity` / `alpha` / `weight` 在 ppt 里静默失效
+3. **判断依据（仅限例外路径）**：`type` 值含点号 → 完整类名 → 登记；无点号 → 短名 →
+   先查 `builtin-controls.md` 指向哪个类，部分短名是 iApp 封装或 androidx
+4. **不能用短名映射的情况**：`SearchBar` 只能 mjava 建（ppt 路径会让设计器序列化崩溃，见 `pitfalls.md` #7；
+   `TabLayout`/`ChipGroup`/`MaterialDivider` 已排除）；
+   `Carousel` 在打包 APK 里被裁剪，连 `(Context)` 构造都没有，mjava 也救不了
 
 ### 短名与 Material 类的差异（必须知道）
 
@@ -123,6 +124,16 @@
 - 这类中断会**静默跳过同一 `loading` 事件里后面所有区块**：表现是“后面的控件没上色 / 输入框没盒子”，
   报错行却指向前面的按钮。`try/catch(Throwable)` **接不住**（实测：加了 try/catch 仍在
   `setIndicatorColor(int)` 处中断，日志里没有 catch 输出），只能事先核对重载，并把可疑调用放到初始化最后
+- `MaterialCardView` 在 AppCompat 主题下需要显式 setter 才有 M3 观感，好处是**涟漪自动按圆角裁剪**，
+  不用自己拼 `RippleDrawable` 的 content 层：
+  `setCardBackgroundColor(色)` / `setRadius(dp)` / `setCardElevation(0f)`（扁平设计不要阴影）/
+  `setStrokeWidth(dp)` + `setStrokeColor(ColorStateList.valueOf(色))`（只认 `ColorStateList`）/
+  `setContentPadding(...)` / `setClickable(true)` + `setRippleColor(ColorStateList)`
+  （2026-10-31，material 1.13.0，某书刊阅读 App 首页继续阅读卡）
+- `LinearProgressIndicator.setIndeterminateAnimationType(CONTIGUOUS)` 要求**至少 3 个** indicator 色，
+  单色会抛 `IllegalArgumentException: Contiguous indeterminate animation must be used with 3 or more
+  indicator colors` 并中断整段构建（表现是整个 loading 区块后半截没出来）；默认的 `DISCONTINUOUS`
+  单色可用（2026-10-31，material 1.13.0，某书刊阅读 App 搜索页）
 - `LinearProgressIndicator` / `CircularProgressIndicator` 的 `setIndicatorColor` 是 `int...` 可变参数：
   **单值 `int` 会抛 `Method setIndicatorColor( int ) not found` 并中断，传 `int[]` 则正常** ✅
   （2026-10-27，`setIndicatorColor(new int[]{color})` 后日志打出 `M3 init done`）。`setTrackColor(int)` 正常 ✅

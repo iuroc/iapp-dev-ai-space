@@ -1,106 +1,101 @@
-# 样式分层：ppt 还是 mjava
+# 骨架与样式分层：`.iyu` 只放根，其余全在 mjava
 
-核心判据：**画布能看见的，留在 ppt；需要计算或全局统一的，才进 mjava。**
+核心判据：**`.iyu` 只承担「根容器 + 全局事件表」；视图、样式、间距一律在 mjava 里写。**
 
-## 三条规则
+这条判据来自 2026-10-30 的范式翻转，理由与实测见 `SKILL.md` §界面构建 与
+实测批次 UIPROBE-1（mjava 建的视图与 ppt 声明在测量上完全一致，API 34 / 1080×1920）。
 
-### 1. mjava 只补差
+## 两层各管什么
 
-ppt 能表达的静态样式，不要在 mjava 里再写一遍。
-重复设置会让画布预览与真机不一致（画布不会执行 mjava，真机会），这是“飘逸”的根源。
-
-- ✅ ppt：颜色、字号、内边距、外边距、方向、对齐、可见性、粗细、行数
-- ✅ mjava：dp→px 换算、按屏宽比例计算、圆角/渐变等 drawable、运行期状态
-- ❌ mjava 里重复设置 ppt 已写的颜色/字号
-
-### 2. 复用分档
-
-| 复用次数 | 做法 |
-|---|---|
-| 2–3 处 | 直接复制 ppt 片段 |
-| 5 处以上且结构一致 | 抽成组件 `.iyu` |
-| 需要计算 / 集中管理 | 做 mjava helper |
-
-### 3. 主题级例外
-
-某个颜色或尺寸必须**全局统一**时，即使它看起来是控件级属性，也放到 mjava 主题模块统一设置。
-
-这是有意用「画布看不见」换「单一真源」：
-
-- 画布与真机的一致性让位于全局可维护性
-- 换色/换尺寸只改一处
-- 代价：设计器里看到的颜色可能与真机不同，必须靠真机验证
-
-## 判据速记
-
-| 问自己 | 放哪 |
-|---|---|
-| 画布能预览、且只影响这个控件？ | ppt |
-| 要不要换算/计算/读运行期状态？ | mjava |
-| 同一套颜色/字号是否要全应用统一？ | mjava 主题模块 |
-| 结构重复 5 次以上？ | 组件 `.iyu` |
-
-## 实测分界（API 28）
-
-| 样式 | ppt | mjava |
+| 层 | 写什么 | 不写什么 |
 |---|---|---|
-| 尺寸/边距/内边距 | ✅ `width=-1/-2/42dp`、`padding=12`（px） | — |
-| 方向/对齐 | ✅ `orientation`、`gravity` | — |
-| 颜色/字号 | ✅ `textcolor`、`backgroundcolor`、`textsize=18`（sp） | 全局统一时进主题模块 |
-| 字重 | ✅ `textstyle=bold` | — |
-| 行数/省略 | ✅ `maxlines=2`、`ellipsize=end` | — |
-| 显隐 | ✅ `visibility=gone/invisible` | 运行期切换才用 setter |
-| 权重 | ✅ **只能写 `layout_weight`**（`weight` 无效） | — |
-| 透明度 | ❌ 不生效 | ✅ `setAlpha(0.5f)` |
-| 圆角/渐变 | ❌ 无此属性 | ✅ `GradientDrawable` |
-| `dp` / `sp` 单位 | ✅ `width=42dp`、`textsize=16sp`、`elevation=4dp` | mjava setter 收 **px**，调用前自己换算 |
-| 按屏宽比例计算 | — | ✅ |
+| `.iyu` | 一个全屏根 `FrameLayout`（`id=1`，`width=-1 height=-1 backgroundcolor=…`）；`<UIEventset>` 的四个事件 | 子控件、静态样式键、每控件的 `<event>` 块 |
+| mjava | 其余一切：建视图、设样式、摆位、装监听器、画 drawable | — |
 
-**坑**：`weight=1` + `width=0` 会让控件宽度为 0（标题直接消失），必须写 `layout_weight`。
+`.iyu` 里那三个 ppt 键只决定「根铺多大、第一帧什么底色」；连根自己的样式想改也可以放到 mjava 里。
 
-**`st_` 桥不归层，尽量不用**：它是 ppt 里直接调 Java setter（如 `st_setTextColor=16711680`），
-只认整数、布尔字符串无效、无单位后缀无效（详见 `iyu-guide.md`）。静态样式优先用普通属性；
-普通属性表达不了就进 mjava，不要用 `st_` 造第三种写法。
+## 尺寸与单位
+
+- mjava 的 setter 一律收 **px**。用 `ui_dp(int)` / `ui_dpf(float)`（`ui.mjava`）换算，
+  不要自己乘 density，也别把 dp 数直接喂给 setter
+- 屏幕尺寸取 `DisplayMetrics`（`ui_screenW()` / `ui_screenH()`），**不要**在 `loading` 里读视图宽高——
+  那一刻还是 0（实测）
+- 字号用 `ui_textSize(v, sp)`，内部走 `COMPLEX_UNIT_SP`
+
+## 外观
+
+| 需要 | 做法 |
+|---|---|
+| 圆角填充 | `ui_round(radiusDp, fillHex)` |
+| 圆角 + 描边 | `ui_stroke(radiusDp, fillHex, strokeDp, strokeHex)` |
+| 渐变 | `ui_gradient(v, radiusDp, fromHex, toHex, vertical)` |
+| 玻璃表层 | `ui_glass(v, radiusDp, fillAlpha%, strokeAlpha%)`（模糊/折射自己画，库不做） |
+| 透明度 | `view.setAlpha(0.5f)` |
+
+复杂外观（卡面、噪点、渐变光斑）用 `Bitmap + Canvas + Paint` 现画再 `setImageBitmap`，
+不要引入图标库或 emoji。
 
 ## 波纹（Ripple）
 
-`RippleDrawable` 只能由 mjava 构造；**宿主控件 `clickable=true` 才会响应**（ppt 的 `clickable` 键有效）。
+`RippleDrawable` 只能由 mjava 构造；**宿主控件 `setClickable(true)` 才会响应**。
 
 ```java
-android.content.res.ColorStateList ripple = android.content.res.ColorStateList.valueOf(
-        android.graphics.Color.parseColor("#66FFFFFF"));
-android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
-bg.setColor(android.graphics.Color.parseColor("#2196F3"));
-bg.setCornerRadius(dp(24));
-view.setBackground(new android.graphics.drawable.RippleDrawable(ripple, bg, null));
+ColorStateList ripple = ColorStateList.valueOf(Color.parseColor("#66FFFFFF"));
+GradientDrawable bg = new GradientDrawable();
+bg.setColor(Color.parseColor("#2196F3"));
+bg.setCornerRadius(ui_dp(24));
+view.setBackground(new RippleDrawable(ripple, bg, null));
 ```
 
-第三个参数是**遮罩**：行内水波纹要给一个不透明圆角矩形遮罩，否则涟漪会按无边界圆扩散成整圆；整块背景本身已是圆角时，可传 `null` 让内容 drawable 约束涟漪。
+第三个参数是**遮罩**：行内水波纹要给一个不透明圆角矩形遮罩，否则涟漪会按无边界圆扩散成整圆。
+
+❓ **「整块背景已是圆角时传 `null` 是否安全」尚未定案**：本库早期记录称可传 `null`、由内容 drawable
+约束涟漪；`pitfalls.md` #35 的实测则是 `null` 时涟漪不受控件边界裁剪、会扩散成整圆（圆角处溢出）。
+怎么验：同一个圆角背景控件分别用 `null` 与圆角矩形遮罩各画一次，在圆角外侧截图比对有没有涟漪溢出。
+**定案前一律传与背景同形状的遮罩**，上例代码里的 `null` 只作占位。
 
 | 组合 | 现象 |
 |---|---|
-| RippleDrawable + `clickable=false` | 无波纹 |
-| RippleDrawable + `clickable=true`（TextView / LinearLayout / Button） | 正常波纹 |
-| Button + ppt `backgroundcolor` | 覆盖原生背景，原生波纹丢失 |
+| RippleDrawable + 未 `setClickable(true)` | 无波纹 |
+| RippleDrawable + `setClickable(true)`（TextView / LinearLayout / Button） | 正常波纹 |
+| Button + 自定义 background | 覆盖原生背景，原生波纹丢失 |
 
-## 组合控件（Material / 自定义类）
+## Material 复合控件
 
-**自定义控件默认就写在 ppt 里**（`type=` 全类名 + `build.xml` 登记）：实例真实可写，设计器也能看到
-（API 34 实测；API 28 的旧结论是“影子实例”⚠，按版本差异对待）。外观差异只在子控件 Context
-（TIL 按 `md-components-guide.md` 的 `loading` 配方修复），不需要整页改成 mjava 动态创建。
-只有两种情况在 mjava 里 `new`：① 整类无法在 ppt 声明（必须带构造参数）；② ppt 路径实测不可用
-（`SearchBar` 写进 ppt 后设计器保存/序列化时会崩，与登记无关；`TabLayout`/`ChipGroup`/`MaterialDivider` 已排除，见 `pitfalls.md` #7）。
+mjava 里直接 `new`，**子控件的 Context 默认就是对的**，
+所以 `md-components-guide.md` 里那条「从 `loading` 抄 `TextInputEditText` 字号 + `setBackground(null)`」
+的修复配方只在「ppt 声明」这条历史路径下才需要，mjava 建树时不用做。
+
+- 主题：`new` Material 控件要宿主主题带对应 attr，拿不准就用 `til.getContext()` 这类控件自己的 Context
+- `SearchBar` 只能 mjava 建（ppt 路径会让设计器序列化崩溃，见 `pitfalls.md` #7）
+- 选型与支持矩阵见 `material-components.md`
 
 ## MD 风格输入框
 
-用 `EditText` + `GradientDrawable`（圆角 + 描边），焦点态换描边色：
+`EditText` + `GradientDrawable`（圆角 + 描边），焦点态换描边色：
 
 ```java
-view.setOnFocusChangeListener(new android.view.View.OnFocusChangeListener() {
-    public void onFocusChange(android.view.View v, boolean focused) {
+input.setOnFocusChangeListener(new View.OnFocusChangeListener() {
+    public void onFocusChange(View v, boolean focused) {
         // 重建 GradientDrawable，描边色 #3F51B5 / #CCCCCC
     }
 });
 ```
 
 实测：聚焦后边框变蓝；`setPadding` 用 dp 换算。
+
+## 档 A 历史：ppt 的四个语义坑
+
+只有**例外路径**（历史工程的 ppt 骨架、静态探针页）才会遇到：`layout_gravity` / `alpha` 静默失效，
+`weight` 要写成 `layout_weight`，`padding` 按 **px** 解释。共同点是**没有报错，只是没效果**——
+这正是当初把默认写法翻到 mjava 的原因。mjava 里对应的做法见 `ui-kit.md`（摆位、`ui_dp`）。
+
+逐键实测读数见 `iyu-guide.md` §普通属性。`layout_gravity` 在 2026-10-29 打包版 / API 30
+与 2026-10-30 API 34 开发模式各复现过一次，不是特定版本问题。
+
+## 其他历史写法
+
+- **`st_` 桥**：ppt 里直接调 Java setter（`st_setTextColor=16711680`），只认整数、无单位后缀。
+  新代码不要用这种第三种写法
+- **组件 `.iyu` 复用**：结构重复 5 次以上时曾经抽成组件 `.iyu`；现在改为抽成
+  `ui.mjava` 里的工厂函数 + `ui_tag` / `ui_find` 命名句柄（见 `ui-kit.md`）

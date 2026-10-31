@@ -7,6 +7,10 @@ description: 开发、调试、打包 iApp（Android 可视化 IDE，显示名"�
 
 iApp（显示名"测兆编程"）是 Android 上的可视化 IDE：工程是「界面文件 + 模块代码 + 资源」的目录，直接在设备上编译运行。
 
+> **适用边界**：iApp 适合手机 App。手表只到「能跑」这一级，属**实验性**——
+> 中高端表上页面跳转与代码解释卡顿 1~3 s，正式手表应用建议走官方方案。
+> 详见 `references/watch-app-guide.md` §0。
+
 ## 写什么 / 不写什么（本库的边界）
 
 本库优先记录 **iApp 特有** 的行为，不重复通用 Android / Java 知识；通用知识只在它是“iApp 里可直接复制的完整配方”时收录（如 Canvas 卡面、外部库装载）。
@@ -18,6 +22,10 @@ iApp（显示名"测兆编程"）是 Android 上的可视化 IDE：工程是「�
   - 属性 / 事件名与原生不一致：ppt 用 `layout_weight` 而不是 `weight`；`alpha`、`weight` 在 ppt 里静默无效；事件名写错静默忽略
   - 宿主环境副作用：开发模式跑在 `com.iapp.app` 进程里，`getFilesDir()` 多工程共用、权限是宿主的、改系统 UI / 方向会影响宿主
   - 需要双证据才敢下结论的：行为与文档不一致、版本相关（API 28 vs 34）
+- **本库会被单独拷走分享**：里面**不许出现读者拿不到的东西**——作者自己的工程包名、一次性探针的工程名、工作区内部路径、别的 skill / agent、已删除的目录。读者拿到这些只会当成「必填项」或「该去下的东西」，然后照着做失败。
+  - 能出现的只有两类：**读者能自己找到的**（宿主包 `com.iapp.app`、`com.android.*`、`com.google.android.*`、公开开源库 `com.xuexiang.*`、JDK）与**明确标成示例的占位**（`com.example.*`、`<项目ID>`、`<宿主工程目录>`）
+  - 举证需要指向具体工程时，写成「一次性探针 · 状态栏类型矩阵」这种**描述性名称**，不写包名
+  - 由 `scripts/check_portable.py` 兜底检查
 - **写法**：先写"原生写法是什么 → 在 iApp 里会怎样 → 应该怎么写"三段式；结论带 ✅/⚠/❓ 与版本前提。
 - **更新前自检**：新增内容如果删掉后，一个懂 Android / Java 的人照样能写对，就不该进来；除非它是 iApp 环境里必须原样复制的完整配方。
 
@@ -53,37 +61,56 @@ iApp（显示名"测兆编程"）是 Android 上的可视化 IDE：工程是「�
 `call` 三要素：`call(接收返回值的变量, "mjava", "模块.方法", 参数…)`；无返回/无参用 `call(null, "mjava", "app.run")`。
 传给模块的参数个数要与方法签名一致，返回值只对 mjava 有效。
 
-## 控件类型：短名直接写，完整类名必须登记
+## 实现取向：能复用库就别自己写
 
-> 术语：本库说的“自定义控件”= 在 ppt 里用 `type=` 声明的非短名控件（完整类名 + `build.xml` 登记），
-> **不是** Java 里继承 View 写的新类——后者 BeanShell 写不了，必须编译进 dex（见 `external-library-guide.md`）。
+iApp 是冷门环境，本库的规则管的是**大方向**——`.iyu`/`.mjava` 怎么写、`call` 与 `i.fn` 怎么调、
+工程怎么投递。**具体实现**则优先用 Android / AndroidX / Material / 开源库里已有的东西，
+不要自己造：自己写的每一行都要在这个环境里重新踩一遍坑，而库里的行为已经被人跑过千万遍。
 
-**三条判据（按顺序问，止于第一条命中）**：
+- **先查支持矩阵**：`references/material-components.md` 列出 iApp 5.0.1013 内置的 material 1.13.0
+  可用组件（抽屉、底部面板、弹窗、进度、输入框、FAB…），用之前先看那一格是 ✅ 还是 ⚪
+- **要「行为」就找带行为的容器**：底部面板要拖动/遮罩/收起动画 → `BottomSheetDialog`；
+  侧边导航要边缘拖拽与遮罩 → `DrawerLayout`；长列表要回收 → `RecyclerView`。
+  不要自己接 `OnTouchListener` 攒手势、自己拼动画——那是在手搓库的下半截
+- **适配 ≠ 自造**：库组件在 iApp 里可能要改 Context、改主题、改构造方式（见
+  `references/material-components.md` §样式注意），但那是「按库的正确用法装配」，
+  不是「绕开库自己画一个像它的」
+- **判据**：一个需求如果能用「库组件 + 参数」表达，就不要用「自绘 View + 触摸事件」表达
+- **代价有实例**：把 `DrawerLayout` 当全屏浮层用，关掉后它吞掉整页点击（pitfalls #41）；
+  手写底部面板，结果遮罩瞬间消失、只能从抓手拖动；`ObjectAnimator.ofFloat` 变参绑不上（pitfalls #43）
 
-| 问 | 命中 → | 否则 |
-|---|---|---|
-| 控件本身能不能在 `.iyu` 里声明？ | ppt 用 `type=` 声明（默认做法，设计器可见可控） | → 问下一条 |
-| 样式是不是静态、且 ppt 有对应键？ | 写 ppt 普通属性 | → mjava setter |
-| 值是不是运行期才知道？ | mjava 填内容，声明方式不变 | 写死在 ppt |
+## 界面构建：mjava 建树为默认，`.iyu` 只留根
 
-- **mjava 动态创建只有两种情况**：① 整类无法 ppt 声明（必须带构造参数）；② ppt 路径实测不可用（设计器崩溃类）。
-  **不要因为“保险”整页动态创建**；适配器也不构成理由（`RecyclerView` 在 ppt 声明、运行期 `setAdapter` 即可）
-- **mjava 只补 ppt 表达不了的样式**：tint、描边、圆角、渐变、alpha、选中态、Ripple。
-  **不要重复设置 ppt 已写的颜色/字号/尺寸**——画布不执行 mjava，重复设置 = 预览与真机不一致（`style-guide.md`）
-- **ppt 管布局与静态内容**：`width/height/layout_margin*/layout_weight/orientation/gravity/text/textsize/textcolor/backgroundcolor/textstyle/maxlines/ellipsize/visibility/clickable/minheight/elevation`
-- **运行期内容在 mjava**：文字、选项、tab、菜单、进度值、列表项、adapter
-- **`padding` 例外**：ppt 的 `padding` 按 **px** 解释（不是 dp），要 dp 精确内边距就在 mjava 里 `setPadding`
-- **全局统一色/字号**：可集中到 mjava 主题模块，代价是画布看不到真机配色（有意例外，见 `style-guide.md`）
-- **设计器崩溃类**：`SearchBar` 写进 ppt 后，设计器**保存/序列化时**崩（`VisualDesigner.T0` NPE，与登记无关）：
-  `T0` 把每个 View 的 `tag` 当 `Object[]` 读，`id >= 1` 时跳过 null 检查；`SearchBar` 构造自建的内部子 View
-  带资源 id 但没有 tag → NPE。只能 mjava 动态创建、**不登记**。`TabLayout` / `ChipGroup` / `MaterialDivider`
-  已实测排除（2026-10-27，`pitfalls.md` #7）
-- **版本前提**：ppt 完整类名 = 真实实例是 API 34 实测；API 28 的旧结论是“影子实例”⚠
+**默认做法**：每个页面的 `.iyu` 只有一个全屏根容器加 `<UIEventset>` 全局事件表，
+其余一切视图——容器、文本、图像、列表——都在 mjava 里建，样式用 setter 写。
 
-**选型规则：Material 组件一律优先写 `com.google.android.material.*` 完整类名**；
-短名只在没有可靠 Material 映射时兜底——部分短名指向 iApp 封装或 androidx
-（`TabLayout` → `com.iapp.app.TabLayout`、`CardView` → androidx、`SwitchCompat` → androidx、
-`Toolbar` → androidx）。完整清单、支持矩阵与验证方法见 `references/material-components.md`。
+| 问 | 命中 → |
+|---|---|
+| 是页面根容器（`id=1` 的全屏 `FrameLayout`）吗？ | 写在 `.iyu`，只带 `width` / `height` / `backgroundcolor` 三个键 |
+| 是 `loading` / `loadingComplete` / `pause` / `resume` 事件吗？ | 写在 `<UIEventset>` |
+| 其余一切视图、样式、监听器 | mjava 建（`src/ui.mjava`，函数清单见 `references/ui-kit.md`） |
+
+为什么翻成这个方向（2026-10-30 实测批次 UIPROBE-1/2，雷电 14 / API 34 / 1080×1920）：
+
+- `.iyu`/ppt 的未知键**静默忽略**，已踩 `alpha`、`weight`、`layout_gravity`、`padding` 按 px 四个坑；
+  mjava 的未知面是一张 6 条的短清单（`mjava-guide.md`），遇到一次就记住
+- mjava 建的视图与 ppt 声明在测量上**完全一致**：同属性下 `forcedMeasure` 都是 `463x70`，
+  字号 `48.0` / 字重 / `maxLines` / `maxWidth` 全等——不存在"动态创建更脆"这回事
+- 建 40 个视图 14 ms、整页在 `loading` 内建完 195 ms，一帧内做得完
+- 若工程由 AI 持续维护、没有人依赖设计器预览，这条翻转的代价更低；迭代反馈本来就来自设备截图
+
+**样式一律写在 mjava setter 里**：tint、描边、圆角、渐变、alpha、选中态、Ripple、间距。
+ppt 只剩根上那三个键。分层规范见 `references/style-guide.md`。
+
+**实现前提**（完整清单见 `references/ui-kit.md` §已知限制）：`loading` 阶段宽高为 0、
+`getRootWindowInsets()` 为 null，尺寸取 `DisplayMetrics`、安全区在 `loadingComplete`/`resume` 应用；
+不要装匿名的 `setOnApplyWindowInsetsListener`（整份模块 Parse error）；不能继承 View，
+"组件"只能是工厂函数 + 命名句柄。
+
+### 例外：确实要在 `.iyu` 里声明控件时
+
+历史工程还在用 ppt 骨架的可以不动；某些独立探针页只想要一个静态界面看属性时也可以照旧。
+这条路径下的规则不变：
 
 `.iyu` 的 `type=` 只有两条来源，**写之前先看值里有没有点号**：
 
@@ -92,51 +119,34 @@ iApp（显示名"测兆编程"）是 Android 上的可视化 IDE：工程是「�
 | 内置短名（无点号） | `TextView`、`LinearLayout`、`TextInputLayout` | 不用登记 |
 | 完整类名（含 `.`） | `com.google.android.material.textfield.TextInputEditText` | **必须登记**，否则设计器显示“未知” |
 
-登记格式（`build.xml` 里唯一允许手写的地方，子项标签原文就是 `itme`）：
-
-```xml
-<newControl><itme title="显示名" class="完整类名" info="说明"/></newControl>
-```
-
 - 判据是 **`type` 的语法**，不是“这个类算不算自定义 / 是不是 Material”
-- **登记随工程走**：新建工程（含每轮探针工程）的 `build.xml` 是空模板，旧工程的登记不继承
-- 登记只影响设计器；运行时渲染不依赖它，但“未知”控件展开组件树可能闪退
+- 登记格式、随工程走、自查命令与“未知”控件的处理见 `references/project-structure.md` §build.xml 与自定义控件
 - 短名清单在 `references/builtin-controls.md`，**不要按“安卓类名去包名”猜**（`Switch` 就不是短名）
-- 自查：`grep -n 'type="[^"]*\.' src/*.iyu` 列出全部完整类名，逐个回 `build.xml` 对 `class`
+- **`SearchBar` 不能走这条路**：写进 ppt 后设计器保存/序列化时崩（`VisualDesigner.T0` NPE，与登记无关）——
+  `T0` 把每个 View 的 `tag` 当 `Object[]` 读，`id >= 1` 时跳过 null 检查，而 `SearchBar` 自建的内部子 View
+  带资源 id 没有 tag → NPE。只能 mjava 建。`TabLayout` / `ChipGroup` / `MaterialDivider` 已实测排除
+  （2026-10-27，`pitfalls.md` #7）
+- **版本前提**：ppt 完整类名 = 真实实例是 API 34 实测；API 28 的旧结论是“影子实例”⚠
+
+**Material 组件选型**：mjava 里直接 `new` 对应类即可，没有短名映射问题；
+只有回到 ppt 声明时才需要写 `com.google.android.material.*` 完整类名（部分短名指向 iApp 封装或 androidx：
+`TabLayout` → `com.iapp.app.TabLayout`、`CardView` / `SwitchCompat` / `Toolbar` → androidx）。
+完整清单与支持矩阵见 `references/material-components.md`。
 
 ## iyu 白名单（只允许 `call` / `addv`）
 
-`.iyu` 事件体**只允许 `call` / `addv`**。其它裕语言函数、Java 表达式（`activity.finish()`、`i.lan(...)`、`end()`、`ViewGroup.removeView(...)` 等）一律下沉到 mjava，用原生写法：
+`.iyu` 事件体**只允许 `call` / `addv`**。其它裕语言函数、Java 表达式（`activity.finish()`、`i.lan(...)`、
+`end()`、`ViewGroup.removeView(...)` 等）一律下沉到 mjava，用原生写法。返回、转场、删视图都写成
+mjava 方法，再由事件体 `call` 进去。
 
-| 原函数 | 替代 |
-|---|---|
-| `us` / `ug` | 原生 setter / getter（mjava） |
-| `gvs` | `activity.findViewById(id)` |
-| `s` / `ss` / `sss` / `dim` | `i.sss` / 隐藏控件 / SharedPreferences |
-| `syso` | `i.syso(...)` 或 `android.util.Log` |
-| `tw` / `utw` | Toast / AlertDialog |
-| `uigo` | `.uigo` 方式（见对应文档） |
-
-返回、转场、删视图都写成 mjava 方法，再由事件体 `call` 进去。
+逐个函数的替代写法见 `references/iyu-whitelist.md` §替换表。
 
 ## 多模块（加载另一个 mjava）
 
-```java
-i.fn("b");          // 实测加载，模块名不带扩展名
-b_hello();          // 加载后直接调
-```
-
-- **`importAll()` 写在每个 public 入口的第一行、方法体内**（只用于 `i.fn` 子模块的 facade）；
-  写在文件顶层会立即执行并报 `Command not found: importAll()`；
-  加载前调用也会 `Command not found`，整个方法中断，`catch` 接不住
-- 同名方法后加载覆盖；子模块方法统一加前缀（`core_` / `ui_` / …）
-- 推荐 facade 模式：`game.mjava` 只暴露 `init/layout/...`，子模块私有
-- 状态仍放 `i.sss`；模块级变量只在本次 `call` 内有效
-- `i.d.f("b.mjava")` 只在开发模式可用；打包后 `i.d` 是 `xn0`，没有 `f(String)`。
-  **交付用 `i.fn`，源码直接打包，不合并**
-- `i.call("b.b_hello","mjava")` 会新建解释器且找不到当前工程模块（实测返回 null），
-  跨模块加载不要用它
-- 完整规范：`references/modularization-guide.md`
+`i.fn("b")` 加载、之后直接调 `b_hello()`。三条硬约束：**`importAll()` 写在 public 入口的方法体内第一行**
+（写文件顶层或加载前调用都会让整个方法中断，`catch` 接不住）；**交付用 `i.fn`、源码直接打包**
+（`i.d.f` 仅开发模式）；**跨模块加载不要用 `i.call`**（每次新建解释器，找不到当前工程模块）。
+facade 模式、命名前缀与失败签名见 `references/modularization-guide.md`。
 
 ## 核心规则（iApp 硬约束 + 推荐做法）
 
@@ -144,136 +154,54 @@ b_hello();          // 加载后直接调
 
 1. 【硬】**入口必须是 `src/mian.iyu`**（不是 main.iyu）。
 2. 【荐】**iApp 以内存为准**：外部改文件前先 `am force-stop`，或在 iApp 里关掉工程；否则保存/运行会用旧内存覆盖磁盘。
-3. 【荐】**投递先协商再选通道**：共享目录镜像、`adb push/pull`、iApp 内置 FTP 是三条并列通道，按当前环境实际可用性选，不按产品名预设。
-   共享目录可用且核验通过时优先（双向、免认证）；否则有 adb 设备就 `adb push`；adb 不可用而 FTP 暴露工程根时用 FTP
-   （先判断宿主能否直达该端口，直达就直连，否则走 `adb forward`）；都不通才手工导入 `.iApp`。
-   任何通道都遵守：**改前关工程、改完全量推**；同一时刻只走一条写通道。不逐次核字节，出问题再查。
-   不要用 bind mount（应用 namespace 看不到后加的挂载）。详见 `references/environment-adaptation.md`、`references/ftp-delivery.md`。
-4. 【荐】**双证据**：屏幕现象（screencap）+ 原文日志
-   `adb logcat -d -v time 'ygs:V' 'System.err:V' '*:S'`
+3. 【荐】**投递优先级：adb 整目录 → FTP → 手工导入**；共享目录通道已停用（2026-10-30）。
+   任何通道都遵守：**改前关工程、整目录覆盖、只认返回码**——源在宿主，不读设备副本比对，
+   验收靠运行现象与 `logcat`。通道选择、共同铁律与失败签名见 `references/environment-adaptation.md`。
+4. 【荐】**双证据**：屏幕现象（screencap）+ 原文日志；取日志命令、错误前缀与判读见 `references/debugging.md`。
 5. 【硬】日志 tag=`ygs`；mjava 里 `i.syso(...)` 的内容出现在这里（旧写法 `.iyu` 里的 `syso` 已按白名单禁用）。
+   **注意**：iApp 的「数据调试工具」面板打开时，`i.syso` 只进面板、`adb logcat` 抓不到（2026-10-30 实测）；
+   取证前先确认面板是关的，否则拿到 0 行会误判成"代码没跑"。
 6. 【硬】控制台行号不可信（常报第 0 行），定位靠日志与现象。
 7. 【荐】结论标注：✅实测 / ⚠推测 / ❓未知。null/false/0 必须有对照锚点。
-8. 【硬】**`type=` 含点号（完整类名）→ 必须写进 `build.xml` 的 `<newControl>`**；短名不用。新建工程的登记不继承（见上节）。
-   **例外**：`SearchBar` 写进 ppt 后，设计器保存/序列化时会崩（登记与否都一样；`TabLayout`/`ChipGroup`/`MaterialDivider` 已排除），不要 ppt 声明，走 mjava 动态创建。
+8. 【荐】**界面默认 mjava 建树**：`.iyu` 只留根容器与 `<UIEventset>`，子控件、样式、监听器都在 mjava 里写，
+   组件库见 `references/ui-kit.md`。只有在例外路径（历史工程、静态探针页）里用 `type=` 声明控件时，
+   才涉及 `build.xml` 的 `<newControl>` 登记——这条已降级为例外说明，见「界面构建」一节的末尾。
 9. 【荐】**换机器/换设备先勘测，别照抄上一台的路径**：确认五件事——设备能起且 iApp 已装、`adb devices` 有没有 `device` 行（不是「adb 可执行」）、iApp 设置里显示的工程根、有没有共享目录、FTP 能不能登。
    缺哪项就在结论里标 ❓ 并写清怎么验，不要用「应该/通常」代替。见 `references/environment-adaptation.md`。
 10. 【荐】**版本优先高**：新功能与验证默认在可用的最高 Android 上做（写成这条时是 API 34）；
     API 28 及以下只做有限兼容，且要开发者明确要求才投入，不追求低版本结论与高版本追平。
+11. 【硬】**不要用 `java { }` 内联块**：开发模式能跑，但**打包属 VIP**，非 VIP「强制打包」会删掉该功能；
+    且有「一个块编译失败全工程块失效」「块不可复用」两个硬伤。仅作实验性存档，
+    见 `references/inline-java-block.md`；工程一律走 `call` → `.mjava`。
 
-## 已验证
+## 已验证（能力速览）
 
-| 结论 | 级别 |
-|---|---|
-| 入口 `src/mian.iyu` 生效，载入事件触发 | ✅ |
-| 雷电 9（Android 9 / API 28）实测工程根 `/data/media/0/iApp/ProjectApp/<项目ID>`（= `/sdcard/iApp/ProjectApp/<项目ID>`）；其它 Android 9 环境以 iApp 设置为准 | ✅（仅雷电 9，参考） |
-| 载入事件格式 `<UIEventset><eventItme type="loading">…</eventItme></UIEventset>` | ✅ |
-| `call(a, "mjava", "app.bind")` 能调起模块方法 | ✅ |
-| `.mjava` 直接写方法（无 class），`syso()` 输出到 `ygs` | ✅ |
-| 模块里 `activity` 与 `i` 是两个默认对象 | ✅ |
-| `activity.findViewById(id)` 与 `i.gvs(id)` 返回同一实例 | ✅ |
-| 裸 `findViewById(id)` 不存在，报 `Command not found: findViewById( int )` | ✅ |
-| 模块级变量不跨 `call` 保留（两次调用都从初值开始） | ✅ |
-| `call` 能传参并接收返回值 | ✅ |
-| `did` 决定控件挂到哪个父容器；根子控件数/顺序与文件一致 | ✅ |
-| push 改文件后重开工程，界面按新内容渲染 | ✅ |
-| mjava 由 BeanShell 解释：`final`/具名 class/`0xFF`/可变参数/`bsh.*` 都会让模块失效 | ✅ |
-| 匿名**类**失败并中断整个载入事件；匿名**接口实现**在 API 28 可用 | ✅ |
-| `{...}` 数组字面量可用（与旧结论相反） | ✅ |
-| 循环变量 `i` 不遮蔽 iApp 的 `i` 对象（API 28） | ✅ |
-| `i` = `Aid_javaCode`：390 个公开方法、12 个公开字段 | ✅ |
-| `i.d` 是 BeanShell 解释器，**每次 call 新建** | ✅ |
-| `i.ss` 底层 HashMap 默认 null，读写直接 NPE | ✅ |
-| `i.sss` 跨 call 保留，但**每次运行重置**（同 pid 也一样） | ✅ |
-| `i.dim` 按前缀分派：`sss.` / `ss.` / 无前缀落 `i.a` | ✅ |
-| 外部库：JAR→D8→dex、AAR 拆 classes.jar/res、DEX 直用；产物放 `apk/assets/` | ✅ |
-| 开发用工程根 `/apk/assets/*.dex` 加载；打包用 assets→cache 或 `getExternalFilesDir` | ✅ |
-| 带资源的 AAR：aapt2 链接用独立包 ID（≥0x7f，如 0x80）+ 生成真 R；运行时 `addAssetPath` 挂载 | ✅ |
-| 资源**不自足**的 AAR（values 引用 appcompat/material 的 attr/style）：依赖的 `res/` 必须和库一起编进同一个资源包；`-I <宿主 APK>` 不能当资源依赖来源 | ✅（XUI 1.1.9，API 34） |
-| 依赖资源版本要成代对齐：material 1.13 + appcompat 1.3.1 会撞 `styleable/SearchView`；`-R` overlay 链接依赖会连环失败 | ✅（XUI 1.1.9） |
-| 运行时资源要挂**两个** AssetManager：Activity 的 + Application 的（库的静态 `ResUtils` 走后者），否则 `Resources$NotFoundException` | ✅（XUI 1.1.9，API 34） |
-| 库的 `ContentProvider` 初始化不会进 iApp 的 manifest，要手动 `XxxLib.init(activity.getApplication())`；不初始化时 `getContext()` 抛 `ExceptionInInitializerError` | ✅（XUI 1.1.9） |
-| UI 库的主题要用「屏幕型变体」（如 `XUITheme.Phone`），基类主题缺尺寸 attr，控件构造抛 `Failed to resolve attribute` | ✅（XUI 1.1.9，API 34） |
-| 打包版要把 **dex 和资源包都**从 APK assets 释放到 `cacheDir`（只放 dex 会丢主题/资源）；dex 走只读流程，资源包普通文件即可 | ✅（XUI 1.1.9 打包，API 34） |
-| 库的 setter 可能假设 AttributeSet 已初始化：`ButtonView.setSolidColor` 在 `(Context)` 构造后 NPE；`RippleView.setRippleColor` 吃的是颜色**资源 id** 不是 ARGB；先 `javap -c` 看字节码再调 | ✅（XUI 1.1.9） |
-| `DexClassLoader` 父加载器：宿主可能自带同名库时给 `null`（iApp 自带混淆版 sora-editor）；编译类依赖 `androidx.*` 时给宿主 loader | ✅ |
-| Android 14+/targetSdk≥34：动态加载的 dex 必须只读；先 `setReadOnly()` 再写，已有文件删了重建 | ✅（官方文档 + 实机） |
-| 库 API 多时把 glue 编译进 dex 做桥接类，mjava 只用构造器 + `View.setTag/getTag` 交互 | ✅ |
-| BeanShell 写不了「继承类」时：写 .java → javac → d8 成独立 dex，父加载器给宿主 | ✅ |
-| ViewPager `onpageselected/onpagescrolled/onpagescrollstatechanged` 可用（适配器须编译类） | ✅ |
-| AppBarLayout `onoffsetchanged` 可用；`st_vO` 是真实偏移量（px，负值） | ✅ |
-| `i.loadjar` 只认 `apk/lib/`（VIP 付费入口），不要用 | ✅ |
-| 新建工程最小集：`.project` + `AndroidManifest.xml` + `src/mian.iyu` + `icon.png`；`build.xml`/`sdk/` 由 iApp 首次打开生成 | ✅ |
-| ppt 里写自定义类是真实实例（API 34：attached、hash 与视图树一致、`addView` 生效）；API 28 的“影子实例”旧结论按版本差异对待 ⚠ | ✅（API 34） |
-| `type=` 写完整类名（含点号）必须在 `build.xml` 的 `<newControl>` 登记，否则设计器显示“未知”；短名不用 | ✅ |
-| `TextInputLayout` 必须直接包含 `TextInputEditText`；子控件用 `til.getContext()`（ContextThemeWrapper），用 `activity` 会自绘成原生外观 | ✅（Context 对照） |
-| ppt 建 `TextInputLayout` 实例是真的（attached / hash 与树一致 / addView 生效），但子控件固定 activity Context → 不修复时都是普通 EditText 外观；按 `md-components-guide.md` 的 `loading` 修复后可达到与 mjava 一致 | ✅（API 34，2026-10-27） |
-| 短名 `TextInputLayout` 与全类名都解析为 `com.google.android.material.textfield.TextInputLayout`，不是 support 包 | ✅（API 34） |
-| ppt 声明的 TIL 盒子默认不画：Material 把盒子贴成 EditText 的 background，ppt 子控件自带原生背景 → 跳过。修复挂 `loading`：从 `new TextInputEditText(til.getContext())` 抄字号/内边距，再 `setBackground(null)` + `updateEditTextBoxBackgroundIfNeeded()`；修完与 mjava 一致 | ✅（API 34，2026-10-27） |
-| Material 1.13 内置 490 个类；常用 35 个控件 34 个可 `(Context)` 构造；20 个上屏验证全部成功（10 个空容器需内容），`Carousel` 被裁剪（无 `<init>`） | ✅（API 34，2026-10-27） |
-| 独立探针页可新建任意 `.iyu` 作为开发入口；打包只认 `mian.iyu` | ✅ |
-| 交互页状态放 `i.sss`（模块变量跨 call 必丢）；布局均分用 `height=0 + layout_weight=1` | ✅ |
-| `.iApp` 备份：顶层直接是工程内容，无包名目录；同包名存在时导入失败 | ✅ |
-| 打包 APK：versionCode = 100000 + versionint；打包后 `i.syso`(ygs) 无输出但 `android.util.Log` 正常、`VisualDesigner` 被裁 | ✅ |
-| 界面事件 `downkey` 方向键可用（19/20/21/22）；`st_kC` 为键码，单条入口即可（已隔离验证） | ✅ |
-| `i.fn("b")` 把模块加载进当前解释器；之后可直接调 `b_method()` | ✅ |
-| 未加载先调用 → `Command not found`，**整个方法中断且 `catch` 不住** | ✅ |
-| `i.d.f("b.mjava")` 仅开发模式可用；打包后 `i.d` 是 `xn0`，无 `f(String)` | ✅ |
-| `i.call("mjava","b.method",Object[])` 可用；每次新建解释器；void 方法不要接返回值 | ✅ |
-| 同名方法后加载覆盖；子模块方法应加前缀 | ✅ |
-| `.iyu` 可以直接 `call` 任意模块，不必经过 facade | ✅ |
-| 多模块源码可直接打包：交付用 `i.fn`，不合并 | ✅ |
-| mjava `setOnTouchListener` 匿名接口可用，回调里能调同模块方法 | ✅ |
-| `ObjectAnimator.ofFloat(view, prop, new float[]{…})` 可用；`postDelayed(匿名 Runnable)` 能收尾 | ✅ |
-| `activity.getFilesDir()` + 文件读写持久化，杀进程后恢复 | ✅ |
-| 动态视图用 `setTag("tile:"+idx)` 跨 `call` 找回；`bringToFront()` 管弹层层级 | ✅ |
-| 应用内自检：`loading` 里跑纯逻辑用例，`i.syso` 输出 PASS/FAIL | ✅ |
-| 事件参数统一以 `st_*` 注入（`st_vId`/`st_vW`/`st_pN`/`st_url`…）；写别的名字会退化成零参调用。`st_eX/st_eY` 仅在触摸类 DEX 里见到，运行期未验 ❓ | ✅/❓（DEX + 实测） |
-| 绑 `shouldoverrideurlloading` 会跳过 iApp 默认跳转（内部 return true），要跳必须自己 `loadUrl` | ✅（DEX + 实测） |
-| `i.call(语言, "模块.方法", Object[])`：首参是语言不是变量名；目标 void 时不能接返回值 | ✅（探针） |
-| 行内水波纹要给 `RippleDrawable` 第三个参数传圆角遮罩，否则扩散成整圆 | ✅ |
-| 图标用 `Canvas` + `Path` 现画（Bitmap → ImageView），不用 emoji/文字符号 | ✅ |
-| 工程图标完全由根目录 `icon.png` 决定；打包为 `res/mipmap-*/img_iapp.png`（原样，无多密度切图） | ✅ |
-| 1×1 半透明蓝像素占位图会被启动器拉成纯蓝方块；用 `scripts/make_icon.py` 生成真图标 | ✅ |
-| 离线图标生成 `scripts/make_icon.py`：纯标准库，不联网、不依赖 Pillow | ✅ |
-| 普通 View 的 `setRotationX/Y` + `setCameraDistance` 可做 3D 倾斜（无需自定义 View） | ✅（API 28） |
-| 圆角 `GradientDrawable` 背景 + `setClipToOutline(true)` 会裁掉溢出的子 View | ✅ |
-| `View.animate()`（ViewPropertyAnimator）可链式调用，`cancel()` 能打断 | ✅ |
-| `View.setTag(int[]/float[])` 跨 call 存视图状态，强转能取回 | ✅ |
-| 多个 `.iyu` 可各自作入口；`call(null,"mjava","mod.m","str")` 传字符串参数 | ✅ |
-| Canvas 现画卡面（噪声、文字、金边）耗时随设备变化；绘制配方见 `references/recipes.md` | ✅（设备相关） |
-| 两套独立雷电同跑会抢宿主机 5555，`emulator-5554` 可能静默指向后启动那台（投递前用 `getprop ro.build.version.sdk` 核对） | ✅ |
-| Android 11+：`/sdcard/Android/data/<pkg>` 由 app 自身 mount namespace 的 bind mount 提供；FUSE 对其它进程一律拒绝（`is_app_accessible_path`），所以不能用 `su <uid>` 派生进程模拟 app 访问 | ✅（AOSP 源码 + API 34 实机） |
-| Android 11+：可在 app 自己的 `Android/data/<pkg>` 下建指向共享存储（如 `Pictures`）的符号链接，app 自身可经链接读写；写入可经 vboxsf/共享目录落到宿主机（需相应存储权限，如 `MANAGE_EXTERNAL_STORAGE` appop） | ✅（API 34 + iApp 实机） |
-| 共享目录（vboxsf）本身不支持符号链接：`ln -s` 报 `Function not implemented`，链接只能建在设备 ext4/FUSE 侧 | ✅（Android 14 模拟器） |
-| 雷电实例序号 = `vms\leidianN`，宿主端口按序号走（0→5555，1→5557）；两套安装各自的 `leidian0` 会抢 5555，把第二套改名成 `leidian1` 可永久分开，无需脚本 | ✅（两台不同 API 级别的实例） |
-| `MotionEvent` 的 `getActionMasked/getActionIndex/getPointerCount/getPointerId/findPointerIndex/getX(int)` 可用 | ✅（API 28） |
-| `MotionEvent.getHistorySize(int)` 等带 pointerIndex 的重载**解析失败且杀进程**，`catch` 接不住；只用无参版本 | ✅（API 28） |
-| 旋转屏幕会重建页面并重跑 `loading`；`loading` 里宽高=0，`loadingComplete` 有真实尺寸；`addOnLayoutChangeListener` 可用 | ✅（API 28） |
-| `View.setTag(HashMap)` 跨 call 可取回，HashMap 里可装 Bitmap/Canvas/Paint | ✅（API 28） |
-| `i.sss` 能存 `int[]` / `ArrayList`，跨 call 保持 | ✅（API 28） |
-| 已上屏 Bitmap 改内容后 `invalidate()` 能刷新（`Bitmap + Canvas + ImageView` 路线成立）；具体耗时应按设备重测 | ✅（API 28） |
-| 多 `.iyu` 用 `i.uigo("x.iyu")` 跳转：**每页一个 Activity 实例**（类名 `com.iapp.app.run.mian`，同进程同 task） | ✅（API 34） |
-| 前进时序：旧页 `pause` → 新页 `loading → start → loadingComplete` → 旧页 `stop` | ✅（API 34） |
-| 界面绑了 `downkey` 后**返回键被吞**：事件收到 `kc=4`，页面不弹出；要返回得在 mjava 里 `activity.finish()` | ✅（API 34） |
-| 弹栈回旧页**复用原 Activity**：不重建、`loading` 不重跑，只走 `restart → start → resume`；被弹页 `stop → destroy` | ✅（API 34） |
-| 未绑 `downkey` 时返回键走系统默认弹栈；绑了被吞后可在 mjava 里 `activity.finish()` 补回，效果与默认返回一致 | ✅（API 34） |
-| `A→A` 自跳会再压一个同名 Activity 实例，旧实例状态原样保留（返回回到旧的那份） | ✅（API 34） |
-| `uigo` flag 按 **Activity 组件** 匹配而非页面：`536870912` 是 no-op、`268435456` 与普通跳转无差异、`67108864` 只销毁当前页不清中间页；只有 `1073741824`（离开即销毁、返回跳过）真正可用 | ✅（API 34） |
-| 页面传参用 `i.sss`；`uigo` 无参数通道。返回结果 = 子页写 `i.sss` + `finish()`，父页在 `resume` 读（无 ActivityResult 通道） | ✅（API 34） |
-| mjava 里 `Class.forName("com.iapp.app.run.mian")` 抛 `ClassNotFoundException`（解释器看不见宿主类）；要 Class 只能用 `activity.getClass()` | ✅（API 34） |
-| `uigo` 不设转场；`activity.overridePendingTransition(...)` 可接管动画 | ✅（API 34） |
-| 打包 APK 里多页 `uigo` / `i.sss` 传参 / 返回结果 / 自建 Intent / 转场，与开发模式一致 | ✅（API 34） |
-| 转场在 mjava 用 `i.lan(0~11)` 或 `activity.overridePendingTransition(...)`；`end()` 对应 mjava `activity.finish()`（0~11 为手册范围，已验 6） | ✅（API 34） |
-| `addv` 是 yul 专属：`.iyu` 里 `addv(容器id,"x.iyu")` 可用；mjava `i.addv(...)` 返回 null；内嵌不触发目标页生命周期 | ✅（API 34） |
-| 内嵌页 id 按"文件首次内嵌顺序"分 **10000 号段**（不是固定 +10000，不能硬编码）；内嵌页事件照常触发；要定位就原生遍历树 | ✅（API 34） |
-| 多页 `addv` 只有 `DrawerLayout` 能用（第 2 个 child 改 gravity=START + 延后 400ms `openDrawer`）；`ViewPager`/`VerticalViewPager` 子控件进树但不渲染 | ✅（API 34） |
-| yul 字面量 ≥2³⁰ 以 `Long` 传入 mjava：形参写 `int` 会 `Method … not found` 且**界面静默无反应**；数值形参用 `Object`+`Number` 接 | ✅（API 34） |
-| iApp 内置 FTP（服务器控制台）匿名 `anonymous` + 任意邮箱可登录，`FEAT` 含 `MLSD/MLST/SIZE/MD5/AUTH TLS`，`STOR/DELE/MKD/RMD` 可用；根是应用级文件区，工程在 `/ProjectApp/<项目ID>` | ✅（单机，2026-10-27，未复验） |
-| FTP 的 `MLSD/NLST` **不列出点开头文件**（`.project` 看不到，但 `SIZE`/`MD5` 正常）→ 判存在性只能直探；`STOR` **不自动建父目录**，要先 `MKD` | ✅（单机，2026-10-27，未复验） |
-| 无 adb 时可用 iApp 内置 FTP 完成工程投递（网络可达即可，模拟器/真机同理），但拿不到 `logcat`/`screencap`，也不能 `force-stop` | ⚠（单机，2026-10-27；宿主可达性按环境而异） |
-| NAT 后的设备：只 `adb forward` 控制端口能登录，但 PASV 数据连接被拒（返回设备内网 IP）；**每个数据端口要单独 forward**，主动模式报 `425` | ✅（单台机器，2026-10-28） |
-| iApp FTP 写操作全通：`STOR`/`DELE`/`MKD`/`RMD`/`RNFR+RNTO`/`APPE`/`REST` 都可用；`MKD` **非递归**、`STOR` 不建父目录（父缺报 `551`）；UTF-8 文件名（含空格）正常 | ✅（单台，2026-10-28） |
+一行一个能力，**只写边界与级别**；每条的依据、读数和写法在对应 reference 里。
+新增验证先写进 reference，再决定要不要在这里加一行——不要把实现细节抄回来。
+
+| 能力 | 边界 | 级别 |
+|---|---|---|
+| 入口与工程结构 | `src/mian.iyu` 是唯一入口；最小集 `.project` + manifest + `mian.iyu` + `icon.png` | ✅ |
+| 语言层 | BeanShell 解释：无 `final` / 具名 class / `0xFF` / 可变参数；模块变量跨 `call` 丢；匿名类会中断载入事件，匿名接口可用 | ✅ |
+| `i` 对象 | 390 方法 / 12 字段；`i.d` 每次 call 新建；`i.ss` 默认 null；`i.sss` 每次运行重置 | ✅ |
+| 模块加载 | `i.fn` + `importAll()` 写在方法体内；`i.d.f` 仅开发模式；`i.call` 不用于跨模块 | ✅ |
+| 事件 | 参数统一 `st_*`；Tab/Spinner 初始化会自动回调一次；`downkey` 会吞返回键 | ✅/❓ |
+| 多页导航 | 每页一个 Activity 实例；`uigo` flag 只有 1073741824 有用；传参靠 `i.sss` | ✅ |
+| `addv` 内嵌 | 只有 DrawerLayout 可用；内嵌 id 按文件首次内嵌顺序分 10000 号段 | ✅ |
+| 界面构建 | mjava 建树为默认；ppt 未知键静默忽略；不能继承 View | ✅ |
+| WebView 全前端桥接 | URL scheme + `shouldoverrideurlloading` 调 mjava；`i.has` 回传；`iapp.fn` 只认 yul 模块；file:// + universal access 可绕过 CORS | ✅ |
+| ppt 声明控件 | 完整类名必须 `build.xml` 登记；`SearchBar` 会使设计器崩 | ✅/⚠ |
+| Material | 1.13 内置 490 类、34/35 可 `(Context)` 构造；TIL 需 `loading` 修复 | ✅ |
+| 外部库 | JAR→D8→dex；带资源 AAR 用独立包 ID + 两个 AssetManager；Android 14+ dex 只读 | ✅ |
+| 动画与触摸 | `ObjectAnimator` 用数组变参；`getHistorySize(int)` 等重载会杀进程 | ✅ |
+| 绘图与图标 | Canvas 现画；`invalidate()` 可刷新；工程图标由 `icon.png` 决定 | ✅ |
+| 工程资源 | `res/` 图片用 `i.us(@名称)`；`getIdentifier` 恒 0 | ✅ |
+| 状态栏 | 72px 来自宿主内容容器背景；铺满要挂 DecorView（1 个 `loading` 事件、5 行）；图标明暗走 insets 控制器；隐藏用 `hide()` | ✅ |
+| 打包 | `versionCode = 100000 + versionint`；打包后 `ygs` 无输出、`VisualDesigner` 被裁 | ✅ |
+| 投递 | adb 整目录优先；FTP 需逐数据端口 forward；共享目录通道已停用 | ✅ |
+| 环境 | 两套雷电抢宿主 5555；实例改名可按序号永久分开 | ✅ |
+| 已废弃 | `java { }` 内联块打包属 VIP → 不要用 | ⚠ |
+| 崩溃源 | 同名方法后者覆盖；回调里的 `Command not found` 会崩进程 | ✅ |
 
 ## 导航
 
@@ -281,10 +209,12 @@ b_hello();          // 加载后直接调
 - `references/recipes.md` — 常用配方、持久化、自检、Canvas 卡面与 API 28 注意事项
 - `references/animation-guide.md` — mjava 动画（ObjectAnimator / postDelayed / 3D 倾斜 / 输入锁）
 - `scripts/` — 随包脚本（图标、建工程、APK/dex 扫描、编译类进 dex、AAR 转 dex：`build_aar_dex.py` 通用版 / `build_sora_dex.py` 专用版）
-- `scripts/check_portable.py` — 分享前自检：禁止外部路径与作者机器路径
+- `scripts/check_portable.py` — 分享前自检：禁止外部路径、作者机器路径、**具体工程包名**（只允许宿主包 / 公开库 / 示例占位）、工作区专属 skill/agent 引用、指向不存在随包文件的引用
 - `references/iapp-history.md` — 版本读数与已知会随版本变化项
 - `references/iyu-whitelist.md` — iyu 只允许 call/addv
+- `references/inline-java-block.md` — ⚠ 实验性存档：`java { }` 内联块（打包需 VIP，**当前不要用**，方案大概率废弃）
 - `references/navigation-guide.md` — 多 `.iyu` 跳转 / 栈 / 返回（每页一个 Activity 实例、downkey 吞返回键、状态边界）
+- `references/webview-bridge.md` — WebView 全前端 + mjava 桥接：URL scheme、`i.has` 回传、本地页面两形态、状态栏主题同步
 - `references/iyu-guide.md` — 界面文件结构
 - `references/mjava-guide.md` — 模块写法与互调
 - `references/modularization-guide.md` — 多模块拆分、`i.fn`、facade 规范
@@ -295,13 +225,15 @@ b_hello();          // 加载后直接调
 - `references/iapp-internals.md` — 内部类、APK 结构、分析脚本
 - `references/delivery-guide.md` — `.iApp` 备份、APK 打包、边界
 - `references/project-structure.md` — 工程结构与新建工程
-- `references/emulator-setup.md` — 模拟器环境参考：宿主工作区 ↔ Pictures 同步、雷电 9 实测工程根 `/data/media/0/iApp/ProjectApp`（仅供参考，以 iApp 设置为准）、安卓 14 软链、多开 adb 端口冲突
+- `references/emulator-setup.md` — 模拟器环境参考：多开 adb 端口冲突、雷电 9 实测工程根 `/data/media/0/iApp/ProjectApp`（仅供参考，以 iApp 设置为准）、API 34 共享目录与软链机制（**通道 2026-10-30 起停用，仅历史参考**）
 - `references/environment-adaptation.md` — 环境适应：能力维度、未知宿主勘测五问、投递通道选择、版本政策、无 adb 时取证、「当…可试…」参考写法
 - `references/watch-app-guide.md` — 手表应用（圆屏）：内接方框布局、轻量控件选型、手势与按压反馈、WebView 正文、页面与导航约定
+- `references/status-bar-guide.md` — 状态栏决策表：默认 / 同色 / 铺满 / 隐藏 / 染色 / 图标明暗，各自最少代码与效果
 - `references/ftp-delivery.md` — iApp 内置 FTP 通道：适用条件、实测特性、坑、失败签名、宿主不可达的三种办法、安全边界
 - `references/icon-guide.md` — 应用图标（来源、规格、离线生成）
 - `references/builtin-controls.md` — 内置短名控件清单
 - `references/style-guide.md` — ppt 与 mjava 的样式分层
+- `references/ui-kit.md` — mjava 建树基础库 `ui.mjava` 的函数清单、三段式骨架与已知限制（权威副本在 `assets/ui-kit/`）
 - `references/md-components-guide.md` — Material 组件（ppt 声明 + TIL 修复配方 + 动态创建兜底）
 - `references/material-components.md` — Material 组件选型规范与支持矩阵（优先全类名）
 - `references/debugging.md` — 错误前缀与失败签名

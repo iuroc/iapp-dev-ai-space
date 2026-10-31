@@ -37,7 +37,7 @@ python .claude/skills/docs-architecture/scripts/review_docs.py --fail-on major
 
 - 纯标准库、**只读**：不写文件、不改配置。
 - 便携性检查**调用** `iapp-development/scripts/check_portable.py`，不复制它的规则；
-  它不存在时自动跳过。
+  配置了 `portable_script` 却找不到脚本时报一条「应修」（SKILL-01），**不再静默跳过**。
 - 历史归档（`docs/evidence.md`、`docs/superpowers/plans/`、`docs/superpowers/specs/`）里的问题自动降一级，
   避免每次都被旧引用淹没。
 - `NUM-01` 只报告「同一指标出现多个值」，**不判定谁对谁错**，需人工确认口径。

@@ -5,7 +5,8 @@
     "docs/**/*.md",
     ".claude/skills/*/SKILL.md",
     ".claude/skills/*/references/*.md",
-    ".claude/skills/*/scripts/README.md"
+    ".claude/skills/*/scripts/README.md",
+    ".claude/agents/*.md"
   ],
   "exclude_dirs": [
     ".git",
@@ -18,6 +19,7 @@
   ],
   "history_files": [
     "docs/evidence.md",
+    "docs/archive",
     "docs/superpowers/plans",
     "docs/superpowers/specs"
   ],
@@ -52,7 +54,8 @@
         "docs/scripts",
         "docs/reference",
         "docs/superpowers",
-        "docs/artifacts"
+        "docs/artifacts",
+        "docs/archive"
       ]
     },
     {
@@ -72,6 +75,10 @@
       "index": ".claude/skills/docs-architecture/scripts/README.md",
       "scope": [".claude/skills/docs-architecture/scripts/*.py",
                 ".claude/skills/docs-architecture/scripts/*.json"]
+    },
+    {
+      "index": "README.md",
+      "scope": [".claude/agents/*.md"]
     }
   ],
   "portable_script": ".claude/skills/iapp-development/scripts/check_portable.py",

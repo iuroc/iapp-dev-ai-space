@@ -1,19 +1,25 @@
 # Material 组件（MD3）
 
-> 选型先看 `material-components.md`：声明顺序是「ppt 完整类名 → ppt 短名 → mjava 动态创建」。
-> 本文件讲 ppt 声明之后的修复与运行期填充细节。
+> **当前默认**：界面由 mjava 建树（`references/ui-kit.md`），Material 组件直接 `new`，
+> 子控件 Context 天然正确，**本文件下面那条 TIL 修复配方不需要执行**。
+> 本文件保留 ppt 声明路径的全部细节，供历史工程与例外场景查阅，相关小节标注为「档 A 历史」。
 
 版本前提：iApp 5.0.1013、API 34（TIL 修复实测环境），SDK 内含 material 1.13.0。
 
-## 结论：ppt 里优先声明自定义控件，mjava 只做修复与内容填充
+## 档 A 历史：ppt 里声明自定义控件，mjava 做修复与内容填充
 
-`type=` 写 Material 全类名（或短名）在 ppt 里声明，这是默认做法。运行时组件是真实实例
+> 这一整节描述的是「用 ppt 声明控件」那条旧路径。新代码走 mjava 建树：
+> `TextInputLayout` 用 `new TextInputLayout(activity)` 建，盒子本来就画得对，
+> 不需要下面的 `loading` 修复配方。（上下文说明见 `references/style-guide.md` §Material 复合控件）
+
+`type=` 写 Material 全类名（或短名）在 ppt 里声明，是这条路径的做法。运行时组件是真实实例
 （API 34 实测：`findViewById` 拿到的就是屏幕上那个，`attached=true`，`addView` 生效）。
 
 需要 mjava 的只有三类情况：
 
 1. **修复**：`TextInputLayout` 的盒子默认不画（子控件带 activity 主题背景），按下面的 `loading` 配方修
-2. **运行期内容**：文字、选项、tab、菜单、进度值、adapter —— ppt 属性表达不了
+   ——**只在 ppt 声明时需要**，mjava 建树时跳过这一步
+2. **运行期内容**：文字、选项、tab、菜单、进度值、adapter
 3. **整类无法 ppt 声明**：必须带构造参数的类，或 ppt 路径实测不可用
    （`SearchBar` 写进 ppt 后设计器保存/序列化时会崩，与登记无关；`TabLayout`/`ChipGroup`/`MaterialDivider` 已排除，见 `pitfalls.md` #7）。
    `Carousel` **不是**这类例子——它在内置 APK 里被裁剪，连 `(Context)` 构造都没有，mjava 也救不了
@@ -23,7 +29,7 @@
 设计器“未知”：`type` 写完整类名（含点号）必须在 `build.xml` 的 `<newControl>` 里登记；
 短名不用，新建工程的登记不继承（格式见 `project-structure.md`）。
 
-### ppt 声明的 TIL：盒子默认不画（修复配方）
+### ppt 声明的 TIL：盒子默认不画（修复配方，仅档 A 需要）
 
 盒子默认不画。修复**必须挂在 `loading`**（`loadingComplete` 太晚，首帧会先画出无盒子的页面）：
 
@@ -102,7 +108,7 @@ til.addView(et, new LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT));
 | 圆角 | `setBoxCornerRadii(l,t,r,b)` | 需 OUTLINE |
 | 密码显隐 | `setEndIconMode(TextInputLayout.END_ICON_PASSWORD_TOGGLE)` | 子控件 `setInputType(TEXT_PASSWORD)` |
 
-## 其它组件（mjava 动态创建实测可用；默认仍先试 ppt）
+## 其它组件（mjava 动态创建实测可用；ppt 声明属历史路径）
 
 | 组件 | 类 | 备注 |
 |---|---|---|

@@ -36,10 +36,10 @@
 
 ```bash
 # 单张
-python scripts/make_icon.py --out icon.png --title 2048 --package com.demo.game2048
+python scripts/make_icon.py --out icon.png --title 2048 --package com.example.game2048
 
 # 按工程 manifest 自动读标题/包名，写回 icon.png
-python scripts/make_icon.py --project-dir <宿主工程目录>/com.demo.game2048
+python scripts/make_icon.py --project-dir <宿主工程目录>/com.example.game2048
 
 # 批量补所有工程
 python scripts/make_icon.py --all <宿主工程目录>

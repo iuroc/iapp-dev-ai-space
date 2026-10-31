@@ -14,7 +14,8 @@
 1. 换台机器仍成立 → SKILL；只对本机 → 本文件；读数/快照 → `docs/`。
 2. 一条结论只放一个主文件，别处只写一行指针（主文件查表见 `.claude/skills/docs-architecture/references/architecture.md`）。
 3. 每条结论带级别 + 来源 + 日期；他机读数最高 ⚠；标 ❓ 必须写「怎么验」。
-4. 先证据后结论：原始读数先进 `docs/evidence.md`，提炼后再往上搬。
+4. 先证据后结论：原始读数先进当月账本 `docs/archive/evidence-<YYYY-MM>.md`，
+   `docs/evidence.md` 只留「批次 → 一句结论 → 主文件」的索引，提炼后再往上搬。
 5. 新增/改名/删除文件，同一次提交更新最近一层 README 索引。
 6. 引用写「文件 §小节」，不写行号；跨 skill 引用带 skill 路径前缀。
 7. 冲突裁决：原始读数 > 环境档案 > SKILL 通用结论；同键不同对象不算冲突。
@@ -60,11 +61,10 @@ BUILD_TOOLS    = E:\Program Files\build-tools_r35_windows\android-15
 JDK            = E:\Program Files\openjdk-25_windows-x64_bin\jdk-25\bin
 PYTHON         = E:\Program Files\python3.13.17
 DEVICE         = 现查：adb devices 里有 device 行的那台；2026-10-28 为 emulator-5556（API 34）
-DEV_PROJECT    = 以 iApp 设置里显示的为准；当前 /storage/emulated/0/Pictures/ProjectApp/<项目ID>
-                 （= Android/data/com.iapp.app/files/iApp/ProjectApp/<项目ID> 的软链目标）
-DEV_PROJECT_DEFAULT = /sdcard/iApp/ProjectApp/<项目ID>           # 未改设置时的默认位置，仅供参考
-SHARED_HOST    = E:\workspaces\2026-10-24-iapp-dev-ai-space\android-sync
-SHARED_GUEST   = /mnt/shared/Pictures
+DEV_PROJECT    = 以 iApp 设置里显示的为准；2026-10-30 起是 iApp 默认路径
+                 /sdcard/Android/data/com.iapp.app/files/iApp/ProjectApp/<项目ID>
+SHARED_*       = 2026-10-30 起不再使用共享目录：宿主 android-sync/ 已移除，
+                 设备侧 /sdcard/Pictures/ProjectApp 已删；不要再往这两个位置放工程
 FTP_*          = 本机未配置；需要时从 iApp「服务器控制台」现抄，填进 tools/ftp-sync.local（不入库）
 ```
 
@@ -96,84 +96,75 @@ adb -s <serial> shell getprop ro.build.version.sdk
 
 ## 投递链路
 
-三条通道并列，按当前环境能力选；本机主链路是共享目录。
+**本机主链路是 adb**（2026-10-30 起；共享目录同日起停用）。两条通道，按环境能力选：
 
-| 通道 | 前置 | 写入 | 校验 | force-stop / logcat | 失败后 |
-|---|---|---|---|---|---|
-| 共享目录 | 宿主 `android-sync/` ↔ 设备 `Pictures` | 直接改宿主文件 | 不核；出问题再查 | 需另配 adb | 换 `adb push` |
-| adb | `adb devices` 有设备 | `adb push/pull` | push 退出码 | 能 | 换共享目录 |
-| FTP | 控制台已开 + 宿主可达（直连或经 adb forward） | `ftp_sync.py` | 脚本退出码 | 不能 | 修通道或换环境 |
+| 通道 | 前置 | 写入 | 校验 | force-stop / logcat |
+|---|---|---|---|---|
+| adb（主） | `adb devices` 有设备 | `tools/push.py` / `adb push` | push 退出码 | 能 |
+| FTP（备） | 控制台已开 + 宿主可达（直连或经 adb forward） | `ftp_sync.py` | 脚本退出码 + MD5 | 不能 |
 
-**本机优先级（2026-10-28）**：
+只有 adb 不可用、或设备侧只暴露了 FTP 时才走 FTP。
 
-1. 共享目录 —— 日常改码
-2. `adb push/pull` + `logcat` —— 单文件、取证、共享目录核不上
-3. FTP over `adb forward` —— 共享目录不可用且有 adb（读写均已验 ✅ 2026-10-28，见 `docs/environments/ldplayer14.md` §3）
-4. 手工导入 —— 都不通
+**主链路**：源在 `project/<项目ID>/`（各自 git 仓库），设备侧只是副本，
+用 `tools/push.py` **整目录覆盖推送**到 iApp 的工程根：
 
-先判断 FTP 能不能直达：`Test-NetConnection <设备IP> -Port <端口>`（不要只看 `ping`）。
-能直达就直接用设备地址；不能才走 `--adb-forward`。哪天网络变了，第 3 条自动降级为最简单的直连。
-
-**主链路（本机）**：iApp 工程根已指向 `Pictures/ProjectApp`，而 `/sdcard/Pictures` 就是 LDPlayer 共享目录：
-
-```
-宿主机 android-sync/ProjectApp/<项目ID>/  ==  /sdcard/Pictures/ProjectApp/<项目ID>/
+```bash
+export MSYS_NO_PATHCONV=1
+python tools/push.py <项目ID> [--serial <serial>]
 ```
 
-1. 改文件前 `am force-stop com.iapp.app`（iApp 以内存为准）。
-2. 直接改宿主机文件即等于改设备工程。FUSE 视图（iApp 实际读的那侧）偶尔仍是旧内容；
-   若出现「改了没生效」，关工程重开或 `adb push` 兜底。工程必须在 iApp 里关着。
-3. 改完**不要再次 force-stop**；交给用户重新打开工程。用户负责运行并回报，Claude 不代点界面。
+- 默认先清远端 `src/ res/ files/` 的内容，再全量推；**不用增量**：`--sync` 从不删远端文件，
+  本地删掉/改名的 `.mjava` 会残留并被 iApp 加载，而这种残留在「不读设备副本」的流程里发现不了
+- 不读回设备内容、不做 md5/size 比对；只认命令退出码，验收靠实跑 + `logcat` + 用户反馈
+- 推之前工程要在 iApp 里关着；推完**不要**代为运行，交给用户打开并回报
+- 远端这几个目录删不掉（`Text file busy`），所以脚本删的是**目录内容**
+- 目标目录不存在时脚本会先 `adb shell mkdir -p`：让 `adb push` 自己去建，
+  在 `/sdcard/Android/data/<pkg>/` 下会报 `remote secure_mkdirs failed: Operation not permitted`（2026-10-30 实测）
+- 清理后会再把本地 `src/ res/ files/` 下的每个子目录在远端 `mkdir -p` 出来；
+  `adb push` 不建多级目录，`res/web/index.html` 这类嵌套资源否则会整批失败（2026-10-31 实测）
+- 工程根不在默认位置时用 `--root <dir>` 覆盖，不要改脚本里的默认值
 
-**adb 兜底**（共享目录不可用）：
+**共享目录已停用（2026-10-30）**：`android-sync/` 已从宿主移除，设备侧 `/sdcard/Pictures/ProjectApp`
+也一并删除。历史教训留在 `docs/evidence.md` SYNC-2 / SYNC-3：那条链路里源与副本是同一批字节，
+且 FUSE 层会让设备长期读到旧内容。**不要把工程再放回共享目录**。
 
-```
-adb shell am force-stop $IAPP_PKG
-adb push <host 文件> $DEV_PROJECT/src/<名>
-adb shell chown <uid>:sdcard_rw $DEV_PROJECT/src/*; chmod 660 $DEV_PROJECT/src/*
-```
-
-- `<uid>` 用 `pm list packages -U com.iapp.app` 现查（当前 u0_a72）
-- Git Bash 下先 `export MSYS_NO_PATHCONV=1`，否则 `/storage/...` 被改写成盘符路径
-- **不要用 bind mount**：应用独立 mount namespace，挂载对 iApp 不可见
-
-**FTP**（仅当 adb 与共享目录都不可用）：
+**FTP**（没有 adb 时的备选）：
 
 ```
 export MSYS_NO_PATHCONV=1
 # 先在 tools/ftp-sync.local 写好 host=/port=/remote=/local-root=（不入库），或命令行给全（--remote 必填）
-python tools/ftp-sync.py --adb-forward emulator-5556 --dry-run
-python tools/ftp-sync.py --adb-forward emulator-5556   # 退出码 0 才算投递完成
+python tools/ftp-sync.py --adb-forward <serial> --port <端口> \
+  --remote /ProjectApp/<项目ID> --local-root project/<项目ID>
 ```
 
-- 本机雷电 14 实测：宿主直连不通，必须走 `--adb-forward`（脚本自动转发每个 PASV 数据端口）
-- 端口从 iApp「服务器控制台」现抄；`--adb-forward` 时 `--host` 可省（默认连 `127.0.0.1`）
-- 带 `--remote`/`--port` 的完整示例见 `docs/environments/ldplayer14.md` §3（只保留一份，避免漂移）
-- 主动模式不可用（实测 `425`）；直连只在宿主与设备同网段时可行
+- 设备 IP 与端口每次从 iApp「服务器控制台」现抄，不写死；杀掉 iApp 后要手动重开控制台
+- 本机宿主直连不通，必须走 `--adb-forward`（脚本自动转发每个 PASV 数据端口）
+- 要同步删除就带 `--delete-extras --managed-dirs src,res,files`
+- 完整示例见 `docs/environments/ldplayer14.md` §3（只保留一份，避免漂移）
 
 日志（有 adb 时）：`adb logcat -d -v time 'ygs:V' 'System.err:V' '*:S'`
 
 ## 目录约定
 
-- `android-sync/` 只放 iApp 工程镜像，层级与设备一致：`android-sync/ProjectApp/<包名>/`
+- **`project/<包名>/` 是工程源目录**：各自独立 git 仓库，工作区 `.gitignore` 忽略 `/project/`
+  - 改代码、提交、写文档都只在这里做；工程可能随时独立成库，引用一律写工程根相对路径
   - 项目 `src/` 只允许 `.iyu` 和 `.mjava`，入口必须叫 `mian.iyu`
-  - 临时探针放 `android-sync/iapp-demo/<批次>/`，用完即删
-  - `android-sync/cache`、`android-sync/data` 是 LDPlayer 共享目录自带，忽略
-  - **镜像是手动快照，不与设备自动同步**；设备上的新增文件需 `adb pull` 刷新（`docs/scripts/refresh-mirror.sh`）
-  - **每个工程自带私有文档区**：`<工程根>/docs/`（规格、计划、报告等，类型不限）+ 脱离时复制进来的
-    `.claude/skills/iapp-development/`；工程可能随时独立成库，引用一律写工程根相对路径。
-    判据与布局见 `.claude/skills/docs-architecture/references/architecture.md` §1/§5
-- `tools/`：本机薄包装（`ftp-sync.py`），不含实现
+  - **工程自带的文档只有两块**：`<工程根>/openspec/`（它自己的 OpenSpec 根）与 `<工程根>/docs/`
+    （私有资料区 + `superpowers/plans|specs/`）；**项目不搭 AI 工作区**（不放 `.claude/`、不放 skill 副本）。
+    判据、归属与布局见 `.claude/skills/docs-architecture/references/architecture.md` §1/§5
+- `android-sync/` **已移除**（2026-10-30）：原来是 LDPlayer 共享目录的宿主侧。不要再建，
+  也不要把「宿主目录 ↔ 设备目录」当成同一批字节来用，历史教训见 `docs/evidence.md` SYNC-2 / SYNC-3
+- `tools/`：本机薄包装（`push.py` 整目录推送、`ftp-sync.py` FTP 通道），不含实现
 - `docs/` 与 `.claude/skills/` 的完整布局、免登记目录见
-  `docs-architecture/references/architecture.md`；docs 索引本身在 `docs/README.md`
+  `.claude/skills/docs-architecture/references/architecture.md`；docs 索引本身在 `docs/README.md`
 - 文档和代码用 `<包名>` / `<项目ID>` 占位，不写死；本机实际值只在本文件的变量区定义
 
 ## git 约定
 
 - **提交时机**：改完一个小环节、验收通过就提交，粒度要碎，方便回退到节点与溯源。不攒批量。
 - **提交信息**：`<type>: <message>`，单行中文，type 取 `feat` / `fix` / `refactor` / `test` / `docs` / `chore`。
-- **新建工程**：`ProjectApp/<包名>/` 一律带 `--git`（init + `.gitignore` + 首次提交）；
-  `iapp-demo/<批次>/` 探针不 init。`.gitignore` 模板见
+- **新建工程**：`project/<包名>/` 一律带 `--git`（init + `.gitignore` + 首次提交）；
+  一次性探针工程不 init，也不要放进 `project/`（见 §每轮探针流程）。`.gitignore` 模板见
   `.claude/skills/iapp-development/references/project-structure.md` §工程自带 git 仓库。
 - **单分支**：不做分支模型，靠 commit 回退。
 - **不推送远程**：远程很可能是镜像地址（如 `ghproxy`），push 会失败；只管本地仓库，
@@ -183,6 +174,9 @@ python tools/ftp-sync.py --adb-forward emulator-5556   # 退出码 0 才算投�
 ## 开发取向
 
 - **默认按 iApp 工程交付**（`.iyu` + `.mjava` + 本机投递链路）；只有用户明确说要别的介质时才例外。
+- **手表应用不默认走 iApp**：iApp 的手表支持是**实验性**的，中高端表上页面跳转与代码解释
+  卡顿 1~3 s；正式手表应用建议走官方方案，用户明确要用 iApp 做表时再走 iApp 路线。
+  边界与原因见 `.claude/skills/iapp-development/references/watch-app-guide.md` §0。
 - **采用标准 superpowers SDD 模式**：计划放 `plans/`、规格放 `specs/`；
   **单个工程的任务放该工程 `<工程根>/docs/superpowers/`，跨工程任务才放工作区 `docs/superpowers/`**；
   分层与索引规则见 `.claude/skills/docs-architecture/references/architecture.md` §5。
@@ -190,8 +184,44 @@ python tools/ftp-sync.py --adb-forward emulator-5556   # 退出码 0 才算投�
   **只作参考**，不要当权威。
 - 真实开发面向**通用 Android 原生知识**（Activity/View/权限/WebView/存储等），iApp 只提供容器与调用桥。
 - iyu 层尽量只写 `call` 编排和事件绑定，具体实现放进 `.mjava`。
-- **控件优先在 `.iyu` 里声明自定义控件**（`type=` 完整类名 + `build.xml` 登记），短名兜底；
-  mjava 只做运行期内容填充与必要修复，**不要整页动态创建**。
+- **界面默认 mjava 建树**：`.iyu` 只留一个根容器 + `<UIEventset>`，子控件、样式、监听器都在 mjava 里写，
+  组件库 vendor 一份 `src/ui.mjava` 进工程。详见下面「UI 构建范式」。
+
+## 改动文件的方式（强制）
+
+改源码、配置、文档一律用编辑器级工具：`Write` 整写，或 `Edit` 精确替换（先用 `Read` 读出目标区间再改）。
+
+- **不用 `python -c` / `python - <<EOF` / `sed -i` 做批量字符串替换。** 改动不透明，用户看不到 diff，
+  也失去「改了哪行、改成什么」的自证；`project/` 下的 `.mjava`、`.iyu` 是交付物，更不能这样改。
+- 例外只留给工具处理不了的场景（二进制文件、真正的大规模改名）；用了就要 `git diff` 逐段核对，
+  并在汇报里说明为什么走例外。
+- 只读校验脚本（`check_mjava.py`、`review_docs.py`、`check_portable.py`）不受这条限制。
+
+## 展示 Demo 批次（`com.showcase.*`）
+
+2026-10-30 起，展示向 UI Demo 单独成批，包名统一为 **`com.showcase.<slug>`**（三段，
+slug 取风格英文、全小写、不要连字符），与旧的 `com.demo.*` 探针工程区分开：
+
+- 工程目录就是包名：`project/com.showcase.<slug>/`（源目录，自带 git；推送目标由 `tools/push.py` 决定）
+- 打包产物 `bin/com.showcase.<slug>.apk`；包名互不相同，装同一台设备不会互相覆盖，可并排对比
+- 每个方向一个 slug，slug 与已建状态写在案例标题里，见 `docs/ui-showcase-prompts.md` §4
+- 新方向沿用同一格式；**不要**把展示 Demo 塞进 `com.demo.*`，也不要给同一方向起第二个名字
+
+## UI 构建范式（mjava 建树）
+
+2026-10-30 起，本工作区出产的工程默认按这套写（实测见 `docs/evidence.md` §UIPROBE-1 / UIPROBE-2）：
+
+- `.iyu` 只放一个全屏根 `FrameLayout`（`id=1`）与 `<UIEventset>` 四个事件；不声明子控件、
+  不写每控件的 `<event>` 块
+- 视图、样式、监听器全部在 mjava 里建；尺寸取 `DisplayMetrics`（`loading` 阶段视图宽高是 0）
+- 构建拆成「骨架段 / 内容段 / 效果段」，每段独立入口 + `postDelayed` 串接：一段出错只毁一段
+- 组件 = 返回 View 的工厂函数 + `ui_tag` 命名句柄（不能继承 View，这是本环境的天花板）
+- 系统栏 / 键盘 / 手势：安全区一律读 insets 与根偏移的**差值**，禁止 dp 常量；背景由根自己画
+
+通用知识在 `.claude/skills/iapp-development/`：
+`.claude/skills/iapp-development/references/ui-kit.md`（函数清单与限制）、
+`.claude/skills/iapp-development/references/style-guide.md`（骨架与样式分层）、
+`.claude/skills/iapp-development/assets/ui-kit/ui.mjava`（权威副本，新工程复制进 `src/`）。
 
 ## 辅助技能（UI 设计）
 
@@ -211,7 +241,8 @@ python tools/ftp-sync.py --adb-forward emulator-5556   # 退出码 0 才算投�
 每轮探针结束必须回填，不许攒：
 
 ```
-探针/实测 → docs/evidence.md（日期 + 批次 + 原始读数）
+探针/实测 → docs/archive/evidence-<YYYY-MM>.md（日期 + 批次 + 原始读数；当月可续写，跨月冻结）
+         → docs/evidence.md（同一批次加一行索引：一句结论 + 主文件 + 状态）
          → docs/environments/<环境>.md（长期事实：级别 + 来源 + 日期）
          → SKILL（通用结论：版本前提 + 级别）
          → 清临时探针 → 跑体检
@@ -219,25 +250,33 @@ python tools/ftp-sync.py --adb-forward emulator-5556   # 退出码 0 才算投�
 
 - 级别升降、❓ 怎么写、去重三步：见 `.claude/skills/docs-architecture/references/evidence-and-levels.md`
   与 `maintenance.md`。
+- **开发途中撞见已有文档本身有错，当轮提出并修**，不要在心里绕过：结论过时、路径失效、
+  放错层、与新实测冲突，都算。修完同样跑体检；改的是「已有事实」而不是新增读数时，
+  在 `docs/evidence.md` 留一条决策/更正条目，写清旧说法与新说法。
 - 换环境得到的可复用经验，按「当用户处于 X、在做 Y 时，或许可以这样 Z」写进
   `.claude/skills/iapp-development/references/environment-adaptation.md` 的「环境提示」表，注明「实际可用性需实测」。
 
 ## 每轮探针流程
 
-1. 探针源码写进 `android-sync/iapp-demo/<批次>/`；`type=` 含点号时，工程首次打开后在 `build.xml` 补登记
-2. 按通道投递：
-   - 共享目录 / adb：force-stop → 写共享目录 → 清 logcat
-   - 仅 FTP：请用户先关工程 → `ftp_sync.py` 推（退出码 0 即完成；没有 logcat）
+1. 探针工程建在宿主临时目录（不入库、不 init git、不放 `project/`），`adb push` 推到设备工程根下；
+   `type=` 含点号时，工程首次打开后在 `build.xml` 补登记。用完**两侧都删**
+2. 按通道投递（源在 `project/<包ID>/`）：
+   - 有 adb：`python tools/push.py <包ID>` 整目录覆盖推送，再清 logcat
+   - 没有 adb：请用户先关工程 → `tools/ftp-sync.py` 推（退出码 0 即完成；没有 logcat）
+   - 不核设备侧内容；推完交给用户
 3. 用户运行并回报现象
 4. 取证：有 adb 就拉 logcat + screencap；没有就让用户截图，探针结果必须上屏
-5. 把日期、批次号、原始读数写进 `docs/evidence.md`
+5. 把日期、批次号、原始读数写进当月的 `docs/archive/evidence-<YYYY-MM>.md`，并在
+   `docs/evidence.md` 加一行批次索引
 6. 提炼结论回填 SKILL / 环境档案，清掉临时探针
 7. 汇报按：验了哪几条 / 一致·推翻·未知 / 回填了哪些文件 / 下一轮要用户做什么
 
 ## 导航
 
 - 通用知识：`.claude/skills/iapp-development/SKILL.md`
+- 歌德借阅机内容 API（跨平台，与 iApp 无关）：`.claude/skills/gede-read-api/SKILL.md`
 - 文档规范与体检：`.claude/skills/docs-architecture/SKILL.md`
+- 工程质量审阅（复用缺失 / 样式一致性 / 重复代码 / 技术债）：`.claude/skills/app-quality-review/SKILL.md`
 - 环境档案：`docs/environments/README.md`
 - 本机事实：`docs/README.md`
 - 工作区索引（不写规则，只做入口）：`README.md`

@@ -159,7 +159,7 @@ iApp 5.0.1013 的 `base.apk` 里能读到 BeanShell `2.0b4`，早于 Java 7/8：
   - 对比：iyu 事件直接 `call(...)` 的入口抛 EvalError，iApp 只打印 `JavaErr` 并中断本次调用，**不崩**
   - 做法：回调里只写已实机验证过的调用；新控件/新方法先在 iyu 入口跑一次，再搬进回调
 - **匿名接口回调可以直接读外层形参与局部变量，不需要 `final`** ✅（API 34，2026-10-28，
-  探针 `com.demo.captureprobe`）：`new Thread(new Runnable(){...})`、`activity.runOnUiThread(...)`、
+  一次性探针）：`new Thread(new Runnable(){...})`、`activity.runOnUiThread(...)`、
   `View.OnClickListener` 里读局部 String / int / 方法形参 / 局部 ArrayList 全部正常；
   对象按引用捕获（回调前 `sb.append("Y")`，回调里读到 `XY`）
 - 未覆盖 ❓：回调创建后**重新赋值**同一个局部变量，回调读到旧值还是新值（探针没测这一项）
@@ -176,6 +176,10 @@ iApp 5.0.1013 的 `base.apk` 里能读到 BeanShell `2.0b4`，早于 Java 7/8：
 - 抽屉底色要在**首帧之前**刷：`setContentView()` 之后、`show()` 之前沿 `root.getParent()` 往上遍历几层，
   遇到 `MaterialShapeDrawable` 就 `setFillColor(ColorStateList.valueOf(...))`；
   只在 `show()` 之后刷会有一条白帧（深色主题下明显）。`show()` 后再补刷一两次兜底
+- **别用 `setBackgroundColor` 上底色**：它会把 `MaterialShapeDrawable` 整个换掉，圆角与形状一起丢
+  ✅（API 34，2026-10-28）。底色只走上面的 `setFillColor` 路线
+- 要直接展开到全高，用 `behavior.setState(BottomSheetBehavior.STATE_EXPANDED)`；
+  别靠改高度或 `setPeekHeight` 去模拟「展开」
 
 ### 版本前提（不要外推）
 
@@ -201,26 +205,10 @@ int n = b_add(2, 3);  // 有返回值也直接接
 
 ### 铁律：先加载，再调用
 
-- **每个 iyu 事件入口都要自己 `i.fn(...)`** ✅（API 34，2026-10-28，批次 QJ-P8）：
-  iyu 每触发一次事件就是新解释器，上一次入口 `i.fn` 过什么不会带过来。`prev/next` 只 import 了
-  `qj_ui/qj_core/qj_store`，内部改成调 `qj_set` 的 `set_css()` 后立刻
-  `Command not found: set_css()`（不崩，但翻页失效）。会被多个入口复用的方法（渲染、取色、格式化）
-  在方法体内再 `i.fn` 一次，别依赖调用方先热身。
-
-
-未加载就调用：
-
-```
-Command not found: u_st( java.lang.String ) : at Line: 60 ...
-Called from method: layout
-```
-
-**整个方法立即中断，`try/catch(Throwable)` 接不住**，后续代码都不执行。
-所以 facade 的每个 public 入口第一行必须是 `importAll()`，不能先读任何 `u_*`。
-
-- `importAll()` **只能写在方法体内**：写在文件顶层会在模块加载时立即执行，报
-  `Command not found: importAll() : at Line: 1`（2026-10-27 实测）。
-  没有 `i.fn` 子模块的模块不需要它，直接删掉即可。
+iyu 每触发一次事件都是新解释器，上一次 `i.fn` 不会带过来 → **每个事件入口自己加载一次**。
+未加载就调用的报错是 `Command not found: …`，**整个方法中断、`try/catch(Throwable)` 接不住**；
+`importAll()` 只能写在**方法体内第一行**（写文件顶层会立即执行并报错）。
+完整规则、facade 写法与失败签名见 `modularization-guide.md`。
 
 ### 不要用的两条
 

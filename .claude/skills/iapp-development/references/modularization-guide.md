@@ -67,6 +67,7 @@ i.call("mjava", "b.b_hello");                                // void 方法：�
 - 目标方法返回 void 时**不要接返回值**：`Object r = i.call(...)` 会报
   `Void initializer` 并中断整个方法
 - 本项目跨模块加载用 `i.fn`（同一解释器、直接调）；`i.call` 适合偶尔的隔离调用
+- 签名级细节与失败形态见 `mjava-guide.md` §跨模块调用 `i.call`；本节只讲什么时候用它
 
 ## 推荐结构（facade + 私有子模块）
 

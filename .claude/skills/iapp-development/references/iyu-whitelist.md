@@ -3,6 +3,13 @@
 `.iyu` 只做事件绑定与调用编排：**只允许 `call` 和 `addv`**。
 其它能力全部下沉到 `.mjava`，用 Android 原生写法；`activity.finish()`、`i.lan(...)`、`end()`、`ViewGroup.removeView(...)` 都不写在事件体里。
 
+## 关于 `java { }` 内联块：**不要在工程里用**
+
+`.iyu` 里确实还能写 `java { … }`（编译执行），但它是**VIP 打包功能**：
+非 VIP 的「强制打包」会删掉该功能、可能导致应用不可用。
+因此白名单仍是 `call` / `addv` 两条；`java { }` 只作为实验性资料存档，
+**禁止在交付工程里使用**。机制与实测见 `references/inline-java-block.md`。
+
 ## 替换表
 
 | 原函数 | 冒烟替代 |

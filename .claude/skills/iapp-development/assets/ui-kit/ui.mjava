@@ -1,0 +1,589 @@
+// ============================================================
+// ui-kit —— iApp 的 mjava 建树基础库（权威副本）
+// 版本 v0.1 · 2026-10-30
+//
+// 用法：
+//   1. 把本文件复制到 project/<包名>/src/ui.mjava
+//   2. 页面模块开头 i.fn("ui"); 然后 importAll();
+//   3. loading 里       ui_init(activity.findViewById(1));  建 bg/safe/overlay 三层
+//      loadingComplete  ui_insets();
+//      resume           ui_insets();   重新进入时刷新安全区
+//   4. 页面只往 ui_layer("safe") / ui_layer("overlay") 里加视图
+//
+// 设计前提（都有实测依据，见 docs/evidence.md UIPROBE-1）：
+//   - 建树在 loading，尺寸取 DisplayMetrics，不要读 getWidth()
+//   - loading 阶段 getRootWindowInsets() 为 null，安全区只能在 loadingComplete 之后应用
+//   - 安全区 = insets 与「根已在窗口内让出的距离」的差值，不能直接取 insets
+//   - setOnApplyWindowInsetsListener(匿名实现) 会让整份模块 Parse error，只能主动查询
+//
+// 改进流程：先在某个工程里验证，再把改动回灌本副本；不回灌，新工程继续用旧版。
+// 配套说明：references/ui-kit.md
+// ============================================================
+
+import android.content.pm.PackageInfo;
+import android.graphics.Color;
+import android.graphics.Insets;
+import android.view.Window;
+import android.graphics.drawable.GradientDrawable;
+import android.util.TypedValue;
+import android.view.Gravity;
+import android.view.View;
+import android.view.ViewGroup;
+import android.view.WindowInsets;
+import android.view.WindowInsetsController;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+
+// ---------- 日志 ----------
+
+public void ui_log(String s) {
+	try {
+		i.syso("UI " + s);
+	} catch (Throwable t) {
+	}
+}
+
+// ---------- 包信息 ----------
+// 版本名：打包态读包自身的 versionName，改 AndroidManifest 就够了，页面不用跟着改。
+// 开发态进程的包是宿主 IDE（com.iapp.app），读出来的是 IDE 的版本，不是本工程的，
+// 不能拿来当产品版本 —— 这种情况统一显示「开发版」。
+public String ui_versionText() {
+	try {
+		String pkg = activity.getPackageName();
+		if ("com.iapp.app".equals(pkg)) {
+			return "开发版";
+		}
+		PackageInfo pi = activity.getPackageManager().getPackageInfo(pkg, 0);
+		String v = pi.versionName;
+		if (v == null || v.length() == 0) {
+			return "开发版";
+		}
+		return v;
+	} catch (Throwable t) {
+		return "开发版";
+	}
+}
+
+// ---------- 尺寸与颜色 ----------
+
+public float ui_density() {
+	return activity.getResources().getDisplayMetrics().density;
+}
+
+public int ui_dp(int v) {
+	return (int) (v * ui_density() + 0.5f);
+}
+
+public float ui_dpf(float v) {
+	return v * ui_density();
+}
+
+public int ui_screenW() {
+	return activity.getResources().getDisplayMetrics().widthPixels;
+}
+
+public int ui_screenH() {
+	return activity.getResources().getDisplayMetrics().heightPixels;
+}
+
+public int ui_color(String hex) {
+	try {
+		return Color.parseColor(hex);
+	} catch (Throwable t) {
+		return Color.WHITE;
+	}
+}
+
+public void ui_textSize(TextView v, int sp) {
+	v.setTextSize(TypedValue.COMPLEX_UNIT_SP, sp);
+}
+
+// ---------- 三段式根骨架 ----------
+
+public View ui_root() {
+	try {
+		return activity.findViewById(1);
+	} catch (Throwable t) {
+		return null;
+	}
+}
+
+public void ui_init(View root) {
+	if (root == null) {
+		ui_log("ui_init root=null");
+		return;
+	}
+	ViewGroup g = (ViewGroup) root;
+	g.removeAllViews();
+
+	FrameLayout bg = new FrameLayout(activity);
+	FrameLayout safe = new FrameLayout(activity);
+	FrameLayout overlay = new FrameLayout(activity);
+
+	g.addView(bg, new FrameLayout.LayoutParams(-1, -1));
+	g.addView(safe, new FrameLayout.LayoutParams(-1, -1));
+	g.addView(overlay, new FrameLayout.LayoutParams(-1, -1));
+
+	ui_reg("bg", bg);
+	ui_reg("safe", safe);
+	ui_reg("overlay", overlay);
+	ui_log("ui_init " + ui_screenW() + "x" + ui_screenH() + " density=" + ui_density());
+}
+
+// ---------- 命名句柄（运行期注册表） ----------
+// 跨 call 存活；i.sss 只在「重新运行」时重置，切换 .iyu 页面**不会**清表。
+// 新页面必须重新 ui_reg 自己那批句柄；跨页面复用旧 View 会崩
+// "The specified child already has a parent"，复用前先 getParent() 并 removeView。
+
+public void ui_reg(String name, Object v) {
+	try {
+		i.sss("ui." + name, v);
+	} catch (Throwable t) {
+	}
+}
+
+public Object ui_get(String name) {
+	try {
+		return i.sss("ui." + name);
+	} catch (Throwable t) {
+		return null;
+	}
+}
+
+public View ui_layer(String name) {
+	try {
+		Object o = ui_get(name);
+		if (o != null) {
+			return (View) o;
+		}
+	} catch (Throwable t) {
+	}
+	return null;
+}
+
+// ---------- 视图标签（复合组件对外暴露子视图） ----------
+
+public void ui_tag(View v, String name) {
+	try {
+		v.setTag("ui:" + name);
+	} catch (Throwable t) {
+	}
+}
+
+public View ui_find(View root, String name) {
+	return ui_scan(root, "ui:" + name);
+}
+
+public View ui_scan(View v, String want) {
+	if (v == null) {
+		return null;
+	}
+	try {
+		Object t = v.getTag();
+		if (t != null && want.equals(String.valueOf(t))) {
+			return v;
+		}
+	} catch (Throwable ex) {
+	}
+	if (v instanceof ViewGroup) {
+		ViewGroup g = (ViewGroup) v;
+		for (int k = 0; k < g.getChildCount(); k++) {
+			View r = ui_scan(g.getChildAt(k), want);
+			if (r != null) {
+				return r;
+			}
+		}
+	}
+	return null;
+}
+
+// ---------- 容器与基础控件 ----------
+
+public FrameLayout ui_frame() {
+	return new FrameLayout(activity);
+}
+
+public LinearLayout ui_col() {
+	LinearLayout l = new LinearLayout(activity);
+	l.setOrientation(LinearLayout.VERTICAL);
+	return l;
+}
+
+public LinearLayout ui_row() {
+	LinearLayout l = new LinearLayout(activity);
+	l.setOrientation(LinearLayout.HORIZONTAL);
+	return l;
+}
+
+public TextView ui_text(String s, int sp, String colorHex) {
+	TextView v = new TextView(activity);
+	v.setText(s);
+	ui_textSize(v, sp);
+	v.setTextColor(ui_color(colorHex));
+	return v;
+}
+
+public ImageView ui_image() {
+	return new ImageView(activity);
+}
+
+// ---------- 摆位（全部走 LayoutParams，绕开 ppt 的 layout_gravity 坑） ----------
+
+public void ui_add(ViewGroup parent, View child, int w, int h) {
+	if (parent instanceof LinearLayout) {
+		parent.addView(child, new LinearLayout.LayoutParams(w, h));
+	} else {
+		parent.addView(child, new FrameLayout.LayoutParams(w, h, Gravity.TOP | Gravity.LEFT));
+	}
+}
+
+public void ui_fplace(ViewGroup parent, View child, int w, int h, int gravity) {
+	parent.addView(child, new FrameLayout.LayoutParams(w, h, gravity));
+}
+
+// 垂直列表里加一个带顶距的子视图（宽高沿用 -1 / -2 语义）
+public void ui_addTop(LinearLayout parent, View child, int w, int h, int topDp) {
+	LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(w, h);
+	lp.topMargin = ui_dp(topDp);
+	parent.addView(child, lp);
+}
+
+// 线性布局里按权重分配；父容器不是线性布局时退回 ui_add
+public void ui_addWeight(ViewGroup parent, View child, int w, int h, float weight) {
+	if (parent instanceof LinearLayout) {
+		LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(w, h);
+		lp.weight = weight;
+		parent.addView(child, lp);
+	} else {
+		ui_add(parent, child, w, h);
+	}
+}
+
+public void ui_margins(View v, int l, int t, int r, int b) {
+	try {
+		ViewGroup.MarginLayoutParams lp = (ViewGroup.MarginLayoutParams) v.getLayoutParams();
+		if (lp == null) {
+			return;
+		}
+		lp.setMargins(ui_dp(l), ui_dp(t), ui_dp(r), ui_dp(b));
+		v.setLayoutParams(lp);
+	} catch (Throwable ex) {
+		ui_log("ui_margins " + ex);
+	}
+}
+
+public void ui_weight(View v, float weight) {
+	try {
+		LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) v.getLayoutParams();
+		if (lp == null) {
+			return;
+		}
+		lp.weight = weight;
+		v.setLayoutParams(lp);
+	} catch (Throwable ex) {
+		ui_log("ui_weight " + ex);
+	}
+}
+
+// ---------- 外观 ----------
+
+public GradientDrawable ui_round(int radiusDp, String fillHex) {
+	GradientDrawable gd = new GradientDrawable();
+	gd.setColor(ui_color(fillHex));
+	if (radiusDp > 0) {
+		gd.setCornerRadius(ui_dp(radiusDp));
+	}
+	return gd;
+}
+
+public GradientDrawable ui_stroke(int radiusDp, String fillHex, int strokeDp, String strokeHex) {
+	GradientDrawable gd = ui_round(radiusDp, fillHex);
+	int w = ui_dp(strokeDp);
+	gd.setStroke(w < 1 ? 1 : w, ui_color(strokeHex));
+	return gd;
+}
+
+public void ui_gradient(View v, int radiusDp, String fromHex, String toHex, int vertical) {
+	GradientDrawable.Orientation o = vertical == 1
+		? GradientDrawable.Orientation.TOP_BOTTOM
+		: GradientDrawable.Orientation.LEFT_RIGHT;
+	GradientDrawable gd = new GradientDrawable(o, new int[] { ui_color(fromHex), ui_color(toHex) });
+	if (radiusDp > 0) {
+		gd.setCornerRadius(ui_dp(radiusDp));
+	}
+	v.setBackground(gd);
+}
+
+// 玻璃的表层（白填充 + 白描边）。底下的模糊/折射由调用方自己画，库里不做。
+public void ui_glass(View v, int radiusDp, int fillAlphaPercent, int strokeAlphaPercent) {
+	GradientDrawable gd = new GradientDrawable();
+	gd.setColor(Color.argb(fillAlphaPercent * 255 / 100, 255, 255, 255));
+	if (radiusDp > 0) {
+		gd.setCornerRadius(ui_dp(radiusDp));
+	}
+	if (strokeAlphaPercent > 0) {
+		int w = ui_dp(1);
+		gd.setStroke(w < 1 ? 1 : w, Color.argb(strokeAlphaPercent * 255 / 100, 255, 255, 255));
+	}
+	v.setBackground(gd);
+}
+
+// ---------- 安全区 ----------
+
+public int ui_max0(int v) {
+	return v > 0 ? v : 0;
+}
+
+public int ui_max(int a, int b) {
+	return a > b ? a : b;
+}
+
+// 系统 dimens 兜底：打包版可能拿不到 insets（见 status-bar-guide.md §2.6）
+public int ui_dimen(String name) {
+	try {
+		int id = activity.getResources().getIdentifier(name, "dimen", "android");
+		if (id <= 0) {
+			return 0;
+		}
+		return activity.getResources().getDimensionPixelSize(id);
+	} catch (Throwable t) {
+		return 0;
+	}
+}
+
+public int ui_statusBarHeight() {
+	return ui_dimen("status_bar_height");
+}
+
+// loadingComplete 与每次 resume 调用；loading 阶段读不到 insets。
+public void ui_insets() {
+	View root = ui_root();
+	if (root == null) {
+		ui_log("ui_insets root=null");
+		return;
+	}
+	int[] loc = new int[2];
+	root.getLocationOnScreen(loc);
+	int rootTop = loc[1];
+	int rootH = root.getHeight();
+	int gapBottom = ui_screenH() - rootTop - rootH;
+
+	int barsTop = 0;
+	int barsBottom = 0;
+	int imeBottom = 0;
+	boolean ready = false;
+	try {
+		WindowInsets wi = root.getRootWindowInsets();
+		if (wi != null) {
+			Insets sb = wi.getInsets(WindowInsets.Type.systemBars());
+			Insets im = wi.getInsets(WindowInsets.Type.ime());
+			barsTop = sb.top;
+			barsBottom = sb.bottom;
+			imeBottom = im.bottom;
+			ready = true;
+		}
+	} catch (Throwable t) {
+		ui_log("ui_insets ERR " + t);
+	}
+
+	if (!ready) {
+		// 打包版里 getRootWindowInsets() 可能一直为 null（开发模式能拿到）：
+		// 挂根后安全区全靠这里留，拿不到就顶到状态栏下面 —— 用系统 dimens 兜底
+		barsTop = ui_statusBarHeight();
+		ui_log("ui_insets 兜底 statusBar=" + barsTop);
+	} else if (barsTop <= 0 && rootTop <= 0) {
+		barsTop = ui_statusBarHeight();
+		ui_log("ui_insets 兜底(insets.top=0) statusBar=" + barsTop);
+	}
+
+	int top = ui_max0(barsTop - rootTop);
+	int bottom = ui_max(ui_max0(barsBottom - gapBottom), ui_max0(imeBottom - gapBottom));
+
+	View safe = ui_layer("safe");
+	if (safe != null) {
+		safe.setPadding(0, top, 0, bottom);
+	}
+	View overlay = ui_layer("overlay");
+	if (overlay != null) {
+		overlay.setPadding(0, top, 0, bottom);
+	}
+	ui_log("ui_insets rootTop=" + rootTop + " rootH=" + rootH + " gapBottom=" + gapBottom
+		+ " bars=" + barsTop + "/" + barsBottom + " ime=" + imeBottom
+		+ " => pad " + top + "/" + bottom);
+}
+
+// ---------- 窗口姿态：edge-to-edge / 沉浸式 ----------
+// 只给「以画面为主体」的展示页用（看图、播放器、游戏）。两种不同姿态：
+//   ui_edgeToEdge(true)  内容延伸到系统栏下方，系统栏**仍然可见**（背景铺到屏幕顶边）
+//   ui_immersive(true)   隐藏系统栏，边缘滑动临时唤出（画面完全占满）
+// 两条硬约束：
+//   ① 必须在 pause 时关掉 —— 开发模式下窗口是 iApp 宿主自己的，不还原会连带改掉 IDE；
+//   ② 验收以打包产物为准，开发模式的结果不代表交付形态。
+
+// 状态栏图标明暗：背景深 → 传 false（浅色图标）；背景浅 → 传 true（深色图标）。
+// 这是页面自己的配色决定，库不预设。
+public void ui_statusBarIcons(boolean darkIcons) {
+	try {
+		WindowInsetsController wic = activity.getWindow().getInsetsController();
+		if (wic == null) {
+			ui_log("ui_statusBarIcons no-controller");
+			return;
+		}
+		int mask = WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS;
+		wic.setSystemBarsAppearance(darkIcons ? mask : 0, mask);
+		ui_log("ui_statusBarIcons dark=" + darkIcons);
+	} catch (Throwable t) {
+		ui_log("ui_statusBarIcons ERR " + t);
+	}
+}
+
+public void ui_edgeToEdge(boolean on) {
+	try {
+		Window w = activity.getWindow();
+		if (on) {
+			w.setDecorFitsSystemWindows(false);
+			w.setStatusBarColor(Color.TRANSPARENT);
+			w.setNavigationBarColor(Color.TRANSPARENT);
+			try {
+				w.setNavigationBarContrastEnforced(false);
+			} catch (Throwable t2) {
+			}
+			try {
+				WindowInsetsController wic = w.getInsetsController();
+				if (wic != null) {
+					// 0 = 不要 LIGHT_STATUS_BARS，即浅色（白）图标
+					wic.setSystemBarsAppearance(0, WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS);
+				}
+			} catch (Throwable t3) {
+			}
+			// 宿主的预留量在根的**父容器 padding** 上，而且每轮布局都会重新加上，
+			// 清不掉。于是不去对抗：把根整体上移并加高到整屏，覆盖住那块预留区。
+			// 正文的留白由 ui_insets 的差值公式补回（根顶移到 0 后 topPad 自然等于状态栏高）。
+			// clipToPadding 必须一起关，否则上移出去的那截会被父容器裁掉。
+			ui_unpadAncestors(true);
+			ui_bleed(true);
+		} else {
+			w.setDecorFitsSystemWindows(true);
+		}
+		ui_log("ui_edgeToEdge " + on);
+	} catch (Throwable t) {
+		ui_log("ui_edgeToEdge ERR " + t);
+	}
+}
+
+// 让根覆盖整屏：宿主在父容器上按系统栏留了空间（实测是父容器 top padding），
+// 且每轮布局都会重加。这里把根上移「宿主已预留的距离」并加高到屏幕高，
+// 视觉上根从 y=0 铺到底，预留区被自己的内容盖住。
+public void ui_bleed(boolean on) {
+	try {
+		View root = ui_root();
+		if (root == null) {
+			ui_log("ui_bleed root=null");
+			return;
+		}
+		ViewGroup.LayoutParams lp = root.getLayoutParams();
+		if (on) {
+			int[] loc = new int[2];
+			root.getLocationOnScreen(loc);
+			int baseY = loc[1] - (int) root.getTranslationY();
+			root.setTranslationY(-baseY);
+			if (lp != null) {
+				lp.height = ui_screenH();
+				root.setLayoutParams(lp);
+			}
+			ui_log("ui_bleed on baseY=" + baseY + " h=" + ui_screenH());
+		} else {
+			root.setTranslationY(0.0f);
+			if (lp != null) {
+				lp.height = -1;
+				root.setLayoutParams(lp);
+			}
+			ui_log("ui_bleed off");
+		}
+	} catch (Throwable t) {
+		ui_log("ui_bleed ERR " + t);
+	}
+}
+
+// 从我们的根往上走，清掉祖先容器给系统栏预留的 padding / fitsSystemWindows。
+// 同时把祖先链打进日志：类名 + 左右上下的 padding + fitsSystemWindows，便于定位是谁在挡。
+public void ui_unpadAncestors(boolean clear) {
+	try {
+		View v = ui_root();
+		if (v == null) {
+			ui_log("ancestors root=null");
+			return;
+		}
+		StringBuilder sb = new StringBuilder();
+		Object p = v.getParent();
+		int guard = 0;
+		while (p instanceof View && guard < 12) {
+			View a = (View) p;
+			sb.append(guard).append("=").append(a.getClass().getName())
+				.append("[pad ").append(a.getPaddingLeft()).append(",").append(a.getPaddingTop())
+				.append(",").append(a.getPaddingRight()).append(",").append(a.getPaddingBottom())
+				.append(" fsw=").append(a.getFitsSystemWindows()).append("] ");
+			if (clear) {
+				a.setPadding(0, 0, 0, 0);
+				a.setFitsSystemWindows(false);
+				if (a instanceof ViewGroup) {
+					((ViewGroup) a).setClipToPadding(false);
+				}
+			}
+			p = a.getParent();
+			guard++;
+		}
+		int[] loc = new int[2];
+		v.getLocationOnScreen(loc);
+		ui_log("ancestors depth=" + guard
+			+ " root y=" + loc[1] + " h=" + v.getHeight()
+			+ " | " + sb);
+	} catch (Throwable t) {
+		ui_log("ancestors ERR " + t);
+	}
+}
+
+public void ui_immersive(boolean on) {
+	try {
+		WindowInsetsController wic = activity.getWindow().getInsetsController();
+		if (wic == null) {
+			ui_log("ui_immersive no-controller");
+			return;
+		}
+		if (on) {
+			wic.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+			wic.hide(WindowInsets.Type.systemBars());
+		} else {
+			wic.show(WindowInsets.Type.systemBars());
+		}
+		ui_log("ui_immersive " + on);
+	} catch (Throwable t) {
+		ui_log("ui_immersive ERR " + t);
+	}
+}
+
+// ---------- 分段调度 ----------
+// 每段独立 Runnable：一段抛错只毁一段，其余段照常执行；进出各一行日志。
+// 注意：BeanShell 的部分错误 catch 不住，这里靠「结构隔离」而不是靠异常处理。
+
+public void ui_later(String name, int delayMs, Runnable r) {
+	View root = ui_root();
+	if (root == null || r == null) {
+		ui_log("ui_later 无法调度 " + name);
+		return;
+	}
+	String n = name;
+	root.postDelayed(new Runnable() {
+		public void run() {
+			ui_log("stage> " + n);
+			try {
+				r.run();
+			} catch (Throwable t) {
+				ui_log("stage! " + n + " " + t);
+			}
+			ui_log("stage< " + n);
+		}
+	}, delayMs);
+}

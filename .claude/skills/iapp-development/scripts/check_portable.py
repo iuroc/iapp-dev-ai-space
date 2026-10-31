@@ -26,11 +26,27 @@ FORBIDDEN = [
     (re.compile(r"cases[/\\]"), "已删除的 cases 路径"),
     (re.compile(r"CLAUDE\.md"), "工作区专属 CLAUDE.md"),
     (re.compile(r"android-sync"), "作者工作区的目录名"),
+    (re.compile(r"\.claude/(?:skills|agents|hooks)"), "工作区专属的 skill / agent 引用"),
     (re.compile(r"本机(?!端口)"), "作者机器视角的“本机”"),
     (re.compile(r"本工作区"), "工作区视角"),
     (re.compile(r"[Ee]:[\\/]+Program Files[\\/]+(?:leidian|build-tools_r35|openjdk-25|platform-tools|python3)"), "作者机器的绝对路径"),
     (re.compile(r"[Ee]:[\\/]+workspaces"), "作者工作区路径"),
 ]
+
+# 包名：只允许「读者查得到」的 —— 宿主包、系统/公开库、以及公认的示例占位。
+# 判据是「拿到这个包名，读者能不能自己去搜到它」：
+#   com.iapp.app / com.android.* / com.google.android.* / com.sun.*   公开可查
+#   com.example.*                                                     RFC 2606 保留的示例域，公认占位
+# 作者自己的工程包名、一次性探针的包名、私有库包名，读者查不到，一律算违规。
+ALLOW_PKG = (
+    "com.iapp.app",        # iApp 宿主（公开产品）
+    "com.android.",        # 系统 framework
+    "com.google.android.", # androidx / material（公开库）
+    "com.example.",        # 示例占位（RFC 2606）
+    "com.sun.",            # JDK 公开 API
+    "com.xuexiang.",       # XUI：GitHub 公开开源库，读者能查能装
+)
+PKG_RE = re.compile(r"\bcom\.[a-z0-9_]+(?:\.[a-z0-9_]+)+")
 
 # 文档里引用的随包文件必须真的存在。
 REF_RE = re.compile(r"(?:references|scripts)/[A-Za-z0-9_.\-/]+\.(?:md|py)")
@@ -63,6 +79,12 @@ def main() -> int:
                     target = m.group(0)
                     if not os.path.exists(os.path.join(ROOT, target)):
                         hits.append((rel, lineno, "引用了不存在的随包文件", target))
+                for m in PKG_RE.finditer(line):
+                    pkg = m.group(0)
+                    # 白名单里带尾点表示前缀匹配；不带尾点的（com.iapp.app）允许本身命中
+                    ok = any(pkg.startswith(a) or pkg == a.rstrip(".") for a in ALLOW_PKG)
+                    if not ok:
+                        hits.append((rel, lineno, "具体工程包名（读者没有这个工程）", pkg))
 
     if not hits:
         print("portable check: OK")

@@ -91,6 +91,7 @@ FTP 视角下工程在 `/ProjectApp/<项目ID>`；两者是同一份文件 ✅ �
 | 宿主 ↔ 设备共享目录 | ❓ | 怎么验：产品设置里找「共享文件夹」类选项 |
 | 设备内 FTP 自连 | ❓ | 怎么验：设备内终端连 `127.0.0.1:<端口>` |
 | `ftp_sync.py` 端到端真推 | ❓ | 怎么验：关工程 → 全量推 → 退出码 0 |
+| **Android 16 真机补测出口** | ❓ 待建 | 怎么验：本机（雷电 14 / API 34）测不了的三项在这里补——① 三键 / 手势导航下的 `systemBars.bottom`；② 软键盘弹出时的 `ime.bottom` 与内容位移；③ Android 15+ 强制 edge-to-edge 后的 `rootTop` 与系统栏配色。做法：连真机后跑 ui-kit 自检页，把 `ui_insets` 日志与截图抄进 `docs/evidence.md`，再回填 `ldplayer14.md` §7 与 SKILL |
 
 ## 8. 取证
 

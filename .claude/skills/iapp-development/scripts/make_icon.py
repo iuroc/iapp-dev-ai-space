@@ -5,8 +5,8 @@
 中文等无 ASCII 的标题退回品类符号（计算器/文件夹/地球/笔记/聊天…）。
 
 用法：
-  python make_icon.py --out icon.png --title 2048 --package com.demo.game2048
-  python make_icon.py --project-dir <宿主工程目录>/com.demo.calc
+  python make_icon.py --out icon.png --title 2048 --package com.example.game2048
+  python make_icon.py --project-dir <宿主工程目录>/com.example.calc
   python make_icon.py --all <宿主工程目录>
 
 可覆盖：

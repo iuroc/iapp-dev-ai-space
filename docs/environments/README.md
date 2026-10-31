@@ -43,26 +43,25 @@ python docs/scripts/detect_env.py --json     # 机器可读
 | Android / API | 14 / 34 ✅ 2026-10-28 | 9 / 28 ✅ 2026-10-26 | ❓（>11 猜测，无读数）；怎么验：容器内「设置 → 关于手机」 |
 | adb | ✅ `emulator-5556`（或 `127.0.0.1:5557`） | ✅ 宿主端口 5555（未连接时 `adb devices` 为空） | ❌ 容器不可见；✅ 外接 USB 设备可见 ✅ 2026-10-28 |
 | root | `su -c id` → uid=0 ✅ 2026-10-28 | `adb root` → uid=0 ✅ 2026-10-26 | ❓ 怎么验：容器内终端跑 `su -c id`，无 shell 时无法判断 |
-| 共享目录 | `android-sync/` ↔ `/sdcard/Pictures` ✅ 2026-10-28 | 同左 ✅ 2026-10-26 | ❓ 怎么验：产品设置的「共享文件夹」类选项 |
-| iApp 工程根 | `Android/data/com.iapp.app/files/iApp/ProjectApp` → 软链 `Pictures/ProjectApp` ✅ | `/sdcard/iApp/ProjectApp`（可直接改）✅ | ❓ |
+| 共享目录 | 2026-10-30 起停用（宿主 `android-sync/` 已移除，设备侧 `Pictures/ProjectApp` 已删） | 同左 | ❓ 怎么验：产品设置的「共享文件夹」类选项 |
+| iApp 工程根 | `Android/data/com.iapp.app/files/iApp/ProjectApp`（2026-10-30 起不再是软链）✅ | `/sdcard/iApp/ProjectApp`（可直接改）✅ | ❓ |
 | 工程根可否改 | 只能在 app 内改到 `Android/data` 内，出界需 root 软链 | 可在 iApp 设置里直接改到 `Pictures/ProjectApp` | ❓ 怎么验：容器内 iApp 设置页看是否允许改到共享存储 |
 | 存储权限 | `MANAGE_EXTERNAL_STORAGE=allow` ✅ 2026-10-28 | `READ/WRITE_EXTERNAL_STORAGE`（运行时）✅ 2026-10-26 | ❓ 怎么验：容器内 `appops get <包名> MANAGE_EXTERNAL_STORAGE` |
 | FTP（宿主→设备） | ❌ 直连不通；✅ 经 `adb forward`（含逐数据端口）2026-10-28 | ❓ | ✅ 直连匿名可登录、`MD5`/`STOR` 可用 ✅ 本机 2026-10-28 |
 | FTP（设备内→自身） | ❓ 待设备内终端探测 | ❓ | ❓ |
-| 推荐通道 | 共享目录（adb 兜底） | 共享目录 / adb | FTP |
+| 推荐通道 | adb 整目录（FTP 兜底） | adb / FTP | FTP |
 | 版本定位 | **主开发**（API 34 优先） | 仅按需做低版本兼容 | 该机器的主环境 |
 
 ## 通道总览
 
 | 通道 | 什么时候用 | 详见 |
 |---|---|---|
-| 共享目录镜像 | 宿主目录与设备目录双向映射 | 各档案「投递」节 + SKILL `.claude/skills/iapp-development/references/emulator-setup.md` |
 | `adb push/pull` | `adb devices` 有 `device` 行 | 各档案「投递」节 |
 | iApp 内置 FTP（直连） | 设备装 iApp、控制台已开、**宿主能直达端口** | SKILL `.claude/skills/iapp-development/references/ftp-delivery.md` |
 | iApp 内置 FTP（`adb forward`） | 同上，但宿主到设备网络不通、有 adb | 同上 §7 |
 | 手工导入 | 以上都不通 | SKILL `.claude/skills/iapp-development/references/delivery-guide.md` |
 
-**本工作区推荐顺序**：主文件在根 `CLAUDE.md`「投递链路」的「本机优先级」节，本文件不复制；
+**本工作区推荐顺序**：主文件在根 `CLAUDE.md` §投递链路，本文件不复制；
 通用排序理由见 SKILL `.claude/skills/iapp-development/references/environment-adaptation.md`。
 
 ## 档案骨架
@@ -71,7 +70,8 @@ python docs/scripts/detect_env.py --json     # 机器可读
 
 ## 维护规则
 
-1. 一条事实只放一个主文件，别处交叉引用；原始 logcat/截图进 `docs/evidence.md`。
+1. 一条事实只放一个主文件，别处交叉引用；原始 logcat/截图进 `docs/archive/evidence-<YYYY-MM>.md`，
+   并在 `docs/evidence.md` 加一行批次索引。
 2. 每条事实带「级别 + 来源 + 日期」；口述必须标「未复测」。
 3. 档案写「环境类」的长期事实；本机当前连接、端口、UID 这类快照放 `docs/runtime-env.md`。
 4. 与 SKILL 冲突时：**原始读数 > 环境档案 > SKILL 通用结论**。SKILL 只改条件/级别，不抄读数。

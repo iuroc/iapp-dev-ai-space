@@ -9,19 +9,23 @@
 | 宿主工作区 | `<宿主共享目录>` |
 | 设备共享存储 | `/sdcard/Pictures`（= `/storage/emulated/0/Pictures`） |
 | iApp 包名 | `com.iapp.app` |
-| 工程 ID | `<项目ID>`（如 `com.demo.xxx`） |
+| 工程 ID | `<项目ID>`（如 `com.example.myapp`） |
 | 模拟器安装目录 | `C:\LDPlayer\LDPlayer9`（雷电默认；装在别处按实际） |
 | adb 序列号 | `<serial>`（如 `127.0.0.1:5557`） |
 | VM UUID | `<VM-UUID>` |
 
 ## 0. 一句话模型
 
-宿主工作区目录 ↔ 模拟器共享目录 ↔ 设备 `Pictures`；iApp 工程是 `Pictures/ProjectApp/<项目ID>` 的子目录。
+iApp 工程就是**设备上的一个普通目录**：源在宿主 `project/<项目ID>/`，用 `adb push` 整目录覆盖；
+工程根以 iApp 设置里显示的为准（API 34 默认 `/sdcard/Android/data/com.iapp.app/files/iApp/ProjectApp`）。
 
-- 安卓 9（雷电 9 实测，仅供参考）：常见工程根是 `/data/media/0/iApp/ProjectApp`（日常视图 `/sdcard/iApp/ProjectApp`），可以直接改到 `/sdcard/Pictures/ProjectApp`。不同模拟器/真机的路径可能不同，以 iApp 设置里显示的路径为准。
-- 安卓 14：工程根固定在 iApp 自己的 `Android/data` 里，改不出去，只能在那里建软链转到 Pictures（**需要 ROOT**，见 §4）。
+- 安卓 9（雷电 9 实测，仅供参考）：常见工程根是 `/data/media/0/iApp/ProjectApp`（日常视图 `/sdcard/iApp/ProjectApp`）。不同模拟器/真机的路径可能不同，以 iApp 设置里显示的路径为准。
+- 安卓 14：工程根固定在 iApp 自己的 `Android/data` 里；这是**正常可用**的位置，直接推即可，不需要软链。
 
-## 1. 目标形态
+> ⚠ **共享目录通道自 2026-10-30 起停用**：宿主侧的共享目录镜像目录已移除，设备侧 `/sdcard/Pictures/ProjectApp` 已删。
+> 下面 §1–§4 讲的是共享目录与软链的**机制**，只用于诊断旧环境或迁移历史工程，**不要据此新建投递链路**。
+
+## 1. 目标形态（⚠ 历史拓扑，共享目录通道已停用）
 
 ```
 Windows 工作区                        模拟器共享目录                 设备
@@ -41,7 +45,15 @@ Windows 工作区                        模拟器共享目录                 �
 
 ## 2. 共用原则
 
-1. **宿主工作区是唯一源**；模拟器共享目录是双向映射（vboxsf 通常 `ttl=0`，实时）。
+> 本节凡涉及共享目录的条目都是**机制说明**；日常投递只走 `adb push` 整目录（其次 FTP）。
+
+
+1. **宿主工作区是唯一源**；共享目录双向映射。**新建文件两条路都实时，但宿主改写设备已经读过的文件后，
+   设备侧 `/sdcard`（FUSE 那一层）会继续返回旧字节**（2026-10-30 ✅，重开工程无效；vboxsf 直挂路径如
+   `/mnt/shared/Pictures` 反而是新的）。兜底：`adb push` 该文件，或设备侧 root 执行
+   `echo 3 > /proc/sys/vm/drop_caches`。**日常投递用 `adb push` 整目录（其次 FTP），别依赖共享目录**；
+   工程源目录也不要放在共享目录里，否则「清理远端」会连源一起删。
+   通道优先级与共同铁律见 `environment-adaptation.md` §推荐优先级；本节只讲模拟器侧的环境事实。
 2. **iApp 以内存为准**：外部改文件前先关工程（或 `am force-stop`），改完重开工程；共享目录里直接编辑也遵守这条，避免旧内存覆盖磁盘。
 3. **软链/挂载只能建在设备侧 ext4/FUSE 路径**；共享目录（vboxsf）不支持 `ln -s`，会报 `Function not implemented`。
 4. **不要用 `mount --bind`** 把 Pictures 挂到 Android/data：应用有独立 mount namespace，init 命名空间里的挂载对 app 不可见（实测）。
@@ -54,6 +66,9 @@ Windows 工作区                        模拟器共享目录                 �
 
 ## 3. 安卓 9 环境（API 28，sdcardfs）
 
+> ⚠ **历史**：本节「改到 Pictures + 共享目录同步」的做法已于 2026-10-30 停用。
+> 雷电 9 的工程根事实仍可用（以 iApp 设置为准）；需要投递时直接 `adb push` 到那个工程根。
+
 适用：雷电 9 / Android 9；其它 Android 9~10 模拟器可参考同样思路，但工程根和共享目录路径以各自实际配置为准。
 
 1. **先看 iApp 设置**：打开“存储路径 / 工程路径”，那里显示的才是当前工程根，以它为准。
@@ -63,9 +78,16 @@ Windows 工作区                        模拟器共享目录                 �
 2. 要跟宿主同步，再在 iApp 设置里把“存储路径 / 工程路径”改为 `/sdcard/Pictures/ProjectApp`，保存并重开工程。
 3. 模拟器设置里把共享目录指到宿主工作区 `<宿主共享目录>`。雷电的约定：共享目录在设备上显示为 `/sdcard/Pictures`，所以宿主 `sync\ProjectApp` ≡ 设备 `/sdcard/Pictures/ProjectApp`。
 4. 验证：宿主新建 `ProjectApp\<项目ID>\src\mian.iyu` → `adb shell ls /sdcard/Pictures/ProjectApp` 可见 → iApp 打开工程能渲染。
-5. 说明：Android 9 无分区存储；iApp 需要有存储权限。共享目录不可用时退回 `adb push`（先 `am force-stop`，push 后 `chown u0_a**:sdcard_rw` + `chmod 660`）。
+5. 说明：Android 9 无分区存储；iApp 需要有存储权限。共享目录不可用时退回 `adb push`（先 `am force-stop`）。
+   **push 后的 `chown u0_a**:sdcard_rw` + `chmod 660` 只适用于雷电 9 / sdcardfs 的老环境**，
+   现行链路（API 34 默认工程根、`adb push` 整目录、只认退出码）不需要这一步。
 
 ## 4. 安卓 14 环境（API 34，FUSE + 分区存储）
+
+> ⚠ **历史**：本节「软链到 Pictures」的做法已于 2026-10-30 停用。
+> API 34 下工程根就在下面这个默认位置，**直接 `adb push` 即可**；目标目录不存在时先
+> `adb shell mkdir -p <工程根>/{src,res,files}`（`adb push` 自己建父目录会报
+> `remote secure_mkdirs failed: Operation not permitted`，2026-10-30 实测）。
 
 适用：雷电 14 / Android 14，也适用于其它 Android 11+ 模拟器。
 
@@ -208,24 +230,24 @@ ren leidian1.config leidian0.config
 
 没有共享目录就退回 `adb push` / `adb pull`，或宿主侧同步脚本；安卓 14 没有 root 也只能 push/pull。
 
-## 7. 排障清单
+## 7. 排障清单（共享目录相关行均为历史）
 
 | 现象 | 先查 | 处理 |
 |---|---|---|
-| 宿主改了 iApp 看不到 | 共享目录映射；iApp 是否还开着旧工程 | 重开工程；确认 `/sdcard/Pictures/ProjectApp` 内容 |
-| 设备写了宿主没有 | 映射；文件权限 | 两侧 `ls`；确认没写到别的路径 |
-| 安卓 14 链接不存在 | 是否卸载/清数据；是否重启后重建 | 重新 `ln -s` |
+| 宿主改了 iApp 看不到 | iApp 是否还开着旧工程；是否用了共享目录（⚠ 通道已停用） | 重开工程；确认工程根（以 iApp 设置里显示的为准） |
+| 设备写了宿主没有 | 是否还在用共享目录（⚠ 已停用） | 改用 `adb push` 整目录 |
+| 安卓 14 链接不存在 | 是否卸载/清数据；是否重启后重建 | 重新 `ln -s`（⚠ 历史做法） |
 | 写 Pictures 被拒 | `MANAGE_EXTERNAL_STORAGE` appop | `appops set com.iapp.app MANAGE_EXTERNAL_STORAGE allow` |
 | `ln -s` 在 Pictures 报 `Function not implemented` | vboxsf 不支持软链 | 链接建在设备 ext4/FUSE 侧 |
 | `adb shell ls Android/data/...` 被拒 | FUSE 只允许 app 自身 namespace | 用 `su` 或真实 app 验证 |
 | `emulator-5554` 指向错设备 / offline | 两实例同抢 5555 | `netstat -ano \| findstr :5555`；改名/改端口；`getprop` 核对 |
-| bind mount 后 app 看不到 | app 独立 mount namespace | 用共享目录 + 软链，不用 bind |
+| bind mount 后 app 看不到 | app 独立 mount namespace | 改用 `adb push` 整目录，不要用 bind |
 | iApp 打不开工程 | 入口是否 `<项目ID>/src/mian.iyu`；工程 ID | 修正路径 / 重开工程 |
 | 没有共享目录也没有 adb 设备 | 设备侧是否开了 iApp 服务器控制台；宿主网络能否到设备 | 走 FTP；宿主不通先试 `adb forward`（见 `references/ftp-delivery.md`） |
 
 ## 8. 验证清单
 
-- [ ] 宿主 `sync\ProjectApp\<项目ID>` 与设备 `Pictures/ProjectApp/<项目ID>` 双向一致
+- [ ] （⚠ 已停用，仅历史）宿主 `sync\ProjectApp\<项目ID>` 与设备 `Pictures/ProjectApp/<项目ID>` 双向一致
 - [ ] iApp 能打开工程，修改保存后宿主可见
 - [ ] `adb -s <serial> shell getprop ro.build.version.sdk` 与目标系统一致
 - [ ] 安卓 14：`readlink` 指向 Pictures；`MANAGE_EXTERNAL_STORAGE` 为 allow

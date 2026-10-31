@@ -1,7 +1,7 @@
 """创建一个最小 iApp 工程（裕 3 模式）。
 
 用法：
-  python create_project.py --root <ProjectApp 目录> --package com.demo.x --title 演示 \
+  python create_project.py --root <ProjectApp 目录> --package com.example.myapp --title 演示 \
       --version 1.0 --versionint 1 [--sdk 21] [--remark 备注] [--icon a.png] \
       [--icon-category auto|game|calc|...] [--icon-text auto|2048] [--icon-color "#BBADA0"] \
       [--developer 766868_2329632875] [--toolversion "iApp V5.0.1013"] [--force]

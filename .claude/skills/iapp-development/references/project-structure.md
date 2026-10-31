@@ -42,7 +42,7 @@ sdk/iapp.sdk        # 默认 SDK 列表
 ## `.project`
 
 ```xml
-<package>com.demo.newproject</package>
+<package>com.example.myapp</package>
 <toolversion>iApp V5.0.1013</toolversion>   <!-- IDE 版本，不是运行模式 -->
 <developer>766868_2329632875</developer>
 <time>1792832439400</time>                   <!-- epoch 毫秒 -->
@@ -55,7 +55,7 @@ sdk/iapp.sdk        # 默认 SDK 列表
 <iapp>
 <title>应用名</title>
 <icon>icon.png</icon>
-<packageName>com.demo.newproject</packageName>
+<packageName>com.example.myapp</packageName>
 <versionName>1.2.3</versionName>
 <versionint>111</versionint>   <!-- 界面上的“标识”；打包 versionCode = 100000 + 111 -->
 <sdk>21</sdk>
@@ -100,19 +100,8 @@ iApp 首次打开工程时生成，默认包含 appcompat / material / constrain
 
 ## icon.png
 
-- 工程根的 `icon.png` 就是应用图标，`AndroidManifest.xml` 里 `<icon>icon.png</icon>` 指向它
-- 打包时**原样**写进 `res/mipmap-*/img_iapp.png`，不分 density
-- 推荐 512×512、RGBA、满幅圆角方块；关键内容留中间 70%
-- **不要用 1×1 占位图**：半透明像素会被启动器拉成纯色方块
-
-生成方式（离线、纯标准库）：
-
-```bash
-python scripts/make_icon.py --project-dir <工程目录>
-python scripts/make_icon.py --all <ProjectApp 目录>
-```
-
-`create_project.py` 不传 `--icon` 时会自动生成。详见 `icon-guide.md`。
+工程根的 `icon.png` 就是应用图标（manifest 的 `<icon>icon.png</icon>` 指向它），打包时**原样**写进
+`res/mipmap-*/img_iapp.png`、不分 density。规格、离线生成命令与「别用 1×1 占位图」的原因见 `icon-guide.md`。
 
 ## 新建工程的最小文件集
 
@@ -121,7 +110,7 @@ python scripts/make_icon.py --all <ProjectApp 目录>
 
 **首次打开后补登记**：若 `src/*.iyu` 的 `type=` 里有完整类名（含点号），此时 `build.xml` 里是空 `<newControl>`，必须补登记——新工程不继承任何旧工程登记。探针工程每轮新建，最容易漏这一步。
 
-## 工程自包含与随行文档
+## 工程自包含与私有文档
 
 工程可能被单独打包成仓库长期维护，脱离原工作区。这时它要能自解释，不依赖外部目录。
 
@@ -133,16 +122,22 @@ python scripts/make_icon.py --all <ProjectApp 目录>
 ```
 <工程根>/
 ├── src/                              # .iyu + .mjava
-├── docs                              # 工程私有资料：规格、计划、报告、探针读数、素材
-│   └── superpowers/
-│       ├── plans/
-│       └── specs/
-└── .claude/skills/iapp-development/  # 脱离时整目录复制进来
+├── openspec/                         # 单工程能力规格与变更（工程自己的规格根）
+│   ├── config.yaml
+│   ├── specs/
+│   └── changes/                      # 含 archive/
+└── docs                              # 工程私有资料：规格、计划、报告、探针读数、素材
+    └── superpowers/
+        ├── plans/
+        └── specs/
 ```
 
-- 工程内文档引用 skill，一律写**工程根相对路径**（`.claude/skills/iapp-development/references/…`），
-  脱离前后都成立；不要写工作区的绝对路径或 `../../` 这类跨层相对路径。
-- 只对这个工程成立的资料放工程根下的 `docs` 目录；换台机器仍成立的结论提炼回 SKILL（SKILL 随工程一起走，不会丢）。
+- **工程不搭 AI 编码工作区**：不放 `.claude/`、不放 agents、不放 skill 副本
+  （✅ 用户决策，2026-10-30；旧「脱离时整目录复制 skill」的说法作废）。
+- 工程脱离工作区后，工程里对工作区 skill 的引用不再解析。需要长期随工程保存的结论，
+  写进工程的 `openspec` 或 `docs` 目录，不要依赖外部 skill。
+- 工程的 OpenSpec 根是**最近根**，在工作区里对工程跑 `openspec` 命令会优先命中它。
+- 只对这个工程成立的资料放工程根下；换台机器仍成立的通用结论提炼回工作区 SKILL。
 - 规格与计划按 superpowers SDD 约定命名：`YYYY-MM-DD-<topic>-design.md`、
   `YYYY-MM-DD-<feature>.md`。
 

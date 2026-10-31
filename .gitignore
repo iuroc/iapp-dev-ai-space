@@ -28,3 +28,6 @@ docs/artifacts/
 *.gif
 *.webp
 *.pdf
+
+# 各工程自成 git 仓库，不并入工作区仓库
+/project/

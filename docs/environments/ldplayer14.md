@@ -27,30 +27,50 @@
   2026-10-28 读到 720×1280 / 320dpi，实例分辨率被改过，以开工时现查为准）
 - `adb -s <serial> shell getprop ro.build.version.sdk` → `34` ✅ 2026-10-28
 - 手表预览探针：`ProjectApp/com.demo.watchmask`（233dp 圆罩层，状态栏隐藏、点击穿透）✅ 2026-10-29
+- **没有底部导航栏**：镜像把 framework `config_showNavigationBar` 编译成 `false`，
+  即使 `navigation_mode=0`、启用 `navbar.threebutton` overlay 也不出 `NavigationBar0`；
+  RRO 改值重启即失效。测 insets / 底部安全区时**不要假设有导航栏**，
+  `navigation_bar_height` 仍有值（48dip）但不可靠 ✅ 2026-10-31（`evidence-2026-10.md` §NAVBAR-RRO）
 
 ## 3. 投递
 
-### 主：共享目录镜像
+### 主：adb 整目录推送
 
-```
-宿主 android-sync/                       ↔  设备 /mnt/shared/Pictures（vboxfs）
-宿主 android-sync/ProjectApp/<项目ID>/   ≡  设备 /sdcard/Pictures/ProjectApp/<项目ID>/
-```
-
-- 改文件前先 `am force-stop com.iapp.app`（iApp 以内存为准）
-- **改「已存在」文件后可能读到旧内容**：vboxsf 直挂侧会立刻更新，FUSE 视图可能仍旧；遇到时再核 md5 诊断或直接 `adb push`；
-  新建文件两侧立刻可见 ✅ 2026-10-27
-- 可能同步出截断文件（设备端字节数少于宿主），核 `wc -c`，不一致就 `adb push`
-
-### 备：adb push / pull
+源在 `project/<项目ID>/`（各自 git 仓库），设备侧只是副本：
 
 ```bash
 export MSYS_NO_PATHCONV=1
-adb -s <serial> shell am force-stop com.iapp.app
-adb -s <serial> push <宿主文件> /storage/emulated/0/Pictures/ProjectApp/<项目ID>/src/<名>
+python tools/push.py <项目ID> --serial emulator-5556
 ```
 
-写入 `Android/data` 侧需要 root；写 `Pictures` 侧注意属主（见 SKILL `emulator-setup.md`）。
+- 默认先清远端 `src/ res/ files/` 的**内容**，再全量推；不读回、不比对，只认退出码
+- 远端那几个目录删不掉：`rm -rf <目录>` 报 `Text file busy`，删内容可以 ✅ 2026-10-30
+- 推之前工程要在 iApp 里关着；推完交给用户重新打开，Claude 不代运行
+
+### 备：FTP over `adb forward`（没有 adb 时）
+
+见下节；命令形如
+`python tools/ftp-sync.py --adb-forward emulator-5556 --port <端口> --remote /ProjectApp/<项目ID> --local-root project/<项目ID>`。
+
+### 共享目录：2026-10-30 起已停用
+
+宿主 `android-sync/` 已移除，设备侧 `/sdcard/Pictures/ProjectApp` 已删，
+现在工程只走 `push.py` 推到 iApp 默认工程根（见 §4）。下面这段是停用前的事实，留作历史：
+
+### 共享目录：只是设备镜像的宿主侧投影，别当通道
+
+```
+宿主 android-sync/                       ↔  设备 /mnt/shared/Pictures（vboxfs）
+宿主 android-sync/ProjectApp/<项目ID>/   ≡  设备 /sdcard/Pictures/ProjectApp/<项目ID>/   （同一批字节）
+```
+
+- **源和镜像在这里是同一批字节** ✅ 2026-10-30：在「设备侧」执行 `rm -rf .../src/*` 删掉的就是宿主源文件
+  （当天真删过一次，靠 git 恢复）。所以工程源目录必须放在共享目录外，本机约定 `project/`
+- **宿主改写设备已读过的文件后，`/sdcard` 侧会长期读到旧内容** ✅ 2026-10-30：改了 10 分钟设备上还是旧模块，
+  重开工程无效；同一文件走 vboxsf 直挂 `/mnt/shared/Pictures` 却是新的 → 旧的是 Android FUSE 层缓存
+- 新建文件两侧立刻可见 ✅ 2026-10-27（别因此以为整条链路都是实时的）
+- 兜底（仅当不得不在共享目录里改）：`adb push` 该文件，或设备侧
+  `su -c 'echo 3 > /proc/sys/vm/drop_caches'`（立刻生效）
 
 ### FTP：直连不可达，经 adb forward 可用
 
@@ -67,16 +87,29 @@ adb -s <serial> push <宿主文件> /storage/emulated/0/Pictures/ProjectApp/<项
 export MSYS_NO_PATHCONV=1
 python .claude/skills/iapp-development/scripts/ftp_sync.py \
   --adb-forward emulator-5556 --port 9527 \
-  --remote /ProjectApp/<项目ID> --local-root android-sync/ProjectApp/<项目ID> --dry-run
+  --remote /ProjectApp/<项目ID> --local-root project/<项目ID> --dry-run
 ```
 
 脚本会自动转发控制端口与每个 PASV 数据端口，退出时清理。详见 SKILL `.claude/skills/iapp-development/references/ftp-delivery.md`。
 
-**FTP 与共享目录是同一份文件**：工程根软链 → `Pictures` → 共享目录，所以 FTP 侧的读写最终落到宿主镜像。
-两侧偶尔出现字节差是瞬时的（编辑中/缓存），不是两份副本；2026-10-28 复核两个曾有差异的文件，
-md5 已完全相同。这也意味着**不要同时用 FTP 和共享目录写同一个文件**。
+**FTP 与共享目录曾是同一份文件（2026-10-30 前，已失效）**：当时工程根软链 → `Pictures` → 共享目录，
+FTP 侧的读写最终落到宿主镜像。共享目录停用、工程根改回普通目录后这条不成立。
+仍成立的是：**FTP 的远端根是应用级文件区 `/ProjectApp/<项目ID>`**。
 
 ## 4. 工程根
+
+**当前（2026-10-30 起）**：
+
+```
+/storage/emulated/0/Android/data/com.iapp.app/files/iApp/ProjectApp
+```
+
+- iApp 已改回这个默认路径，共享目录停用后它就是一个普通目录 ✅ 2026-10-30
+  （`ls` 可写、`adb push` 正常；`push.py` 的默认 `--root` 就是它）
+- 目录不存在时先 `adb shell mkdir -p`：让 `adb push` 自己建会报
+  `remote secure_mkdirs failed: Operation not permitted` ✅ 2026-10-30
+
+**停用前（2026-10-26 ~ 2026-10-30）**：
 
 ```
 /storage/emulated/0/Android/data/com.iapp.app/files/iApp/ProjectApp
@@ -118,6 +151,10 @@ md5 已完全相同。这也意味着**不要同时用 FTP 和共享目录写同
 | 宿主 → 本机 FTP 可达 | ⚠（口述不可达） | `adb forward tcp:<端口> tcp:<端口>` 后连 `127.0.0.1:<端口>` |
 | 设备内 → 自身 FTP | ❓ | MT 管理器终端连 `127.0.0.1:<端口>` |
 | 雷电 9 当前状态 | ⚠（2026-10-27 后未连） | 启动后跑 `detect_env.py` |
+| 三键 / 手势导航下的底部 insets | ❓ 本机问不出来 | 本机 SystemUI 不提供 `navigationBars` InsetsSource（`cmd overlay` 启停 threebutton / gestural 均无变化，`systemBars.bottom` 恒 0），**不要在这台上再试**；改真机补测，见下两条 |
+| 软键盘弹出时的 ime inset | ❓ 本机问不出来 | 本机无软键盘 UI：输入框聚焦后 IME 不显示（`ime list` 有 pinyin 且是默认、`show_ime_with_hard_keyboard=1` 均已确认），`ime.bottom` 恒 0。装第三方输入法也无用；改真机补测 |
+| Android 15+ 强制 edge-to-edge 后的窗口姿态 | ❓ | 怎么验：本机是 API 34 测不了；真机上跑 ui-kit 自检页，看 `ui_insets` 日志里 `rootTop` 是否变成 0、`pad` 是否从 0 变成状态栏高度 |
+| Android 15+ 系统栏配色接口是否失效 | ❓ | 怎么验：`setStatusBarColor` 在 `targetSdk 36` 的新系统上预期被忽略。真机上把窗口背景设成与页面不同的颜色，看状态栏那一条跟的是哪一个 |
 
 ## 8. 取证
 
@@ -126,6 +163,7 @@ md5 已完全相同。这也意味着**不要同时用 FTP 和共享目录写同
 - `docs/evidence.md` 2026-10-27（共享目录 FUSE 旧内容、截断文件）
 - `docs/evidence.md` 2026-10-28（`detect_env.py` 首跑）
 - `docs/evidence.md` 2026-10-29 WATCH-5（模拟器圆表盘罩层）
+- `docs/evidence.md` 2026-10-30 DELIVERY-1（停用共享目录，改投 iApp 默认工程根）
 
 ## 附：口径说明
 

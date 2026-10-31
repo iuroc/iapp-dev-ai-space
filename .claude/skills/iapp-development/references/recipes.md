@@ -101,6 +101,16 @@ w.close();
 - **打包模式**：`getFilesDir()` 是打包应用自己的私有目录；开发期写下的存档不会自动带过去，需要迁移就自己导出/导入
 - 实测：每次状态变化落盘，杀掉 iApp 再开工程，状态恢复（iApp 5.0.1013 / API 28，2026-10-26）
 
+### `i.sss` 与 `setTag` 能装什么
+
+- `i.sss` 能直接存 `int[]` 与 `ArrayList`，跨 `call` 取回仍是同一类型 ✅（API 28）
+- `view.setTag(HashMap)` 跨 `call` 可取回，HashMap 里可以装 `Bitmap` / `Canvas` / `Paint` ✅（API 28）
+- `view.setTag(int[])` / `setTag(float[])` 也能跨 `call` 存视图状态，取回时强转 ✅（API 28）
+- **存 View 要包一层**：`i.sss` 直接存 View、跨 `call` 取回可能是 null；包成
+  `HashMap<String,View>` 后可取回同一实例（⚠ 单次现象，见 `ui-kit.md` §已知限制）。
+  只存单个视图时更稳的是 `view.setTag(int, Object)`
+- 语义与生命周期见 `iapp-i-reference.md`；这里只记「装得下什么」
+
 ### 验证 `i.sss` 是否跨进程（追加式账本）
 
 1. 每次运行向 `getFilesDir()/sss_probe.log` **追加**一行：
@@ -139,19 +149,28 @@ public void selftest() {
 
 ## 行内水波纹（圆角裁剪）
 
-```java
-GradientDrawable mask = new GradientDrawable();
-mask.setShape(GradientDrawable.RECTANGLE);
-mask.setColor(Color.WHITE);
-mask.setCornerRadius(dp(10));
+配方与遮罩原理见 `style-guide.md` §波纹。行内列表只多两个差异：遮罩用不透明圆角矩形；
+第二参数（content drawable）可以传 `null`，行底色交给父容器。
 
-row.setBackground(new RippleDrawable(
-        ColorStateList.valueOf(Color.parseColor("#1A2D7FF9")), null, mask));
-```
+## 布局尺寸：约束 > 测量 > 写死
 
-- 第三个参数是**遮罩**。不给遮罩（传 null）时涟漪会按无边界圆扩散，看起来是一个整圆
-- 遮罩用不透明圆角矩形即可，涟漪自动被裁到形状内
-- 第二参数（内容 drawable）可以为 null，行本身的底色由父容器决定
+mjava 没有布局预览，写死像素看起来「当场对了」，但字体 metrics、系统字号缩放、
+不同 density 一变就会裁字或留空。按这个优先级选：
+
+| 优先级 | 手段 | 适用 |
+|---|---|---|
+| ① 约束 | `minLines` / `maxLines` / `layout_weight` / `match_parent` / `wrap_content` | 绝大多数情况 |
+| ② 测量 | `getLineHeight()` / `getMeasuredHeight()` 等运行时真值 | 需要在代码里算高度时 |
+| ③ 写死 | 固定 dp 高度 | ① ② 都表达不了时 |
+
+**需要跨控件对齐时，给它们同一条约束，而不是同一个像素。** 例：三列书架要让作者行对齐，
+正确做法是每格都「标题 2 行 + 作者 1 行」，高度自然相等；错误做法是算出像素值写死，
+一旦字号档位变化就裁字（实测踩过，见 `pitfalls.md` #39）。
+
+另一条：`ScrollView` / `HorizontalScrollView` 没有自己的 `LayoutParams`，用
+`FrameLayout.LayoutParams`（见 `pitfalls.md` #37）。
+
+**级别**：✅（2026-10-31，API 34）
 
 ## 纯代码画图标（不用 emoji / 文字符号）
 
@@ -177,13 +196,63 @@ imageView.setImageBitmap(bm);
 - 坐标一律按 `size` 比例写，换尺寸不用改路径
 - 图标缓存成字段可避免重复创建
 
+## 工程 res/ 图片：`@名称` 引用与两种形态
+
+工程 `res/` 下的图片用 `@名称.后缀` 引用。**同一条解析链在 mjava 里也能用**：
+`i.us(view, "src", "@qj.png")` / `i.us(view, "background", "@qj.png")` 在**开发模式与打包产物里都成立**。
+
+两种形态的图片来源不同，这是关键：
+
+| | 开发模式 | 打包产物 |
+|---|---|---|
+| `getPackageName()` | `com.iapp.app` | 自己的包名 |
+| `res/` 实际位置 | 设备上 `<ProjectApp>/<项目ID>/res/` | APK 内 `assets/res/` |
+| `getAssets().list("")` | 宿主自己的条目，**没有 `res`** | 含 **`res`** |
+
+因此原生写法必须分形态：
+
+| 写法 | 开发模式 | 打包产物 |
+|---|---|---|
+| `i.us(v, "src", "@qj.png")` | ✅ 96x96 | ✅ 96x96 |
+| `activity.getAssets().open("res/qj.png")` | ❌ FileNotFound | ✅ 96x96 |
+| `BitmapFactory.decodeFile(<ProjectApp>/<id>/res/qj.png)` | ✅ 96x96 | ❌ 文件不存在 |
+| `getResources().getIdentifier("qj","drawable",pkg)` | ❌ id=0 | ❌ id=0 |
+| `i.us(v, "src", "file:///android_asset/res/qj.png")` | ❌ 1x1 空图 | ❌ drawable 为空 |
+
+结论：**图片一律用 `i.us(v, prop, "@名称.png")`**，一行覆盖两种形态；
+不要自己拼 assets 或 sdcard 路径。`res/` 不参与资源编译（`getIdentifier` 恒为 0），
+它只是「随包带走的图片目录」，不是 `R.drawable`。
+
+**失败签名**（不抛异常，静默给空图）：`1x1` 或 `-1x-1` 的 `BitmapDrawable`。
+判成功要看 `getIntrinsicWidth() > 1`，只看 `getDrawable() != null` 会把失败当成功。
+
+实测依据：2026-10-30 探针（开发模式 + 打包产物各跑一次，结果上屏）。
+❓ 未验：`@` 是否支持子目录（`@sub/x.png`）；WebView 里 `file:///android_asset/res/x.png`
+（手册提到，本轮只验了 `us` 通道）。怎么验：图片放 `res/sub/`，两种写法各跑两种形态。
+
 ## Canvas 卡面：噪声 / 径向渐变 / 圆角裁剪
 
 - 喷砂噪声：160×160 ARGB 位图，`setPixels` 后 `BitmapShader(REPEAT)`；alpha 0~21 已肉眼可见，再大就发灰
 - 径向渐变 3 段会有肉眼可见的同心环；9 段 + 256² 再放大才平滑
 - 正方形 View 才是正圆；拉伸成矩形就是椭圆
 - 圆角裁剪：父容器 `setClipToOutline(true)` + 圆角 `GradientDrawable` 背景，溢出的子 View 自动裁掉
+- 已上屏的 Bitmap 改完内容后 `imageView.invalidate()` 即可刷新（`Bitmap + Canvas + ImageView`
+  路线成立）✅（API 28）；具体耗时应按设备重测
+- **先在 200×250 量级画完，再整体放大**：低分辨率下先把柔和感调对（噪声、渐变段数），
+  再用 `Bitmap.createScaledBitmap` 放大到目标尺寸；直接在 120×150 画会糊成一片，一次调不出来
 - 整卡绘制耗时随设备和尺寸变化，按目标机实测，不要套用固定毫秒数
+
+## 单弹窗多级选择器（级联 + 返回上一级）
+
+「省 / 市 / 区」这类多级选择，用一个面板 + 一个层级栈，**不要为每一级开新弹窗**：
+
+- 维护 `ArrayList<Level>` 当栈，每级记 `items` 与 `selectedIndex`
+- 点非叶子项 → 入栈并重绘列表；点叶子项 → **只回调一次**，把结果交回调用方
+- 「返回上一级」= 弹栈重绘；**栈空时才关面板**，不要一按返回就关
+- 结果用「父 / 子 / 孙」路径串返回，调用方按分隔符自己拆
+- 选中行的水波纹见 `style-guide.md` §波纹（第三参要给与行同形状的遮罩）
+
+✅（API 28 目视验收；对应探针工程已删）
 
 ## Dialog 回调里拿不到 final
 

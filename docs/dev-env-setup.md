@@ -29,7 +29,7 @@ su 传参在 Android 9 上会被拆散，整段用单引号：
 ## 2. 找到工程
 
 ```bash
-"$ADB" shell 'ls -la /sdcard/Pictures/ProjectApp/'      # 当前工程根，见 environments/ldplayer14.md §4
+"$ADB" shell 'ls -la /sdcard/Android/data/com.iapp.app/files/iApp/ProjectApp/'   # 当前工程根，见 environments/ldplayer14.md §4
 ```
 
 旧路径 `/storage/emulated/0/iApp/ProjectApp/` 仍存在一份副本，但已不再使用。
@@ -47,21 +47,25 @@ su 传参在 Android 9 上会被拆散，整段用单引号：
 
 ## 3. 投递
 
-### 主链路：共享目录直改（已实测）
+### 主链路：adb 整目录覆盖（2026-10-30 起）
 
-iApp 内把工程根设为 `Pictures/ProjectApp` 后：
+源在宿主 `project/<项目ID>/`，用 `tools/push.py` 整目录覆盖到 iApp 工程根：
 
+```bash
+export MSYS_NO_PATHCONV=1
+python tools/push.py <项目ID> [--serial <serial>]
 ```
-宿主机 android-sync/ProjectApp/<项目ID>/  ==  设备 /sdcard/Pictures/ProjectApp/<项目ID>/
-```
 
-宿主机直接改文件即可，设备立即可见；改之前先 `am force-stop com.iapp.app`，改完让用户重新打开工程。
+- 先清远端 `src/ res/ files/` 的内容再全量推；**不用增量**：`--sync` 不删远端文件，
+  本地删掉/改名的 `.mjava` 会残留
+- 推之前让用户在 iApp 里关闭工程；推完不要代为运行
+- 参数见 `tools/push.py --help`
 
-### 兜底：adb push
+### 手工 adb push（单文件核对，或 push.py 不在时）
 
 ```bash
 IAPP_PKG=com.iapp.app
-DEV_PROJECT=/sdcard/Pictures/ProjectApp/<项目ID>          # 以 iApp 设置里显示的为准
+DEV_PROJECT=/sdcard/Android/data/com.iapp.app/files/iApp/ProjectApp/<项目ID>   # 以 iApp 设置里显示的为准
 UID_APP=$("$ADB" shell pm list packages -U com.iapp.app | sed 's/.*uid://' | tr -d '\r')
 
 "$ADB" shell "am force-stop $IAPP_PKG"
@@ -69,8 +73,8 @@ UID_APP=$("$ADB" shell pm list packages -U com.iapp.app | sed 's/.*uid://' | tr 
 "$ADB" shell "chown $UID_APP:sdcard_rw $DEV_PROJECT/src/*; chmod 660 $DEV_PROJECT/src/*"
 ```
 
-- 必须先 force-stop：iApp 以内存为准，运行/保存会用旧内存覆盖磁盘
-- 脚本：`docs/scripts/deploy.sh`
+- 先让用户在 iApp 里关闭工程：iApp 以内存为准，运行/保存会用旧内容覆盖磁盘
+- 整目录投递用 `tools/push.py`；`docs/scripts/deploy.sh` 是已停用的逐文件推送
 
 ### 备选：iApp 内置 FTP
 
@@ -80,7 +84,7 @@ UID_APP=$("$ADB" shell pm list packages -U com.iapp.app | sed 's/.*uid://' | tr 
 export MSYS_NO_PATHCONV=1
 python .claude/skills/iapp-development/scripts/ftp_sync.py \
   --host <设备IP> --port <端口> --remote /ProjectApp/<项目ID> \
-  --local-root android-sync/ProjectApp/<项目ID> --dry-run
+  --local-root project/<项目ID> --dry-run
 ```
 
 宿主连不上时先试 `adb forward tcp:<端口> tcp:<端口>`（连 `127.0.0.1:<端口>`）；
@@ -101,16 +105,14 @@ python .claude/skills/iapp-development/scripts/ftp_sync.py \
   - 验证：`grep <目录> /proc/<iApp pid>/mountinfo` 为空
   - 原因：应用 namespace 由 zygote 派生，后加挂载不传播
 
-## 6. 共享目录
+## 6. 共享目录（已停用）
 
-- 宿主机工作区目录 ↔ 模拟器 `/sdcard/Pictures`（vboxsf 实时，`/mnt/shared/Pictures` 同源）
-- 工程同步：Android 9 让 iApp 工程根指向 `/sdcard/Pictures/ProjectApp`；Android 14 在 `Android/data/<包名>/files/iApp/ProjectApp` 建软链指向 `/sdcard/Pictures/ProjectApp`
-- 通用案例与排障：`.claude/skills/iapp-development/references/emulator-setup.md`
-- 共享目录本身不支持软链（vboxsf 报 `Function not implemented`）
-- 兜底仍可用 `adb push`（见 §3）
+- 2026-10-30 起停用：宿主 `android-sync/` 已移除，设备侧 `/sdcard/Pictures/ProjectApp` 已删
+- 历史教训（源与副本同一批字节、FUSE 长期读到旧内容）见 `docs/evidence.md` SYNC-2 / SYNC-3
+- 通用案例与排障：`.claude/skills/iapp-development/references/emulator-setup.md`（按历史记录读）
 
 ## 7. 双开与 adb 端口
 
 - 两套独立安装各自的唯一实例都叫 `leidian0`，都抢宿主 5555；推荐一次开一台
 - 需要同开：把第二套改名为 `leidian1`（`vms` 目录 + `vms/config` 配置两处），端口变 5557，重启仍生效
-- 完整步骤、验证与回滚：`docs/evidence.md` 2026-10-26 E1
+- 完整步骤、验证与回滚：`docs/archive/evidence-2026-10.md` 2026-10-26 E1
