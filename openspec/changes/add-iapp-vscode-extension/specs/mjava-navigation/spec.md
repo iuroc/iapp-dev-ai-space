@@ -101,6 +101,25 @@
 - **WHEN** 用户悬停在 `TextView.setText` 上且 Android 源码可用
 - **THEN** Hover 显示方法签名与 javadoc 摘要
 
+### Requirement: 方法注释文档
+
+扩展 SHALL 读取方法声明正上方的 `/** ... */` 或连续 `//` 注释，并在 Hover 与补全说明中显示；`/** */` 中的 `@param` 等标签行 SHALL 保留。注释与声明之间存在空行时 MUST NOT 挂到该方法。
+
+#### Scenario: 块注释
+
+- **WHEN** 方法上方是带 `@param` 的 `/** ... */`
+- **THEN** Hover 显示描述与标签行
+
+#### Scenario: 行注释
+
+- **WHEN** 方法上方是连续的 `//` 行
+- **THEN** Hover 与补全说明显示合并后的注释文本
+
+#### Scenario: 空行分隔
+
+- **WHEN** 注释与方法之间隔着一个空行（如分节标题）
+- **THEN** 该注释不挂到方法上
+
 ### Requirement: mjava 大纲
 
 扩展 SHALL 为 mjava 文件提供文档大纲，列出方法及其签名，以及文件顶层的变量声明。

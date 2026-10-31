@@ -96,3 +96,9 @@
 - [x] 11.3 实现 `i.` 内置成员与 iyu 事件类型/`call` 目标补全，测试候选内容
 - [x] 11.4 接入 CompletionItemProvider：触发字符、字符串范围替换、snippet 与已有括号降级
 - [x] 11.5 补 README/CHANGELOG，跑全量测试并在 EDH 抽检 `i.`、`tv.` 与 iyu 补全
+
+## 12. 方法注释
+
+- [x] 12.1 实现统一的声明邻接注释提取：`/** ... */`、连续 `//`、空行分节不挂载；mjava 与 Java 源码共用
+- [x] 12.2 接入 Hover 与补全说明，测试覆盖块注释、行注释、标签行、空行分隔与真实工程注释
+- [x] 12.3 更新 README/CHANGELOG，打包并在 EDH 抽检 `ui_versionText` 的 Hover
