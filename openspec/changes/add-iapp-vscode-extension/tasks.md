@@ -81,3 +81,10 @@
 - [x] 9.3 性能冒烟：记录 50 个 mjava 的首次索引耗时、首次成员跳转耗时与二次跳转耗时，确认首次索引不超过 3 秒、二次成员跳转不超过 50 ms（本机基线）
 - [x] 9.4 补扩展 README、CHANGELOG 与工作区根 README 索引，运行 `python .claude/skills/docs-architecture/scripts/review_docs.py --fail-on blocker`（默认包含 portable 检查）或单独运行 `python .claude/skills/iapp-development/scripts/check_portable.py` 验证通过
 - [x] 9.5 做一轮代码质量检查（复用、死代码、样式一致性），确认没有阻断项后再交付
+
+## 10. 方法引用查找
+
+- [x] 10.1 实现 iApp 方法引用核心（mjava 裸调用、`i.call`、iyu 入口），单元测试断言文件/行
+- [x] 10.2 实现 Java 成员引用（接收者类型 → 声明类/方法/参数个数匹配），用夹具工程测试
+- [x] 10.3 接入 ReferenceProvider，覆盖方法声明、裸调用、iyu 入口与 `setText`
+- [x] 10.4 更新 README 与 CHANGELOG 的引用查找说明

@@ -109,3 +109,22 @@
 
 - **WHEN** 用户打开 mjava 文件的大纲
 - **THEN** 能看到该文件全部方法，点击可跳转到声明
+
+### Requirement: 方法引用查找
+
+扩展 SHALL 在方法声明或调用处提供“查找引用”，列出工程内指向同一方法的 mjava 裸调用、`i.call` 目标与 iyu 入口；引用范围 MUST 以当前工程为界，不混入其它工程。
+
+#### Scenario: 声明处查找引用
+
+- **WHEN** 用户对 `home.first` 的声明触发“查找所有引用”
+- **THEN** 结果包含 `misc.mjava` 的 `i.call("mjava", "home.first")` 与 `mian.iyu` 的入口字符串
+
+#### Scenario: Java 成员引用
+
+- **WHEN** 用户对可推断的 `TextView.setText` 调用触发“查找所有引用”
+- **THEN** 结果列出工程内接收者类型可推断、且声明落在同一 `TextView.setText` 的调用点
+
+#### Scenario: 无法推断
+
+- **WHEN** 接收者来自反射或动态表达式
+- **THEN** 不返回该调用作为引用，不伪造结果

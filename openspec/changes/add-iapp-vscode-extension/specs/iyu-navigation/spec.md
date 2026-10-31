@@ -61,3 +61,12 @@
 
 - **WHEN** 用户查看 `mian.iyu` 大纲
 - **THEN** 看到 `loading -> home.first`、`loadingComplete -> home.second`、`resume -> home.again`
+
+### Requirement: 入口目标的引用查找
+
+扩展 SHALL 允许在 iyu 的 `"模块.方法"` 字符串上查找引用，列出所有指向同一方法的 mjava 调用与其它 iyu 入口。
+
+#### Scenario: 从入口字符串查找引用
+
+- **WHEN** 用户对 `"home.first"` 触发“查找所有引用”
+- **THEN** 结果包含 `misc.mjava` 的显式调用与 `mian.iyu` 的其它入口
