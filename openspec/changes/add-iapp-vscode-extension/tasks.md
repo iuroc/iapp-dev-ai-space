@@ -109,3 +109,9 @@
 - [x] 13.2 实现变量引用查找与方法内/模块范围划分，排除成员名、方法名、字符串与注释
 - [x] 13.3 接入 Definition/Hover/Reference Provider，并补变量补全
 - [x] 13.4 用 `home.mjava` 的 `body.addView(ui_text(hints[idx], 15, th_ink2()))` 金样验证，更新 README/CHANGELOG
+
+## 14. 模块文件注释
+
+- [x] 14.1 实现文件开头首段连续注释提取：`//`、`/** */`、`/* */`，空行截断，允许开头空行
+- [x] 14.2 接入 `MjavaFile.documentation`、模块 Hover、模块补全说明与工程树 tooltip
+- [x] 14.3 测试覆盖连续行、空注释行、空行截断、块注释与真实工程 `mine.mjava`，更新 README/CHANGELOG
