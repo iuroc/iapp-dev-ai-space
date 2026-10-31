@@ -115,3 +115,8 @@
 - [x] 14.1 实现文件开头首段连续注释提取：`//`、`/** */`、`/* */`，空行截断，允许开头空行
 - [x] 14.2 接入 `MjavaFile.documentation`、模块 Hover、模块补全说明与工程树 tooltip
 - [x] 14.3 测试覆盖连续行、空注释行、空行截断、块注释与真实工程 `mine.mjava`，更新 README/CHANGELOG
+
+## 15. 注释纯文本渲染
+
+- [x] 15.1 Hover/补全说明改为逐行 `appendText` + 硬换行，保留原始折行并转义 Markdown 符号
+- [x] 15.2 更新 README/CHANGELOG，打包并在 EDH 抽检 `widgets.wg_ripple` 的注释显示
