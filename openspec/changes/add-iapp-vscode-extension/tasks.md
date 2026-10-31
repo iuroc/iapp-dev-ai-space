@@ -120,3 +120,8 @@
 
 - [x] 15.1 Hover/补全说明改为逐行 `appendText` + 硬换行，保留原始折行并转义 Markdown 符号
 - [x] 15.2 更新 README/CHANGELOG，打包并在 EDH 抽检 `widgets.wg_ripple` 的注释显示
+
+## 16. 方法注释允许空行
+
+- [x] 16.1 方法注释与声明之间允许最多两个空行；纯分隔线注释块视为分节标题，不挂载
+- [x] 16.2 测试覆盖“分隔线 + 说明 + 空行 + 方法”与真实工程 `widgets.wg_ripple`，更新 README/CHANGELOG
