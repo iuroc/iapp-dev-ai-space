@@ -120,6 +120,25 @@
 - **WHEN** 注释与方法之间隔着一个空行（如分节标题）
 - **THEN** 该注释不挂到方法上
 
+### Requirement: 变量定位与引用
+
+扩展 SHALL 为局部变量、形参、模块字段、循环变量与 catch 变量提供定义跳转与引用查找。局部变量与形参的引用范围 MUST 限定在所属方法；模块字段 SHALL 扫描整个模块。字符串、注释、成员名与方法名 MUST NOT 被计为变量引用。
+
+#### Scenario: 局部变量定义
+
+- **WHEN** 用户对 `hints[idx]` 中的 `hints` 触发“转到定义”
+- **THEN** 跳转到同一方法内的 `String[] hints` 声明
+
+#### Scenario: 形参与循环变量
+
+- **WHEN** 用户对 `idx` 或 `for (String hint : hints)` 中的 `hint` 触发“转到定义”
+- **THEN** 分别跳到方法形参与循环变量声明
+
+#### Scenario: 变量引用
+
+- **WHEN** 用户对局部变量触发“查找所有引用”
+- **THEN** 结果只包含该变量在其方法内的代码引用，不包含字符串、注释或 `obj.hints` 这类成员访问
+
 ### Requirement: mjava 大纲
 
 扩展 SHALL 为 mjava 文件提供文档大纲，列出方法及其签名，以及文件顶层的变量声明。

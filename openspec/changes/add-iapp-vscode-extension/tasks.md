@@ -102,3 +102,10 @@
 - [x] 12.1 实现统一的声明邻接注释提取：`/** ... */`、连续 `//`、空行分节不挂载；mjava 与 Java 源码共用
 - [x] 12.2 接入 Hover 与补全说明，测试覆盖块注释、行注释、标签行、空行分隔与真实工程注释
 - [x] 12.3 更新 README/CHANGELOG，打包并在 EDH 抽检 `ui_versionText` 的 Hover
+
+## 13. 变量定位与引用
+
+- [x] 13.1 实现标识符扫描与变量解析：局部变量、形参、模块字段、循环变量、catch 变量
+- [x] 13.2 实现变量引用查找与方法内/模块范围划分，排除成员名、方法名、字符串与注释
+- [x] 13.3 接入 Definition/Hover/Reference Provider，并补变量补全
+- [x] 13.4 用 `home.mjava` 的 `body.addView(ui_text(hints[idx], 15, th_ink2()))` 金样验证，更新 README/CHANGELOG
