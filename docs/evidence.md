@@ -151,6 +151,7 @@
 | 10-31 | JY-HANDLE-1 | `ui_init` 三层是全局键；跨页返回后不重建会画进旧树；生命周期入口需 `i.fn` 齐依赖模块 | `pitfalls.md` #42 连带坑、#50 | 已提炼 |
 | 10-31 | JY-TOC-1 | 同一 EPUB 文件的兄弟项共用 `href`/`id`，节点键要带 `contentIndex`；子页码可能只是父页 | `gede-read-api/references/api-reference.md` §6 | 已提炼 |
 | 10-31 | JY-ERR-1 | 书不存在 = 200 + 400 错误页且无令牌字段；与网络失败必须分开提示 | `gede-read-api/references/api-reference.md` §5 | 已提炼 |
+| 11-01 | IYUFMT-1 | 标签缩进/空行/自闭合/闭合标签另起行可用；`<View>` 属性换行会整页失效；ppt 按列 0 保守处理 | `iyu-guide.md` §格式化容忍度 | 已提炼 |
 
 ## 未决读数
 
