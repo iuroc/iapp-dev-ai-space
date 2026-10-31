@@ -62,6 +62,25 @@
 - **WHEN** 用户查看 `mian.iyu` 大纲
 - **THEN** 看到 `loading -> home.first`、`loadingComplete -> home.second`、`resume -> home.again`
 
+### Requirement: 标签与属性提示
+
+扩展 SHALL 为 `View`、`ppt`、`event`、`UIEventset`、`eventItme` 提供标签名与属性名的 Hover 说明；SHALL 在输入 `<`、`</` 时补全标签名，并在 `View` 标签内补全 `id`/`did`/`type`、在 `eventItme` 标签内补全 `type`。字符串与注释内 MUST NOT 触发标签补全。
+
+#### Scenario: 标签 Hover
+
+- **WHEN** 用户悬停 `<eventItme>` 的标签名
+- **THEN** 显示这是单个事件入口、`type` 属性与事件体只允许 `call`/`addv`
+
+#### Scenario: 标签补全
+
+- **WHEN** 用户在行首输入 `<`
+- **THEN** 候选列出 `View`、`ppt`、`event`、`UIEventset`、`eventItme`
+
+#### Scenario: 属性补全
+
+- **WHEN** 用户在 `<View ` 后输入
+- **THEN** 候选列出 `id`、`did`、`type`，并跳过已经写过的属性
+
 ### Requirement: 入口目标的引用查找
 
 扩展 SHALL 允许在 iyu 的 `"模块.方法"` 字符串上查找引用，列出所有指向同一方法的 mjava 调用与其它 iyu 入口。

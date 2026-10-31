@@ -62,6 +62,25 @@
 - **WHEN** `ppt` 中出现 `textsize = 20sp`
 - **THEN** 报告警告，说明该行会整行失效
 
+### Requirement: 标签与属性诊断
+
+扩展 SHALL 对 iyu 报告未知标签（error）、标签上的未知属性（warning），以及 `<eventItme>` 缺少 `type`（error）。
+
+#### Scenario: 标签拼写错误
+
+- **WHEN** 文件出现 `<eventItem type="loading">`
+- **THEN** 报告未知标签，并列出允许的 5 个标签
+
+#### Scenario: View 属性写错
+
+- **WHEN** `<View idd="1" ...>` 使用了不存在的属性
+- **THEN** 在该属性名上报 warning
+
+#### Scenario: 缺少事件名
+
+- **WHEN** `<eventItme>` 没有 `type`
+- **THEN** 报告 error
+
 ### Requirement: 参数个数诊断
 
 扩展 SHALL 在目标方法可静态确定时比较调用实参个数与声明参数个数；不一致时报告警告，因为运行期可能因动态类型或可变参数而不同。
