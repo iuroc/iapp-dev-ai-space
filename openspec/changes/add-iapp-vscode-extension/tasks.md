@@ -88,3 +88,11 @@
 - [x] 10.2 实现 Java 成员引用（接收者类型 → 声明类/方法/参数个数匹配），用夹具工程测试
 - [x] 10.3 接入 ReferenceProvider，覆盖方法声明、裸调用、iyu 入口与 `setText`
 - [x] 10.4 更新 README 与 CHANGELOG 的引用查找说明
+
+## 11. 补全
+
+- [x] 11.1 实现 mjava 方法/模块/页面/限定方法候选与排序，单元测试覆盖当前模块、加载集、全局与字符串前缀
+- [x] 11.2 实现 `listMembers` 继承成员表与接收者表达式提取，测试覆盖 `tv.`、链式调用、`new`、强转与未知接收者
+- [x] 11.3 实现 `i.` 内置成员与 iyu 事件类型/`call` 目标补全，测试候选内容
+- [x] 11.4 接入 CompletionItemProvider：触发字符、字符串范围替换、snippet 与已有括号降级
+- [x] 11.5 补 README/CHANGELOG，跑全量测试并在 EDH 抽检 `i.`、`tv.` 与 iyu 补全

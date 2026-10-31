@@ -14,6 +14,7 @@ mjava 与 iyu 都不是标准 Java/XML：mjava 没有 `class` 外壳、由 BeanS
   - 提供方法定义跳转：iyu 字符串入口 → mjava 方法、mjava 裸调用 → 模块方法、`i.fn`/`uigo` → 模块/页面文件。
   - 复用 JDK `src.zip` 与 Android 官方源码索引，支持类名与可推断成员跳转到 JDK/Android 源码。
   - 提供 Hover、大纲、项目 TreeView、lint 诊断。
+  - 提供补全：工程方法与模块/页面字符串、`i.*` 成员、可推断接收者的 Java 成员、iyu 事件与入口目标。
 - Java 源码索引按需构建：优先使用本地 JDK/Android SDK；缺失时提供一次性的、明确体积的下载选项。
 - 不修改任何既有 iApp 工程、投递链路或运行时行为。
 
@@ -26,6 +27,7 @@ mjava 与 iyu 都不是标准 Java/XML：mjava 没有 `class` 外壳、由 BeanS
 - `java-symbol-index`: 从 JDK `src.zip` 与 Android 源码构建按需索引，解析类、继承链、方法与 javadoc，供 mjava 跳转复用。
 - `iapp-project-model`: 识别 iApp 工程，汇总模块、页面、入口事件、方法计数与加载关系，在 TreeView 中展示。
 - `iapp-lint`: 对 mjava 与 iyu 提供诊断，覆盖会导致模块失效或运行期静默失败的写法。
+- `iapp-completion`: 复用工程索引与 Java 类型推断，为 mjava/iyu 提供上下文补全。
 
 ### Modified Capabilities
 
