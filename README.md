@@ -20,7 +20,6 @@
 | 要设计新页面、定配色与组件规格 | [`docs/ui-skills.md`](docs/ui-skills.md) |
 | 要做工程质量巡检、出复用/重复/样式重构清单 | [`.claude/skills/app-quality-review/`](.claude/skills/app-quality-review/SKILL.md) |
 | 要在别的语言/系统上接青简那套借阅机内容接口 | [`.claude/skills/gede-read-api/`](.claude/skills/gede-read-api/SKILL.md) |
-| 要装/改 VS Code 的 iApp 扩展（导航、诊断、工程树） | [`extensions/iapp-vscode/`](extensions/iapp-vscode/README.md) |
 
 ## 目录
 
@@ -36,7 +35,6 @@
 | `.claude/skills/openspec-*/`、`.claude/commands/opsx/` | OpenSpec 工作流技能与 `/opsx:*` 命令定义 |
 | `docs/` | 本机读数：环境档案、证据账本、脚本，索引见 [`docs/README.md`](docs/README.md) |
 | `project/` | **工程源目录**，每个工程一个独立 git 仓库（**不入库**，见下） |
-| `extensions/` | VS Code 扩展源码，每个扩展一个独立 git 仓库（**不入库**）；`iapp-vscode/` 提供导航、诊断与工程树 |
 | ~~`android-sync/`~~ | 已移除（2026-10-30）；工程直接 `push.py` 推到 iApp 工程根 |
 | `tools/` | 本机薄包装：`push.py` 整目录推送、`ftp-sync.py` FTP 通道（实现仍在 SKILL 里） |
 | `openspec/` | 规格驱动工作区：`specs/` 只收跨工程范式级能力、`changes/` 进行中的变更（单工程规格在各自工程根下） |
@@ -60,7 +58,6 @@
 
 - **`project/`** —— 工程源目录，按包名各自维护，每个工程自带独立 git 仓库；
   版本历史在工程自己的仓库里，不在这个仓库。推送用 `python tools/push.py <包名>`。
-- **`extensions/`** —— 扩展源码，各自独立 git 仓库；`iapp-vscode/` 的版本历史在它自己的仓库里。
 - **`android-sync/`** —— 已移除；原来是与设备共享目录同步的工程镜像。
 - **产物与样本** —— `*.apk`、`*.dex`、`*.jar`、`docs/artifacts/` 等，需要时重新打包或 pull。
 - **`tools/ftp-sync.local`** —— 含设备 IP 与端口的本机配置。
