@@ -108,3 +108,36 @@ dumpsys: ITYPE_NAVIGATION_BAR frame=[0,2210][1080,2340]   # 130px
 
 **回填**：`.claude/skills/iapp-development/references/ui-kit.md` §安全区与分段、
 `.claude/skills/iapp-development/assets/ui-kit/ui.mjava`、`docs/environments/redmi-note-8.md` §已知坑。
+
+---
+
+## 2026-11-19 R8-3 scrcpy 投屏码率
+
+**现象**：scrcpy 默认 8 Mbps，1088×2352 窗口文字发糊、浅色大面积底色出现色带/色彩断层；
+用户确认不是 Windows 性能问题。
+
+**读数**：
+
+```
+scrcpy 5.0.1，device cdc69048（Redmi Note 8），Texture 1088x2352
+编码器: OMX.qcom.video.encoder.avc（hw），ACodec: profile High / Level1，
+        OMX-VENC WARN: Failed to update the profile_level
+--video-bit-rate=50M 后:
+  ExtendedACodec: int32_t bitrate = 50000000
+  OMX-VENC stats: avg fps 58~59，静止阅读时 bitrate 0.4~0.5 Mbps（VBR），启动/滚动突增
+USB: Redmi Note 8 为 USB 2.0（480 Mbps 理论值）
+```
+
+**口径**：1080×2340@60 ≈ 1.52 亿像素/秒；8 Mbps ≈ 0.05 bpp，25 Mbps ≈ 0.17 bpp，
+50 Mbps ≈ 0.33 bpp。文字属高频内容，0.2~0.4 bpp 为可用区间。
+
+**结论**：
+
+| # | 结论 | 级别 |
+|---|---|---|
+| R8-3 | 默认预设 H.264 50 Mbps / 60 fps；轻量 25M/30fps；像素级 H.265 35M/30fps | ✅ 用户确认 2026-11-19 |
+| R8-4 | 50 Mbps 是 VBR 上限，静态实际 <1 Mbps；不建议 H.264 超过约 60 Mbps | ✅ 2026-11-19 |
+
+**回填**：`.claude/skills/iapp-development/references/debugging.md` §投屏预览、
+`docs/environments/tencent-appstore-pc.md` §9、`docs/environments/redmi-note-8.md` §已知坑、
+`tools/mirror.py`（本机薄包装）。

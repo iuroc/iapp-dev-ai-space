@@ -157,7 +157,7 @@ python tools/ftp-sync.py --adb-forward <serial> --port <端口> \
     判据、归属与布局见 `.claude/skills/docs-architecture/references/architecture.md` §1/§5
 - `android-sync/` **已移除**（2026-10-30）：原来是 LDPlayer 共享目录的宿主侧。不要再建，
   也不要把「宿主目录 ↔ 设备目录」当成同一批字节来用，历史教训见 `docs/evidence.md` SYNC-2 / SYNC-3
-- `tools/`：本机薄包装（`push.py` 整目录推送、`ftp-sync.py` FTP 通道），不含实现
+- `tools/`：本机薄包装（`push.py` 整目录推送、`ftp-sync.py` FTP 通道、`mirror.py` scrcpy 投屏），不含实现
 - `docs/` 与 `.claude/skills/` 的完整布局、免登记目录见
   `.claude/skills/docs-architecture/references/architecture.md`；docs 索引本身在 `docs/README.md`
 - 文档和代码用 `<包名>` / `<项目ID>` 占位，不写死；本机实际值只在本文件的变量区定义

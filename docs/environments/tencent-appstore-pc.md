@@ -97,3 +97,14 @@ FTP 视角下工程在 `/ProjectApp/<项目ID>`；两者是同一份文件 ✅ �
 
 - `docs/evidence.md` 2026-10-28「M2 环境探测与 FTP 读数（他机）」
 - 交接文档：独立文档，未入库；关键读数已抄进上面各表
+
+## 9. 本机工具
+
+| 工具 | 路径 / 版本 | 级别 |
+|---|---|---|
+| scrcpy | `E:\Dev Tools\scrcpy\scrcpy-win64-v5.0.1\scrcpy.exe`（5.0.1） | ✅ 2026-11-19 |
+| 投屏入口 | `python tools/mirror.py --serial <serial> --preset default` | ✅ 2026-11-19 |
+
+- 默认预设 H.264 50 Mbps / 60 fps；`light` = 25M/30fps，`pixel` = H.265 35M/30fps。
+- 依据与码率口径见 SKILL `.claude/skills/iapp-development/references/debugging.md` §投屏预览；
+  本文件只记路径与版本。

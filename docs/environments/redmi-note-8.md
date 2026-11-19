@@ -77,6 +77,9 @@
    `BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE` 下滑唤出后 8 秒仍不隐回（API 34 模拟器会自动隐回）。
    已加 `IMMERSIVE_STICKY` 兜底，是否生效 ❓ 怎么验：重开阅读页下滑唤出状态栏，等 5 秒看是否隐回。
 5. **MIUI 电池优化**：MIUI 12.5 可能杀后台；长跑探针前确认 iApp 未被省电策略清理 ❓ 未验。
+6. **投屏默认码率不够**：USB 2.0 机型，硬件编码器 `OMX.qcom.video.encoder.avc`；scrcpy 默认
+   8 Mbps 下文字发糊、浅色底出色彩带。50 Mbps 实测正常（编码器接受 `bitrate=50000000`，
+   静态 VBR 实际 0.4~0.5 Mbps）。用 `python tools/mirror.py --serial <serial>` ✅ 2026-11-19。
 
 ## 未测项
 
