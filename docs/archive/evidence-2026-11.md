@@ -206,6 +206,7 @@ rd html tail=…香菱。林</p><p></p></div></div>   # 末尾空 <p> 导致底�
 | R8-6 | WebView 未开 JS：`evaluateJavascript` 与内联 `<script>` 都无效；旋转靠 `ComponentCallbacks` 重渲染 + 按滚动比例恢复 | ✅ 用户确认 2026-11-19 |
 | R8-7 | 末尾空 `<p>` + `margin-bottom` 造成操作栏与最后一行之间的空隙；段距改 `margin-top` 并删除空段落 | ✅ 用户确认 2026-11-19 |
 | R8-8 | `BottomSheetDialog` 横屏 `PEEK_HEIGHT_AUTO` 为负，回落到 `peekHeightMin` 并 collapsed；`setSkipCollapsed(true)` + `STATE_EXPANDED` 修复 | ✅ 用户确认 2026-11-19 |
+| R8-9 | 以上均为开发模式；打包 APK 的四边边距与旋转 ❓ 怎么验：打包后装到红米，检查四边边距、旋转与 Aa 抽屉 | ❓ |
 
 **回填**：SKILL `.claude/skills/iapp-development/references/ui-kit.md` §安全区与分段、
 `assets/ui-kit/ui.mjava`、`events-guide.md` §旋转、`status-bar-guide.md` §2.7；
