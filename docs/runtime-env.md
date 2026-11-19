@@ -1,6 +1,8 @@
-# 运行时环境（当前机器快照）
+# 运行时环境（M1 快照）
 
 快照：2026-10-30（2026-10-28 读数 + 当日投递链路变更；原始读数见 `docs/archive/evidence-2026-10.md`）
+**本文件记录 M1（Win10 + 雷电）**；M2（Win11 + 应用宝）的宿主与在连设备见
+`docs/environments/tencent-appstore-pc.md` 与 `docs/environments/redmi-note-8.md`。
 环境类知识与通用步骤在 `docs/environments/`，这里只记这台机器的具体值。
 
 ## 当前连接

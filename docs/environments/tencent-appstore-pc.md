@@ -7,19 +7,19 @@
 |---|---|
 | 环境 ID | `tencent-appstore-pc` |
 | 机器 | M2（Windows 11） |
-| 最后核验 | 2026-10-28 / 29（M2 上实测，见 `docs/evidence.md` WATCH-2 / WATCH-3）；M1 从未复验 |
+| 最后核验 | 2026-11-19（M2 上实测，见 `docs/evidence.md` R8-1）；此前 2026-10-28 / 29（WATCH-2 / WATCH-3）；M1 从未复验 |
 | 状态 | 该机器的主环境；本机（M1）不适用 |
 
 ## 1. 识别
 
 | 判据 | 值 | 级别 |
 |---|---|---|
-| 宿主 OS | Windows 11 专业版，build 10.0.26200，64 位 | ⚠ 他机 |
+| 宿主 OS | Windows 11 专业版，build 10.0.26300，64 位 | ✅ 本机 2026-11-19 |
 | 宿主虚拟化 | Hyper-V 运行中（为跑 Docker Desktop 无法关闭） | ⚠ 他机 |
 | 产品 | 腾讯应用宝电脑版 /「腾讯应用宝移动应用引擎」 | ⚠ 他机 |
 | 安装目录 | `E:\Program Files\Tencent\Androws\Application\5.10.7500.6534` | ⚠ 他机 |
 | 运行进程 | `Androws.exe`、`AndrowsAssistant.exe`、`AndrowsDlSvr.exe` | ⚠ 他机 |
-| adb | 产品自带 `adb.EXE`（`…\Androws\Application\5.10.7500.6534\adb.EXE`）在 PATH 里；`adb devices` **能看到外接 USB 设备**（2026-10-28：手表 `d96d6a4e`），**看不到 Androws 容器本身** | ✅ 本机 2026-10-28；容器仍无 adb ❓，怎么验：`adb connect 127.0.0.1:5555`（见 §7） |
+| adb | 产品自带 `adb.EXE`（`…\Androws\Application\5.10.7500.6534\adb.EXE`）在 PATH 里；`adb devices` **能看到外接 USB 设备**（2026-10-28 手表 `d96d6a4e`；2026-11-19 红米 Note 8 `cdc69048`，`tools/push.py` 推送成功），**看不到 Androws 容器本身** | ✅ 本机 2026-11-19；容器仍无 adb ❓，怎么验：`adb connect 127.0.0.1:5555`（见 §7） |
 | 雷电 9 / 14 | 未安装（Hyper-V 占用，VirtualBox 系装不上） | ⚠ 他机 |
 | MuMu / 夜神 | 未安装 | ⚠ 他机 |
 | 容器内 iApp | `com.iapp.app` 已装（`Androws\apps\com.iapp.app`） | ✅ 本机 2026-10-28 |

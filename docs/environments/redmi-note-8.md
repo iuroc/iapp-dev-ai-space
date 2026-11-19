@@ -5,7 +5,7 @@
 | 项 | 值 |
 |---|---|
 | 环境 ID | R8（运行目标，不是开发主机） |
-| 宿主 | 2026-11-19 会话宿主读数：Windows 11 Pro 10.0.26300、Hyper-V 开启、装了腾讯应用宝电脑版；adb 用产品自带 `adb.EXE`（1.0.41）。**这台宿主对应 M1 还是 M2 未确认 ❓**；怎么验：核对 `docs/runtime-env.md` 的机器快照或问用户 |
+| 宿主 | **M2**（用户确认 2026-11-19）：Windows 11 Pro 10.0.26300、Hyper-V 开启、装了腾讯应用宝电脑版；adb 用产品自带 `adb.EXE`（1.0.41）。M1 是另一台 Win10 + 雷电环境 |
 | 核验时间 | 2026-11-19 |
 | 当前状态 | adb 直连可用；API 30 / arm64+armv7；iApp 5.0.1015 已装；`tools/push.py` 整目录推送成功 ✅ 2026-11-19 |
 | 用途 | Android 11 真机验证（填补模拟器之外的 API 30 读数） |
@@ -75,7 +75,6 @@
 
 | 项 | 级别 | 怎么验 |
 |---|---|---|
-| 宿主身份（M1 / M2） | ❓ | 怎么验：宿主跑 `hostname` 与 `python docs/scripts/detect_env.py`，对照 `docs/environments/` 机器编号或问用户 |
 | FTP 通道 | ❓ | 打开 iApp 服务器控制台，抄地址后直连 / `adb forward` |
 | `MANAGE_EXTERNAL_STORAGE` | ❓ | `appops get com.iapp.app MANAGE_EXTERNAL_STORAGE` |
 | MIUI 后台清理对 iApp 的影响 | ❓ | 长时间运行探针，观察进程是否被杀 |

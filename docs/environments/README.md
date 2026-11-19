@@ -16,8 +16,8 @@ python docs/scripts/detect_env.py --json     # 机器可读
 
 | 编号 | 机器 | 状态 |
 |---|---|---|
-| M1 | 当前这台：Windows 10 Pro Education 19045，雷电 14 + 雷电 9 并存 | **主开发机** |
-| M2 | 另一台：Windows 11，只能开 Hyper-V，只有腾讯应用宝电脑版，无可用 adb | 备用/协作机，本机未复验 |
+| M1 | Windows 10 Pro Education 19045，雷电 14 + 雷电 9 并存 | **主开发机** |
+| M2 | Windows 11 Pro 10.0.26300，Hyper-V，腾讯应用宝电脑版；容器无 adb，外接 USB 设备可 adb ✅ 2026-11-19 | 备用/协作机，可用 |
 
 机器全称只在这里写一次，档案里只写 `M1` / `M2`。
 
@@ -37,11 +37,11 @@ python docs/scripts/detect_env.py --json     # 机器可读
 
 | 维度 | 雷电 14（M1，主） | 雷电 9（M1，备） | 应用宝电脑版（M2） |
 |---|---|---|---|
-| 宿主 OS | Win10 Pro Education 10.0.19045 ✅ 2026-10-28 | 同左 ✅ | Windows 11（具体版本 ⚠ 他机） |
+| 宿主 OS | Win10 Pro Education 10.0.19045 ✅ 2026-10-28 | 同左 ✅ | Windows 11 Pro 10.0.26300 ✅ 2026-11-19 |
 | 宿主虚拟化 | Hyper-V 未启用（`HypervisorPresent=False`）✅ 2026-10-28 | 同左 ✅ | 必须开 Hyper-V ⚠ 他机口述 |
 | 产品版本 | 雷电 14.0.32.1 ✅ 2026-10-28 | 雷电 9.5.42.0 ✅ 2026-10-26 | 应用宝电脑版 ❓ 怎么验：产品「关于」页或安装目录版本号 |
 | Android / API | 14 / 34 ✅ 2026-10-28 | 9 / 28 ✅ 2026-10-26 | ❓（>11 猜测，无读数）；怎么验：容器内「设置 → 关于手机」 |
-| adb | ✅ `emulator-5556`（或 `127.0.0.1:5557`） | ✅ 宿主端口 5555（未连接时 `adb devices` 为空） | ❌ 容器不可见；✅ 外接 USB 设备可见 ✅ 2026-10-28 |
+| adb | ✅ `emulator-5556`（或 `127.0.0.1:5557`） | ✅ 宿主端口 5555（未连接时 `adb devices` 为空） | ❌ 容器不可见；✅ 外接 USB 设备可见（手表 2026-10-28、红米 Note 8 2026-11-19） |
 | root | `su -c id` → uid=0 ✅ 2026-10-28 | `adb root` → uid=0 ✅ 2026-10-26 | ❓ 怎么验：容器内终端跑 `su -c id`，无 shell 时无法判断 |
 | 共享目录 | 2026-10-30 起停用（宿主 `android-sync/` 已移除，设备侧 `Pictures/ProjectApp` 已删） | 同左 | ❓ 怎么验：产品设置的「共享文件夹」类选项 |
 | iApp 工程根 | `Android/data/com.iapp.app/files/iApp/ProjectApp`（2026-10-30 起不再是软链）✅ | `/sdcard/iApp/ProjectApp`（可直接改）✅ | ❓ |

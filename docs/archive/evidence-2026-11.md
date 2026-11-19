@@ -26,6 +26,8 @@ FTP   未配置 [skipped]
 建议  adb（备选 无）；档案 tencent-appstore-pc
 ```
 
+**宿主归属**：用户确认当前宿主是 **M2**（Windows 11 + 应用宝），M1 是另一台 Win10 + 雷电环境 ✅ 2026-11-19。
+
 **设备读数**（`adb -s cdc69048 shell ...`）：
 
 ```
