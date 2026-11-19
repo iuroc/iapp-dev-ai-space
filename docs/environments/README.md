@@ -83,3 +83,4 @@ python docs/scripts/detect_env.py --json     # 机器可读
 - `ldplayer9.md` — 雷电 9 / API 28（M1，仅按需）
 - `tencent-appstore-pc.md` — 腾讯应用宝电脑版 / Windows 11（M2，容器走 FTP，外接设备可 adb）
 - `oppo-watch-x2.md` — OPPO Watch X2 圆表盘 / API 30 / 纯 32 位（侧载目标 W1，不是开发主机）
+- `redmi-note-8.md` — 红米 Note 8 / API 30 / MIUI 12.5.5 / 无 root（真机运行目标 R8，不是开发主机）

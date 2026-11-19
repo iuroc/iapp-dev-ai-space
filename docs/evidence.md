@@ -151,6 +151,7 @@
 | 10-31 | JY-HANDLE-1 | `ui_init` 三层是全局键；跨页返回后不重建会画进旧树；生命周期入口需 `i.fn` 齐依赖模块 | `pitfalls.md` #42 连带坑、#50 | 已提炼 |
 | 10-31 | JY-TOC-1 | 同一 EPUB 文件的兄弟项共用 `href`/`id`，节点键要带 `contentIndex`；子页码可能只是父页 | `gede-read-api/references/api-reference.md` §6 | 已提炼 |
 | 10-31 | JY-ERR-1 | 书不存在 = 200 + 400 错误页且无令牌字段；与网络失败必须分开提示 | `gede-read-api/references/api-reference.md` §5 | 已提炼 |
+| 11-19 | R8-1 | 红米 Note 8 = API 30 / 无 root / iApp 5.0.1015；`push.py` 整目录推送简阅成功 | `environments/redmi-note-8.md` | 已提炼 |
 
 ## 未决读数
 
