@@ -158,6 +158,7 @@
 | 11-19 | R8-5 | 阅读页全屏：隐藏 systemBars，四边安全区归 0，边距全由 WebView CSS；旋转重渲染按比例恢复；Aa 抽屉强制展开 | `project/com.jianyue.reader/docs/reader-layout.md`、`status-bar-guide.md` §2.7、`events-guide.md` §旋转 | 已提炼 |
 | 11-19 | R8-6 | iApp 权限页是固定目录，`<Permissions>` 只决定首次导入勾选；工程打开后打包以权限页为准；缺 INTERNET 时 `requestPermissions` 不会弹框 | `project-structure.md` §权限、`pitfalls.md` #52 | 已提炼 |
 | 11-20 | R8-7 | 打包版建库三连坑：重复收尾（文件锁去重）、同名方法致模块失效（check_mjava 已查）、boot 成功后重入（ready 直接回首页）；打包态用 `Log` tag 排查 | `mjava-guide.md` §同名/跨线程、`pitfalls.md` #53/#54、`project/com.jianyue.reader/docs/index-build.md` | 已提炼 |
+| 11-20 | R8-8 | 详情页底部按钮先贴底再上移：新 Activity 首帧按 0 padding；阅读器返回瞬间 bars=0 清掉已有 padding。修复：pause 恢复系统栏、首帧隐藏 safe、resume 延迟刷新 | `project/com.jianyue.reader/docs/reader-layout.md` §页面切换与安全区、`environments/redmi-note-8.md` §与 API 34 差异 | 已提炼 |
 
 ## 未决读数
 

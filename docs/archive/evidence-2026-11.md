@@ -283,3 +283,25 @@ abort missing b:124 lib=-1 idx=172595
 
 **回填**：SKILL `mjava-guide.md` §同名方法 / §跨线程、`pitfalls.md` #53/#54、
 `debugging.md` §打包态日志；工程私有 `project/com.jianyue.reader/docs/index-build.md`。
+
+---
+
+## 2026-11-20 R8-8 详情页底部按钮的跳变
+
+**现象**：阅读器返回详情页、或首页进入详情页时，“开始阅读”按钮先显示在屏幕底部，片刻后才回到导航条上方；
+首页底部 Tab 条没有这个过程。
+
+**判断**：
+
+- 首页进入详情页：详情页是新 Activity，`first()` 按 0 padding 建好并画出首帧，`second()` 才应用 insets。
+- 阅读器返回详情页：详情页原 padding 是对的，但 `resume` 瞬间系统栏还在恢复动画，`bars.bottom=0`，
+  `again()` 的 `ui_insets()` 把已有 padding 清成 0，350ms 后再补回。
+- 首页 Tab 不跳：首页 Activity 复用、padding 已存在；且首帧通常晚于 `loadingComplete`。
+
+**修复**：阅读器 `pause` 恢复 systemBars；详情页首帧隐藏 `safe` 到 `second()`；`again()` 延迟 350ms 再刷新 insets。
+
+**验证**：用户确认 2026-11-20 ✅。
+
+**回填**：工程 `project/com.jianyue.reader/docs/reader-layout.md` §页面切换与安全区、
+`docs/environments/redmi-note-8.md` §与 API 34 模拟器的差异、
+SKILL `environment-adaptation.md` §环境提示、根 `CLAUDE.md` §版本政策。
