@@ -242,16 +242,20 @@ slug 取风格英文、全小写、不要连字符），与旧的 `com.demo.*` �
 
 ## 知识沉淀（强制）
 
-每轮探针结束必须回填，不许攒：
+每轮探针**或开发**结束必须回填，不许攒。开发中撞见的新事实（ROM 差异、工具参数、
+已有结论被推翻）与探针读数同等对待：
 
 ```
-探针/实测 → docs/archive/evidence-<YYYY-MM>.md（日期 + 批次 + 原始读数；当月可续写，跨月冻结）
-         → docs/evidence.md（同一批次加一行索引：一句结论 + 主文件 + 状态）
-         → docs/environments/<环境>.md（长期事实：级别 + 来源 + 日期）
-         → SKILL（通用结论：版本前提 + 级别）
-         → 清临时探针 → 跑体检
+0. 判层：换台机器仍成立 → SKILL；只对本机/本工作区 → 根 CLAUDE.md 或 docs/；
+        只对该工程 → <工程根>/docs 或 <工程根>/openspec/；先落原始读数
+1. 探针/开发实测 → docs/archive/evidence-<YYYY-MM>.md（日期 + 批次 + 原始读数；当月可续写，跨月冻结）
+2. docs/evidence.md（同一批次加一行索引：一句结论 + 主文件 + 状态）
+3. docs/environments/<环境>.md（长期事实：级别 + 来源 + 日期；同步 environments/README.md 的能力矩阵/索引）
+4. SKILL（通用结论：版本前提 + 级别）
+5. 清临时探针 → 跑体检
 ```
 
+- 批次号对探针和开发发现都适用（如 `R8-4`）；`docs/evidence.md` 只增行，不改写已冻结的历史账本。
 - 级别升降、❓ 怎么写、去重三步：见 `.claude/skills/docs-architecture/references/evidence-and-levels.md`
   与 `maintenance.md`。
 - **开发途中撞见已有文档本身有错，当轮提出并修**，不要在心里绕过：结论过时、路径失效、
@@ -259,6 +263,10 @@ slug 取风格英文、全小写、不要连字符），与旧的 `com.demo.*` �
   在 `docs/evidence.md` 留一条决策/更正条目，写清旧说法与新说法。
 - 换环境得到的可复用经验，按「当用户处于 X、在做 Y 时，或许可以这样 Z」写进
   `.claude/skills/iapp-development/references/environment-adaptation.md` 的「环境提示」表，注明「实际可用性需实测」。
+- **工程里改进的共享组件**（`src/ui.mjava` 等从 SKILL 复制出来的文件），验收后回灌
+  `.claude/skills/iapp-development/assets/` 权威副本；不回灌，新工程继续用旧版。
+- 回填与对应的代码/文档改动**同一次或紧邻提交**；会话记忆/临时笔记只做提醒，
+  不能替代三层文档（或工程私有文档）的回填。
 
 ## 每轮探针流程
 
@@ -272,7 +280,7 @@ slug 取风格英文、全小写、不要连字符），与旧的 `com.demo.*` �
 4. 取证：有 adb 就拉 logcat + screencap；没有就让用户截图，探针结果必须上屏
 5. 把日期、批次号、原始读数写进当月的 `docs/archive/evidence-<YYYY-MM>.md`，并在
    `docs/evidence.md` 加一行批次索引
-6. 提炼结论回填 SKILL / 环境档案，清掉临时探针
+6. 提炼结论回填 SKILL / 环境档案 / 工程私有文档，清掉临时探针
 7. 汇报按：验了哪几条 / 一致·推翻·未知 / 回填了哪些文件 / 下一轮要用户做什么
 
 ## 导航
