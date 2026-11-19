@@ -173,8 +173,9 @@ python tools/ftp-sync.py --adb-forward <serial> --port <端口> \
   一次性探针工程不 init，也不要放进 `project/`（见 §每轮探针流程）。`.gitignore` 模板见
   `.claude/skills/iapp-development/references/project-structure.md` §工程自带 git 仓库。
 - **单分支**：不做分支模型，靠 commit 回退。
-- **不推送远程**：远程很可能是镜像地址（如 `ghproxy`），push 会失败；只管本地仓库，
-  不要 `push`、不要加 remote。
+- **默认只提交本地**：不主动 `push`、不自行添加或更换 remote。
+  用户明确要求推送时，按现有 `origin` 推（工作区 `iuroc/iapp-dev-ai-space`、
+  工程各自 origin，如 `iuroc/jianyue-reader`）；push 失败先报错，不要改地址。
 - 产物 `bin/<包名>.apk` 不入库；要留档就在 `docs/` 记读数，不提交 APK 本身。
 
 ## 开发取向
