@@ -25,6 +25,7 @@ import android.graphics.Color;
 import android.graphics.Insets;
 import android.view.Window;
 import android.graphics.drawable.GradientDrawable;
+import android.util.DisplayMetrics;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
@@ -86,6 +87,22 @@ public int ui_screenW() {
 
 public int ui_screenH() {
 	return activity.getResources().getDisplayMetrics().heightPixels;
+}
+
+// 真实屏幕高度：部分 ROM 的 DisplayMetrics.heightPixels 不含系统栏
+// （红米 Note 8 / MIUI 12.5 / Android 11 实测 1080x2216，物理屏 1080x2340），
+// 而根挂到 DecorView 后实际占满整屏。算底部安全区差值时用它，不能用 ui_screenH()。
+public int ui_realH() {
+	int h = ui_screenH();
+	try {
+		DisplayMetrics dm = new DisplayMetrics();
+		activity.getWindowManager().getDefaultDisplay().getRealMetrics(dm);
+		if (dm.heightPixels > h) {
+			h = dm.heightPixels;
+		}
+	} catch (Throwable t) {
+	}
+	return h;
 }
 
 public int ui_color(String hex) {
@@ -368,7 +385,7 @@ public void ui_insets() {
 	root.getLocationOnScreen(loc);
 	int rootTop = loc[1];
 	int rootH = root.getHeight();
-	int gapBottom = ui_screenH() - rootTop - rootH;
+	int gapBottom = ui_realH() - rootTop - rootH;
 
 	int barsTop = 0;
 	int barsBottom = 0;

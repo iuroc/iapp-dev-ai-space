@@ -152,6 +152,7 @@
 | 10-31 | JY-TOC-1 | 同一 EPUB 文件的兄弟项共用 `href`/`id`，节点键要带 `contentIndex`；子页码可能只是父页 | `gede-read-api/references/api-reference.md` §6 | 已提炼 |
 | 10-31 | JY-ERR-1 | 书不存在 = 200 + 400 错误页且无令牌字段；与网络失败必须分开提示 | `gede-read-api/references/api-reference.md` §5 | 已提炼 |
 | 11-19 | R8-1 | 红米 Note 8 = API 30 / 无 root / iApp 5.0.1015；`push.py` 整目录推送简阅成功 | `environments/redmi-note-8.md` | 已提炼 |
+| 11-19 | R8-2 | MIUI 的 `heightPixels` 扣掉系统栏；底部安全区必须用 `getRealMetrics`，否则 Tab 栏下多 124px 空白 | `ui-kit.md` §安全区与分段、`environments/redmi-note-8.md` §已知坑 | 已提炼 |
 
 ## 未决读数
 

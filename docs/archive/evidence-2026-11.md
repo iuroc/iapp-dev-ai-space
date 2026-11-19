@@ -77,3 +77,34 @@ python tools/push.py com.jianyue.reader --serial cdc69048
 | R8-3 | 该机无 `su`，不能 `adb root`，`/data/data` 不可读 | ✅ adb 2026-11-19 |
 
 **回填**：`docs/environments/redmi-note-8.md`（新建）；`docs/environments/README.md` 索引。
+
+---
+
+## 2026-11-19 R8-2 简阅底部安全区：MIUI 的 heightPixels 不含系统栏
+
+**现象**：首页底部 Tab 栏下面多出一条空白（约 124px），手势导航与三键导航都出现。
+
+**读数**：
+
+```
+# 手势导航（navigation_mode=2）
+UI ui_init 1080x2216 density=2.75
+UI ui_insets rootTop=0 rootH=2340 gapBottom=-124 bars=80/44 ime=0 => pad 80/168
+dumpsys: ITYPE_NAVIGATION_BAR frame=[0,2296][1080,2340]   # 44px
+
+# 三键导航（navigation_mode=0），修复后
+UI ui_init 1080x2130 density=2.75
+UI ui_insets rootTop=0 rootH=2340 gapBottom=0 bars=80/130 ime=0 => pad 80/130
+dumpsys: ITYPE_NAVIGATION_BAR frame=[0,2210][1080,2340]   # 130px
+```
+
+**根因**：`DisplayMetrics.heightPixels` 上报 2216 = 2340 - 80（状态栏）- 44（导航栏）；
+`ui_bleedDecor()` 把根挂到 DecorView 后根高实际为 2340。`gapBottom = 2216 - 0 - 2340 = -124`，
+底部安全区 `max(0, 44 - (-124)) = 168px`，比正确的 44px 多 124px。
+
+**修复**：`ui.mjava` 新增 `ui_realH()`（`getRealMetrics()`），`gapBottom` 改用 `ui_realH()`。
+
+**验证**：用户 2026-11-19 确认修复后底部空白消失；三键导航下 `pad 80/130`，Tab 栏正好停在导航栏上沿。
+
+**回填**：`.claude/skills/iapp-development/references/ui-kit.md` §安全区与分段、
+`.claude/skills/iapp-development/assets/ui-kit/ui.mjava`、`docs/environments/redmi-note-8.md` §已知坑。

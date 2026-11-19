@@ -69,7 +69,14 @@
 
 1. **无 root**：不能 `adb root`，`/data/data` 不可读；依赖私有目录存档的调试手法在这台上不可用。
 2. **Android 11 分区存储**：工程根在 `Android/data/...` 下；`push.py` 先 `mkdir -p` 再推，避免 `secure_mkdirs failed`。
-3. **MIUI 电池优化**：MIUI 12.5 可能杀后台；长跑探针前确认 iApp 未被省电策略清理 ❓ 未验。
+3. **`DisplayMetrics.heightPixels` 不含系统栏**：MIUI 12.5 / Android 11 上报 `1080x2216`，物理屏 `1080x2340`
+   （扣掉状态栏 80 + 导航栏 44/130）。根挂到 DecorView 后实际占满整屏，用 `heightPixels` 算底部安全区差值会得到负数，
+   底部 padding 被放大成 `168px`（应为 `44`/`130`），表现为 Tab 栏下面多一条空白 ✅ 2026-11-19。
+   处理：用 `getRealMetrics()` 取真实高度（ui-kit `ui_realH()` 已内置）。
+4. **MIUI 不自动收回 transient 状态栏** ✅ 2026-11-19 用户实测：阅读页用
+   `BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE` 下滑唤出后 8 秒仍不隐回（API 34 模拟器会自动隐回）。
+   已加 `IMMERSIVE_STICKY` 兜底，是否生效 ❓ 怎么验：重开阅读页下滑唤出状态栏，等 5 秒看是否隐回。
+5. **MIUI 电池优化**：MIUI 12.5 可能杀后台；长跑探针前确认 iApp 未被省电策略清理 ❓ 未验。
 
 ## 未测项
 

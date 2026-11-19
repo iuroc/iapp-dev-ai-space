@@ -908,3 +908,17 @@ public void again() {
 ```
 
 **级别**：✅（2026-10-31，API 34，某书刊阅读 App 首页 resume 重建）
+
+## 51. 底部安全区用 `DisplayMetrics.heightPixels` 算差值，部分 ROM 会多出一条空白
+
+**签名**：Tab 栏 / 底部栏下方多出一条空白；日志里 `gapBottom` 为负数，底部 padding 明显大于
+`insets.bottom`（例：`bars=80/44 => pad 80/168`）。
+
+**原因**：`DisplayMetrics.heightPixels` 在部分 ROM（红米 Note 8 / MIUI 12.5 / Android 11 实测
+`1080x2216`）扣掉了状态栏与导航栏，而根挂到 DecorView 后实际占满整屏（2340）。差值
+`2216 - 0 - 2340 = -124`，安全区公式 `insets.bottom - gapBottom` 被反向放大。
+
+**对策**：底部差值用 `getRealMetrics()` 的真实高度（ui-kit 的 `ui_realH()`），不要用
+`ui_screenH()`。公式与函数清单见 `ui-kit.md` §安全区与分段。
+
+**级别**：✅（2026-11-19，API 30 / MIUI 12.5，用户确认修复后空白消失）

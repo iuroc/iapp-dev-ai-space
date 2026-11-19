@@ -76,11 +76,16 @@ root  FrameLayout · 零 padding · 我们不装 insets 监听
 
 ```
 topPad    = max(0, insets.top    - rootTop)
-bottomPad = max(0, insets.bottom - (displayH - rootTop - rootH))
+bottomPad = max(0, insets.bottom - (realH - rootTop - rootH))
 ```
 
 宿主已经避开状态栏时 `rootTop` 等于状态栏高度，差值自然为 0；宿主让内容铺到屏幕边缘时
 `rootTop` 为 0，差值就是 insets，自动留白。同一份代码两种姿态都对，**不要**把 insets 直接当 padding。
+
+**`realH` 必须是真实屏幕高度，不能用 `DisplayMetrics.heightPixels`**（`ui_realH()` 已封装）：
+部分 ROM 的 `heightPixels` 会扣掉状态栏和导航栏——红米 Note 8 / MIUI 12.5 / Android 11 实测
+`1080x2216`，物理屏 `1080x2340`；而根挂到 DecorView 后实际占满 2340，差值算成 `-124`，
+底部 padding 被反向放大成 168px，表现为 Tab 栏下面多一条空白 ✅ 2026-11-19。
 
 **打包版例外（v0.2 起已内置兜底）**：打包 APK 里 `getRootWindowInsets()` 可能返回 null 或全 0，
 差值为 0 会让标题顶到状态栏下面。现在 `ui_insets()` 在「拿不到 insets」或「insets.top=0 且
@@ -146,7 +151,8 @@ bottomPad = max(0, insets.bottom - (displayH - rootTop - rootH))
 
 | 函数 | 说明 |
 |---|---|
-| `ui_insets()` | 在 `loadingComplete` 与每次 `resume` 调；算差值并设 safe/overlay 的 padding；打包版 insets 缺失时用 `ui_statusBarHeight()` 兜底 |
+| `ui_insets()` | 在 `loadingComplete` 与每次 `resume` 调；算差值并设 safe/overlay 的 padding；打包版 insets 缺失时用 `ui_statusBarHeight()` 兜底；底部差值用 `ui_realH()` |
+| `ui_realH()` | 真实屏幕高度（`getRealMetrics`）；安全区差值专用，别拿 `ui_screenH()` 代替 |
 | `ui_statusBarHeight()` / `ui_dimen(String)` | 读 `android:dimen/*` 的像素值；打包版安全区兜底用 |
 | `ui_edgeToEdge(boolean)` | 展示类页面开/关 edge-to-edge（背景铺到屏幕四边，系统栏仍可见）；**必须在 `pause` 关掉** |
 | `ui_bleed(boolean)` | 让根覆盖整屏：上移宿主已预留的距离并加高到屏幕高（`ui_edgeToEdge` 内部已调，一般不用单独用） |
