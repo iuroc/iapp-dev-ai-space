@@ -248,3 +248,38 @@ iApp 5.0.1015 权限页（固定目录，用户抄录）:
 
 **回填**：SKILL `.claude/skills/iapp-development/references/project-structure.md` §权限、
 `pitfalls.md` #52；工程私有 `project/com.jianyue.reader/docs/permissions.md`。
+
+---
+
+## 2026-11-20 R8-7 打包版建库失败（重复收尾 / 同名方法 / boot 重入）
+
+**背景**：安装包首次建库失败，或进度停在 0/18。用 `android.util.Log` tag `JY` 逐步定位。
+
+**关键日志**：
+
+```
+# 重复收尾：第一次成功提交，第二次把已搬走的 tmp 判成 missing
+IX finish n=4685
+abort missing b:124 lib=-1 idx=172595
+
+# 同名方法：只有 BOOT start，没有 IX start（indexer 模块不可用）
+BOOT start
+
+# 成功后重入 boot：第一轮已 finish，1.3 秒后又起一轮
+IX finish n=4685
+BOOT start
+IX start force=true running=0 finishing=0
+abort missing b:124 lib=-1 idx=172595
+```
+
+**结论**：
+
+| # | 结论 | 级别 |
+|---|---|---|
+| R8-7 | 打包态 `i.syso` 不输出；关键路径用 `android.util.Log.e(tag, ...)` + `adb logcat -s <tag>:V` | ✅ 2026-11-20 |
+| R8-8 | 同名且参数个数相同的方法会让 BeanShell 模块不可用（`ix_flag(String)` 撞名 → 卡 0/18）；`check_mjava.py` 已加检查 | ✅ 2026-11-20 |
+| R8-9 | 工作线程创建的解释器 `i.sss` 表不共享；跨线程「只执行一次」用文件锁（`createNewFile` 原子） | ✅ 2026-11-20 |
+| R8-10 | 建库成功后首页重入 boot 会再起一轮；`boot_start` 非手动且 `ix_ready()` 应直接回首页 | ✅ 2026-11-20 |
+
+**回填**：SKILL `mjava-guide.md` §同名方法 / §跨线程、`pitfalls.md` #53/#54、
+`debugging.md` §打包态日志；工程私有 `project/com.jianyue.reader/docs/index-build.md`。

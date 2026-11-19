@@ -28,6 +28,9 @@ CHECKS = [
 ]
 
 DEF_RE = re.compile(r"^\s*(?:public|private|protected)\s+[\w\[\]<>,\s]+?\s+(\w+)\s*\(", re.M)
+# 模块方法一律顶格写；匿名类里的方法有缩进，不能算模块方法。
+# 参数个数相同才判重名冲突（不同 arity 的重载在 BeanShell 里可用）。
+DEF_TOP_RE = re.compile(r"^public\s+[\w\[\]<>,\s]+?\s+(\w+)\s*\(([^)]*)\)", re.M)
 CALL_RE = re.compile(r"\b([a-z][a-z0-9]*_[a-z0-9_]+)\s*\(")
 
 
@@ -80,6 +83,27 @@ def check_prefix_calls(files):
     return problems
 
 
+def check_duplicate_defs(files):
+    """同一模块内方法重名：BeanShell 会覆盖/让整个模块失效。"""
+    problems = []
+    for path in files:
+        text = open(path, "r", encoding="utf-8", errors="replace").read()
+        seen = {}
+        for no, line in enumerate(text.splitlines(), 1):
+            m = DEF_TOP_RE.match(line)
+            if not m:
+                continue
+            name = m.group(1)
+            params = (m.group(2) or "").strip()
+            arity = 0 if not params else params.count(",") + 1
+            key = (name, arity)
+            if key in seen:
+                problems.append((path, no, name, seen[key], line.strip()))
+            else:
+                seen[key] = no
+    return problems
+
+
 def main():
     args = sys.argv[1:]
     if not args:
@@ -94,8 +118,12 @@ def main():
     for path, no, name, text in check_prefix_calls(files):
         total += 1
         print("%s:%d  [调用未定义的模块方法 %s]  %s" % (path, no, name, text))
+    for path, no, name, first_no, text in check_duplicate_defs(files):
+        total += 1
+        print("%s:%d  [方法重名 %s（参数个数相同），首次定义在第 %d 行]  %s"
+              % (path, no, name, first_no, text))
     if total:
-        print("\n共 %d 处。前一类会让模块失效，后一类会在运行期 Command not found，投递前都要改。" % total)
+        print("\n共 %d 处。会让模块失效或运行期 Command not found，投递前都要改。" % total)
         sys.exit(1)
     print("check_mjava: OK（未发现致命写法）")
 

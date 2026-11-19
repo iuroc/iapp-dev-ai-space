@@ -157,6 +157,7 @@
 | 11-19 | R8-4 | **更正**：应用宝官方下载版可开容器 adb（`127.0.0.1:5555`），微软商店版不能；iApp 在 display 2（2160×3840/640），默认 `wm size` 读 display 0 会误判 | `tencent-appstore-pc.md` §1/§2、`environment-adaptation.md` §环境提示 | 已提炼 |
 | 11-19 | R8-5 | 阅读页全屏：隐藏 systemBars，四边安全区归 0，边距全由 WebView CSS；旋转重渲染按比例恢复；Aa 抽屉强制展开 | `project/com.jianyue.reader/docs/reader-layout.md`、`status-bar-guide.md` §2.7、`events-guide.md` §旋转 | 已提炼 |
 | 11-19 | R8-6 | iApp 权限页是固定目录，`<Permissions>` 只决定首次导入勾选；工程打开后打包以权限页为准；缺 INTERNET 时 `requestPermissions` 不会弹框 | `project-structure.md` §权限、`pitfalls.md` #52 | 已提炼 |
+| 11-20 | R8-7 | 打包版建库三连坑：重复收尾（文件锁去重）、同名方法致模块失效（check_mjava 已查）、boot 成功后重入（ready 直接回首页）；打包态用 `Log` tag 排查 | `mjava-guide.md` §同名/跨线程、`pitfalls.md` #53/#54、`project/com.jianyue.reader/docs/index-build.md` | 已提炼 |
 
 ## 未决读数
 

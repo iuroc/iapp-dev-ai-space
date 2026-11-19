@@ -62,6 +62,23 @@ Encountered: "s" (115), after : "\"detailUrl:\\"
 Java 字符串里 `\s` 才是正则的 `\s`；写成单反斜杠 `"detailUrl:\s"` 不是合法转义，
 BeanShell 直接判整个模块不可用（不是只坏一行）。日志里的行号可信，按行号改。
 
+## 打包态日志：`i.syso` 不输出
+
+打包 APK 里 `i.syso` 是死的（`ygs` 抓不到）。排查打包态问题时，在关键路径用：
+
+```java
+android.util.Log.e("JY", "IX shard " + spec);
+```
+
+取日志：
+
+```bash
+adb logcat -d -v time -s JY:V
+```
+
+建议把 tag 和关键节点（启动、分支、失败原因）固定下来。2026-11-20 建库排障用 tag `JY`
+定位到三类问题：重复收尾、模块同名方法、boot 重入。
+
 ## 投屏预览与实时调试（scrcpy）
 
 真机 / 模拟器实时看界面时用 scrcpy。**默认 8 Mbps 对 1080p 以上的文字界面不够**，

@@ -256,9 +256,31 @@ Object r = d.eval("...");   // 旧解释器的命名空间还在
 - `i` 对象上还有裕语言函数的同名方法：`hs / us / uls / ula / json / uigo / ug / uall`
   （签名见 `iapp-i-reference.md`；`hs`、`us` 已实机，其余 ❓）
 
+### 跨线程 / 跨解释器共享状态
+
+- `i.sss` **不是跨线程可靠共享的**：工作线程创建的解释器有自己的 `i`，在那里写 `i.sss`
+  可能抛 `Hashtable.put on null`，UI 线程也读不到。
+- 需要「只执行一次 / 收尾锁 / 完成标记」时用**文件**：`File.createNewFile()` 是原子操作，
+  跨线程、跨解释器都可见；新一轮开始时删除标记文件。
+- 或者把结果通过 `activity.runOnUiThread` 回传，由 UI 线程统一写状态。
+
+✅ 2026-11-20（打包版建库：工作线程收尾去重，`i.sss` 标志失效，改文件锁后正常）。
+
 完整拆分规范、facade 模式、7 模块 2048 实例见 `modularization-guide.md`。
 
 ## BeanShell 方法解析的坑
+
+### 同名方法：参数个数也相同就会坏
+
+BeanShell 的模块方法表按名字 + 参数解析。**同名且参数个数相同**的两个方法（哪怕返回类型不同、
+参数名不同）会让模块不可用或后者覆盖前者；表现是 `i.fn` 之后调用模块方法直接中断，
+打包态不打印模块错误，页面卡在 loading / 进度页。
+
+- 新增辅助函数前先 grep 模块里已有的方法名；用独立前缀（如 `ix_lock*`）避免撞名。
+- `check_mjava.py` 自 2026-11-20 起检查「同名 + 参数个数相同」的顶格方法定义。
+- 不同参数个数的重载可用（如 `ix_start()` / `ix_start(boolean)`）。
+
+✅ 2026-11-20（打包版建库卡 0/18：新加的 `ix_flag(String)` 与原有 `ix_flag(String)` 撞名）。
 
 有些继承来的公开方法在 BeanShell 里解析不到，会抛
 `Error in method invocation: Method xxx() not found in class ...`，并**中断整个方法**。
