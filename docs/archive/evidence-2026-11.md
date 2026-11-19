@@ -211,3 +211,40 @@ rd html tail=…香菱。林</p><p></p></div></div>   # 末尾空 <p> 导致底�
 **回填**：SKILL `.claude/skills/iapp-development/references/ui-kit.md` §安全区与分段、
 `assets/ui-kit/ui.mjava`、`events-guide.md` §旋转、`status-bar-guide.md` §2.7；
 工程私有 `project/com.jianyue.reader/docs/reader-layout.md`。
+
+---
+
+## 2026-11-19 R8-6 iApp 权限配置来源（权限探针）
+
+**背景**：安装包缺 `INTERNET`，闸门页点“去授权”无反应。建临时工程 `com.demo.permprobe`
+（9 项权限），在 iApp 里观察权限页高亮。
+
+**读数**：
+
+```
+文件声明 9 项:
+  INTERNET / CAMERA / RECORD_AUDIO / ACCESS_FINE_LOCATION / READ_CONTACTS /
+  READ_EXTERNAL_STORAGE / WRITE_EXTERNAL_STORAGE / REQUEST_INSTALL_PACKAGES / POST_NOTIFICATIONS
+
+iApp 5.0.1015 权限页（固定目录，用户抄录）:
+  WRITE/READ_EXTERNAL_STORAGE、READ_PHONE_STATE、INTERNET、CAMERA、VIBRATE、
+  MOUNT_UNMOUNT_FILESYSTEMS、RECORD_AUDIO、SYSTEM_ALERT_WINDOW、ACCESS_NETWORK_STATE、
+  REQUEST_INSTALL_PACKAGES、hardware.camera/camera2/camera.front/autofocus、FLASHLIGHT
+
+高亮 6 项: INTERNET、REQUEST_INSTALL_PACKAGES、CAMERA、RECORD_AUDIO、
+          READ_EXTERNAL_STORAGE、WRITE_EXTERNAL_STORAGE
+未命中 3 项: ACCESS_FINE_LOCATION、READ_CONTACTS、POST_NOTIFICATIONS
+
+打开探针后设备侧 AndroidManifest.xml 未被改写（mtime 不变，仍 9 项）。
+已装 APK（23:46 构建）requested permissions 里没有 INTERNET。
+```
+
+**结论**：
+
+| # | 结论 | 级别 |
+|---|---|---|
+| R8-6 | iApp 权限页是**固定目录**；`<Permissions>` 只决定首次导入时勾选哪几项；工程打开后打包以权限页状态为准，改源文件不生效 | ✅ 2026-11-19 |
+| R8-7 | 已装 APK 缺 `INTERNET` 是 iApp 权限页当时只有 WRITE；`requestPermissions` 对普通权限不弹框 → “去授权”静默失败 | ✅ 2026-11-19 |
+
+**回填**：SKILL `.claude/skills/iapp-development/references/project-structure.md` §权限、
+`pitfalls.md` #52；工程私有 `project/com.jianyue.reader/docs/permissions.md`。

@@ -67,6 +67,23 @@ sdk/iapp.sdk        # 默认 SDK 列表
 </iapp>
 ```
 
+### 权限：iApp 权限页是一份固定目录，`<Permissions>` 只负责勾选
+
+- iApp 工程设置里的权限页是**固定目录**（实测 5.0.1015 含 `INTERNET`、`CAMERA`、`RECORD_AUDIO`、
+  `READ_EXTERNAL_STORAGE`、`WRITE_EXTERNAL_STORAGE`、`REQUEST_INSTALL_PACKAGES`、`READ_PHONE_STATE`、
+  `VIBRATE`、`SYSTEM_ALERT_WINDOW`、`ACCESS_NETWORK_STATE`、`FLASHLIGHT` 等）。
+  工程 `AndroidManifest.xml` 的 `<Permissions>` 只决定「打开工程时勾选目录里的哪几项」。
+- 目录外的权限（实测 `ACCESS_FINE_LOCATION`、`READ_CONTACTS`、`POST_NOTIFICATIONS`）即使写进文件
+  也不会被识别。
+- 工程被打开过之后，打包以权限页的勾选状态为准；改源目录文件不会回写。正确流程：
+  **在 iApp 里勾 → 重新打包 → 把设备侧 `AndroidManifest.xml` 抄回源目录**，避免下次推送覆盖。
+- 安装后核对：`dumpsys package <包名> | grep -A 12 "requested permissions"`。
+- `requestPermissions` 对普通权限（`INTERNET`）不会弹框；APK 没声明时只会静默失败，
+  不要用“去授权”按钮补安装期权限，先保证它进了包。
+
+**级别**：✅ 2026-11-19（iApp 5.0.1015 / API 30，权限探针 + 已装 APK 核对）；
+目录清单可能随版本变化 ⚠，以目标机实测为准。
+
 ## `src/`
 
 - 只允许 `.iyu` 与 `.mjava`

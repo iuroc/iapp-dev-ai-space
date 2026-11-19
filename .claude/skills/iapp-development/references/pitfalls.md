@@ -922,3 +922,17 @@ public void again() {
 `ui_screenH()`。公式与函数清单见 `ui-kit.md` §安全区与分段。
 
 **级别**：✅（2026-11-19，API 30 / MIUI 12.5，用户确认修复后空白消失）
+
+## 52. 改了 `<Permissions>`，iApp 权限页没勾上 / APK 里没有该权限
+
+**签名**：源目录 `AndroidManifest.xml` 写了权限，iApp 权限页看不到或只勾了一两项；打包后
+`dumpsys package <包名>` 里没有该权限。典型：APK 缺 `INTERNET`，闸门页点“去授权”没反应。
+
+**原因**：iApp 权限页是一份**固定目录**，`<Permissions>` 只决定首次导入时勾选目录里的哪几项；
+工程被打开过后，打包以权限页的勾选状态为准。目录外的权限（实测 `ACCESS_FINE_LOCATION`、
+`READ_CONTACTS`、`POST_NOTIFICATIONS`）会被忽略。
+
+**对策**：在 iApp 权限页勾选 → 重新打包 → `dumpsys package` 核对 → 把设备侧
+`AndroidManifest.xml` 抄回源目录。`requestPermissions` 补不了普通权限（不会弹框）。
+
+**级别**：✅（2026-11-19，iApp 5.0.1015 / API 30，权限探针 + 已装 APK 核对）
