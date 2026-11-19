@@ -158,6 +158,7 @@ ro.build.version.sdk=33   ro.build.version.release=13   ro.product.cpu.abi=x86_6
 wm size: 320x480          wm density: 410        # 这是 display 0（内置屏），不是 iApp 所在屏
 wm size -d 2: 2160x3840   wm density -d 2: 640  # iApp 实际跑在 display 2（HDMI）
 # 更正：iApp 窗口 mDisplayId=2；默认 wm size 读 display 0，会误判为 320x480
+# display 2 是全面屏虚拟显示：无状态栏、无导航栏、无挖孔（用户确认 2026-11-19）
 iApp: versionCode=127 versionName=5.0.1013 targetSdk=37 uid=10078
 工程根: /sdcard/Android/data/com.iapp.app/files/iApp/ProjectApp
 push: com.jianyue.reader 31 files + .project/AndroidManifest.xml/icon.png，退出码 0

@@ -33,6 +33,7 @@
 |---|---|---|
 | Android / API | 13 / 33（`AOSP_on_Intel_Platform`，ABI `x86_64`） | ✅ adb 2026-11-19 |
 | 屏幕 / density | **iApp 跑在 display 2**：2160×3840 / 640（约 540×960dp）；display 0 是容器内置屏 320×480 / 410，iApp 页面不在那块屏上 | ✅ `wm size -d 2` / `dumpsys display` 2026-11-19 |
+| 系统栏 / 挖孔 | display 2 是**全面屏虚拟显示**：无状态栏、无导航栏、无挖孔 | ✅ 用户确认 2026-11-19 |
 | 是否 root | ❓ | 怎么验：`adb shell su -c id`（`su` 可能挂起，加超时）；目前无结论 |
 
 ## 3. 投递
