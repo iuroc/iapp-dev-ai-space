@@ -118,7 +118,8 @@ python tools/push.py <项目ID> [--serial <serial>]
 - 默认先清远端 `src/ res/ files/` 的内容，再全量推；**不用增量**：`--sync` 从不删远端文件，
   本地删掉/改名的 `.mjava` 会残留并被 iApp 加载，而这种残留在「不读设备副本」的流程里发现不了
 - 不读回设备内容、不做 md5/size 比对；只认命令退出码，验收靠实跑 + `logcat` + 用户反馈
-- 推之前工程要在 iApp 里关着；推完**不要**代为运行，交给用户打开并回报
+- **不要**为了推送 force-stop iApp（2026-11-19 用户要求）；工程在 iApp 里开着也直接推，
+  推完提醒用户重新打开工程刷新内存副本即可。推完**不要**代为运行，交给用户打开并回报
 - 远端这几个目录删不掉（`Text file busy`），所以脚本删的是**目录内容**
 - 目标目录不存在时脚本会先 `adb shell mkdir -p`：让 `adb push` 自己去建，
   在 `/sdcard/Android/data/<pkg>/` 下会报 `remote secure_mkdirs failed: Operation not permitted`（2026-10-30 实测）
