@@ -155,7 +155,9 @@ USB: Redmi Note 8 为 USB 2.0（480 Mbps 理论值）
 adb connect 127.0.0.1:5555
 127.0.0.1:5555  device  product:caas  model:AOSP_on_Intel_Platform  device:caas
 ro.build.version.sdk=33   ro.build.version.release=13   ro.product.cpu.abi=x86_64
-wm size: 320x480          wm density: 410
+wm size: 320x480          wm density: 410        # 这是 display 0（内置屏），不是 iApp 所在屏
+wm size -d 2: 2160x3840   wm density -d 2: 640  # iApp 实际跑在 display 2（HDMI）
+# 更正：iApp 窗口 mDisplayId=2；默认 wm size 读 display 0，会误判为 320x480
 iApp: versionCode=127 versionName=5.0.1013 targetSdk=37 uid=10078
 工程根: /sdcard/Android/data/com.iapp.app/files/iApp/ProjectApp
 push: com.jianyue.reader 31 files + .project/AndroidManifest.xml/icon.png，退出码 0

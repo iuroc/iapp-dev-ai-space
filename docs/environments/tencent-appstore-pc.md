@@ -32,7 +32,7 @@
 | 项 | 值 | 级别 |
 |---|---|---|
 | Android / API | 13 / 33（`AOSP_on_Intel_Platform`，ABI `x86_64`） | ✅ adb 2026-11-19 |
-| 屏幕 / density | 320×480 / 410 | ✅ `wm size` / `wm density` 2026-11-19 |
+| 屏幕 / density | **iApp 跑在 display 2**：2160×3840 / 640（约 540×960dp）；display 0 是容器内置屏 320×480 / 410，iApp 页面不在那块屏上 | ✅ `wm size -d 2` / `dumpsys display` 2026-11-19 |
 | 是否 root | ❓ | 怎么验：`adb shell su -c id`（`su` 可能挂起，加超时）；目前无结论 |
 
 ## 3. 投递
@@ -75,6 +75,7 @@ adb 可用后已有 `shell`（`uid=2000` 语义未单独抄）。root 状态 ❓
 | 现象 | 原因 | 处理 |
 |---|---|---|
 | `adb devices` 里没有容器 | 容器 adb 需要先开开发者模式；**微软商店版无法开启** | 官方下载版：设置里连续点击「性能」Tab → 开开发者模式 → `adb connect 127.0.0.1:5555`；微软商店版只能走 FTP |
+| `wm size` 只有 320×480 | 容器有 display 0（内置屏 320×480）和 display 2（HDMI 2160×3840，iApp 实际所在） | 查应用屏用 `wm size -d 2` / `wm density -d 2`，不要用默认的 display 0 |
 | 雷电/MuMu 装不上 | 宿主必须开 Hyper-V | 换 VirtualBox 系容器不可行；用本产品 |
 | `.project` 在列表里看不到 | 服务端不列点开头文件 | 用 `SIZE` 探，不要按清单判断存在性 |
 | `STOR` 报 550 | 父目录不存在 | 先逐级 `MKD` |
