@@ -100,8 +100,10 @@ iApp 设计器支持的事件类型就是下面这些，`<eventItme type="…">`
 
 实测顺序：打开 `loading → start → loadingComplete`；Home `pause → stop`；回来 `restart → start → resume`。
 
-**旋转屏幕**会重建页面并重跑 `loading`：`loading` 里宽高仍为 0，`loadingComplete` 才有真实尺寸；
-`addOnLayoutChangeListener` 可用作尺寸变化的兜底 ✅（API 28）。
+**旋转屏幕**的行为随宿主/版本不同：API 28 上会重建页面并重跑 `loading`（`loading` 里宽高仍为 0，
+`loadingComplete` 才有真实尺寸）✅；但 Android 11 / iApp 5.0.1015 实测**不会重建**（同进程、无新的
+`loading`），页面要自己监听 `ComponentCallbacks.onConfigurationChanged` 刷新安全区并重排 ✅ 2026-11-19。
+`addOnLayoutChangeListener` 可用作尺寸变化的兜底。**以目标机实测为准**，不要按版本号外推。
 
 文本变化链的完整顺序是 `keyboard → editormonitor → beforetextchanged → ontextchanged → aftertextchanged`，
 其中 `keyboard` 在**最前**，且之后每次按键都会持续重发（高频，别在里面做重活）✅（API 28 实测）。

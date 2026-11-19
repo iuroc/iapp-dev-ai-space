@@ -75,12 +75,16 @@ root  FrameLayout · 零 padding · 我们不装 insets 监听
 安全区一律走 `ui_insets()`，它算的是差值而不是 insets 本身：
 
 ```
-topPad    = max(0, insets.top    - rootTop)
-bottomPad = max(0, insets.bottom - (realH - rootTop - rootH))
+topPad    = max(systemBars.top   , displayCutout.top)  - rootTop
+bottomPad = max(systemBars.bottom, ime.bottom)         - (realH - rootTop - rootH)
+leftPad   = max(systemBars.left  , displayCutout.left)  - gapLeft
+rightPad  = max(systemBars.right , displayCutout.right) - gapRight
 ```
 
-宿主已经避开状态栏时 `rootTop` 等于状态栏高度，差值自然为 0；宿主让内容铺到屏幕边缘时
-`rootTop` 为 0，差值就是 insets，自动留白。同一份代码两种姿态都对，**不要**把 insets 直接当 padding。
+（公式中的负值都按 0 处理。）宿主已经避开状态栏时 `rootTop` 等于状态栏高度，差值自然为 0；
+宿主让内容铺到屏幕边缘时 `rootTop` 为 0，差值就是 insets，自动留白。左右同理：横屏时
+导航栏可能在左侧（`systemBars.left`）、挖孔在右侧（`displayCutout.right`），四边都要留。
+同一份代码两种姿态都对，**不要**把 insets 直接当 padding。
 
 **`realH` 必须是真实屏幕高度，不能用 `DisplayMetrics.heightPixels`**（`ui_realH()` 已封装）：
 部分 ROM 的 `heightPixels` 会扣掉状态栏和导航栏——红米 Note 8 / MIUI 12.5 / Android 11 实测
@@ -151,8 +155,8 @@ bottomPad = max(0, insets.bottom - (realH - rootTop - rootH))
 
 | 函数 | 说明 |
 |---|---|
-| `ui_insets()` | 在 `loadingComplete` 与每次 `resume` 调；算差值并设 safe/overlay 的 padding；打包版 insets 缺失时用 `ui_statusBarHeight()` 兜底；底部差值用 `ui_realH()` |
-| `ui_realH()` | 真实屏幕高度（`getRealMetrics`）；安全区差值专用，别拿 `ui_screenH()` 代替 |
+| `ui_insets()` | 在 `loadingComplete` 与每次 `resume` 调；按四边（systemBars + displayCutout）算差值并设 safe/overlay 的 padding；打包版 insets 缺失时用 `ui_statusBarHeight()` 兜底 |
+| `ui_realH()` / `ui_realW()` | 真实屏幕高/宽（`getRealMetrics`）；安全区差值专用，别拿 `ui_screenH()`/`ui_screenW()` 代替 |
 | `ui_statusBarHeight()` / `ui_dimen(String)` | 读 `android:dimen/*` 的像素值；打包版安全区兜底用 |
 | `ui_edgeToEdge(boolean)` | 展示类页面开/关 edge-to-edge（背景铺到屏幕四边，系统栏仍可见）；**必须在 `pause` 关掉** |
 | `ui_bleed(boolean)` | 让根覆盖整屏：上移宿主已预留的距离并加高到屏幕高（`ui_edgeToEdge` 内部已调，一般不用单独用） |

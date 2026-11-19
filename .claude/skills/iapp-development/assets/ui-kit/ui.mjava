@@ -105,6 +105,20 @@ public int ui_realH() {
 	return h;
 }
 
+// 真实屏幕宽度：与 ui_realH 同理，横屏时 widthPixels 也可能剔掉左侧导航栏。
+public int ui_realW() {
+	int w = ui_screenW();
+	try {
+		DisplayMetrics dm = new DisplayMetrics();
+		activity.getWindowManager().getDefaultDisplay().getRealMetrics(dm);
+		if (dm.widthPixels > w) {
+			w = dm.widthPixels;
+		}
+	} catch (Throwable t) {
+	}
+	return w;
+}
+
 public int ui_color(String hex) {
 	try {
 		return Color.parseColor(hex);
@@ -384,21 +398,37 @@ public void ui_insets() {
 	int[] loc = new int[2];
 	root.getLocationOnScreen(loc);
 	int rootTop = loc[1];
+	int rootLeft = loc[0];
 	int rootH = root.getHeight();
+	int rootW = root.getWidth();
 	int gapBottom = ui_realH() - rootTop - rootH;
+	int gapLeft = rootLeft;
+	int gapRight = ui_realW() - rootLeft - rootW;
 
 	int barsTop = 0;
 	int barsBottom = 0;
+	int barsLeft = 0;
+	int barsRight = 0;
 	int imeBottom = 0;
+	int cutTop = 0;
+	int cutLeft = 0;
+	int cutRight = 0;
 	boolean ready = false;
 	try {
 		WindowInsets wi = root.getRootWindowInsets();
 		if (wi != null) {
 			Insets sb = wi.getInsets(WindowInsets.Type.systemBars());
 			Insets im = wi.getInsets(WindowInsets.Type.ime());
+			// 挖孔/刘海与状态栏是两个来源：状态栏隐藏后 cut 仍然有效
+			Insets ct = wi.getInsets(WindowInsets.Type.displayCutout());
 			barsTop = sb.top;
 			barsBottom = sb.bottom;
+			barsLeft = sb.left;
+			barsRight = sb.right;
 			imeBottom = im.bottom;
+			cutTop = ct.top;
+			cutLeft = ct.left;
+			cutRight = ct.right;
 			ready = true;
 		}
 	} catch (Throwable t) {
@@ -415,20 +445,23 @@ public void ui_insets() {
 		ui_log("ui_insets 兜底(insets.top=0) statusBar=" + barsTop);
 	}
 
-	int top = ui_max0(barsTop - rootTop);
+	int top = ui_max(ui_max0(barsTop - rootTop), ui_max0(cutTop - rootTop));
 	int bottom = ui_max(ui_max0(barsBottom - gapBottom), ui_max0(imeBottom - gapBottom));
+	int left = ui_max(ui_max0(barsLeft - gapLeft), ui_max0(cutLeft - gapLeft));
+	int right = ui_max(ui_max0(barsRight - gapRight), ui_max0(cutRight - gapRight));
 
 	View safe = ui_layer("safe");
 	if (safe != null) {
-		safe.setPadding(0, top, 0, bottom);
+		safe.setPadding(left, top, right, bottom);
 	}
 	View overlay = ui_layer("overlay");
 	if (overlay != null) {
-		overlay.setPadding(0, top, 0, bottom);
+		overlay.setPadding(left, top, right, bottom);
 	}
 	ui_log("ui_insets rootTop=" + rootTop + " rootH=" + rootH + " gapBottom=" + gapBottom
-		+ " bars=" + barsTop + "/" + barsBottom + " ime=" + imeBottom
-		+ " => pad " + top + "/" + bottom);
+		+ " bars=" + barsTop + "/" + barsBottom + " sides=" + barsLeft + "/" + barsRight
+		+ " cut=" + cutTop + "/" + cutLeft + "/" + cutRight + " ime=" + imeBottom
+		+ " => pad " + top + "/" + bottom + "/" + left + "/" + right);
 }
 
 // ---------- 窗口姿态：edge-to-edge / 沉浸式 ----------

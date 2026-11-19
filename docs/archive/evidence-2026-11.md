@@ -173,3 +173,40 @@ push: com.jianyue.reader 31 files + .project/AndroidManifest.xml/icon.png，退�
 
 **回填**：`docs/environments/tencent-appstore-pc.md` §1/§2/§3/§5/§6/§7、
 `docs/environments/README.md` 能力矩阵、SKILL `.claude/skills/iapp-development/references/environment-adaptation.md` §环境提示。
+
+---
+
+## 2026-11-19 R8-5 简阅阅读器全屏与横竖屏适配（验收）
+
+**背景**：阅读页从「顶部留白 + 底部安全区」改为「系统栏全隐藏 + 所有边距由 WebView CSS 提供」，
+并修了旋转恢复、Aa 抽屉与底部操作栏的间距。用户确认红米 Note 8 与应用宝容器均正常。
+
+**关键读数**：
+
+```
+# 底部安全区修复（竖屏，三键导航）
+UI ui_init 1080x2130
+UI ui_insets rootTop=0 rootH=2340 gapBottom=0 bars=80/130 => pad 80/130
+
+# 旋转后（横屏）
+rd config orientation=2 token=...
+ui_insets rootTop=0 rootH=1080 gapBottom=0 bars=77/0 sides=130/0 cut=0/0/80 => pad 77/0/130/80
+# 隐藏导航栏后 sides=0；阅读页 safe padding 四边归 0
+
+# WebView 探针
+PROBE js null                 # JavaScript 未开启，evaluateJavascript 不执行
+rd html tail=…香菱。林</p><p></p></div></div>   # 末尾空 <p> 导致底边距残留
+```
+
+**结论**：
+
+| # | 结论 | 级别 |
+|---|---|---|
+| R8-5 | 阅读页全屏：`hide(systemBars())` + `IMMERSIVE_STICKY`；safe 四边归 0，边距全部由 body CSS 提供 | ✅ 用户确认 2026-11-19 |
+| R8-6 | WebView 未开 JS：`evaluateJavascript` 与内联 `<script>` 都无效；旋转靠 `ComponentCallbacks` 重渲染 + 按滚动比例恢复 | ✅ 用户确认 2026-11-19 |
+| R8-7 | 末尾空 `<p>` + `margin-bottom` 造成操作栏与最后一行之间的空隙；段距改 `margin-top` 并删除空段落 | ✅ 用户确认 2026-11-19 |
+| R8-8 | `BottomSheetDialog` 横屏 `PEEK_HEIGHT_AUTO` 为负，回落到 `peekHeightMin` 并 collapsed；`setSkipCollapsed(true)` + `STATE_EXPANDED` 修复 | ✅ 用户确认 2026-11-19 |
+
+**回填**：SKILL `.claude/skills/iapp-development/references/ui-kit.md` §安全区与分段、
+`assets/ui-kit/ui.mjava`、`events-guide.md` §旋转、`status-bar-guide.md` §2.7；
+工程私有 `project/com.jianyue.reader/docs/reader-layout.md`。

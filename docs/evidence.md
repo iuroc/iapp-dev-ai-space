@@ -155,6 +155,7 @@
 | 11-19 | R8-2 | MIUI 的 `heightPixels` 扣掉系统栏；底部安全区必须用 `getRealMetrics`，否则 Tab 栏下多 124px 空白 | `ui-kit.md` §安全区与分段、`environments/redmi-note-8.md` §已知坑 | 已提炼 |
 | 11-19 | R8-3 | scrcpy 默认 8M 致文字糊/色带；默认改 H.264 50M/60fps，另设轻量/像素级预设 | `debugging.md` §投屏预览、`tencent-appstore-pc.md` §9 | 已提炼 |
 | 11-19 | R8-4 | **更正**：应用宝官方下载版可开容器 adb（`127.0.0.1:5555`），微软商店版不能；iApp 在 display 2（2160×3840/640），默认 `wm size` 读 display 0 会误判 | `tencent-appstore-pc.md` §1/§2、`environment-adaptation.md` §环境提示 | 已提炼 |
+| 11-19 | R8-5 | 阅读页全屏：隐藏 systemBars，四边安全区归 0，边距全由 WebView CSS；旋转重渲染按比例恢复；Aa 抽屉强制展开 | `project/com.jianyue.reader/docs/reader-layout.md`、`status-bar-guide.md` §2.7、`events-guide.md` §旋转 | 已提炼 |
 
 ## 未决读数
 

@@ -126,6 +126,28 @@ if (wic != null) {
   （实测清/设 8192 前后屏幕无差异），实际明暗由 `WindowInsetsController` 管 ✅
 - 视觉验收：状态栏背后要有对比色（深底看白图标、浅底看黑图标），灰底上两种都容易看错
 
+### 2.7 连导航栏一起隐藏（全沉浸阅读）
+
+```java
+WindowInsetsController wic = activity.getWindow().getInsetsController();
+wic.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+wic.hide(WindowInsets.Type.systemBars());
+// MIUI / Android 11 上仅靠新 API 的 transient 行为可能不会自动收回，叠加旧版 sticky：
+activity.getWindow().getDecorView().setSystemUiVisibility(
+	View.SYSTEM_UI_FLAG_FULLSCREEN
+	| View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+	| View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+	| View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+	| View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+	| View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+);
+```
+
+- 隐藏后 `systemBars` 四边 insets 归 0，横屏不再有侧边导航栏让位 ✅ 2026-11-19（阅读页，API 30）。
+- 边缘滑动可临时唤出；唤出后能否自动收回在 API 30 / MIUI 上 ❓，
+  怎么验：从边缘滑动唤出，等 3~5 秒看是否隐回。
+- 导航栏藏起来后，返回路径要单独确认（物理键 / 手势 / 页面内入口），不要把退出只挂在系统返回上。
+
 ## 3. 哪些行不需要（删掉不影响效果）
 
 | 常见写法 | 结论 |
