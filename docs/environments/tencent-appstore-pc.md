@@ -19,7 +19,7 @@
 | 产品 | 腾讯应用宝电脑版 /「腾讯应用宝移动应用引擎」 | ⚠ 他机 |
 | 安装目录 | `E:\Program Files\Tencent\Androws\Application\5.10.7500.6534` | ⚠ 他机 |
 | 运行进程 | `Androws.exe`、`AndrowsAssistant.exe`、`AndrowsDlSvr.exe` | ⚠ 他机 |
-| adb | 产品自带 `adb.EXE`（`…\Androws\Application\5.10.7500.6534\adb.EXE`）在 PATH 里；`adb devices` **能看到外接 USB 设备**（2026-10-28 手表 `d96d6a4e`；2026-11-19 红米 Note 8 `cdc69048`，`tools/push.py` 推送成功），**看不到 Androws 容器本身** | ✅ 本机 2026-11-19；容器仍无 adb ❓，怎么验：`adb connect 127.0.0.1:5555`（见 §7） |
+| adb | 产品自带 `adb.EXE` 在 PATH 里；`adb devices` 能看到外接 USB（红米 Note 8 `cdc69048`）与容器本身（`adb connect 127.0.0.1:5555` → `127.0.0.1:5555`，`AOSP_on_Intel_Platform`）。**仅腾讯官方下载版支持**：设置里连续点击「性能」Tab 开开发者模式；微软商店版不能开 | ✅ 本机 2026-11-19 |
 | 雷电 9 / 14 | 未安装（Hyper-V 占用，VirtualBox 系装不上） | ⚠ 他机 |
 | MuMu / 夜神 | 未安装 | ⚠ 他机 |
 | 容器内 iApp | `com.iapp.app` 已装（`Androws\apps\com.iapp.app`） | ✅ 本机 2026-10-28 |
@@ -31,13 +31,15 @@
 
 | 项 | 值 | 级别 |
 |---|---|---|
-| Android / API | ❓ | 怎么验：模拟器内「设置 → 关于手机」 |
-| 屏幕 / density | ❓ | 怎么验：容器内 `wm size` / `wm density`，或「设置 → 显示」 |
-| 是否 root | ❓ | 怎么验：容器内终端（若有）跑 `su -c id`；无 shell 时只能从产品文档判断 |
+| Android / API | 13 / 33（`AOSP_on_Intel_Platform`，ABI `x86_64`） | ✅ adb 2026-11-19 |
+| 屏幕 / density | 320×480 / 410 | ✅ `wm size` / `wm density` 2026-11-19 |
+| 是否 root | ❓ | 怎么验：`adb shell su -c id`（`su` 可能挂起，加超时）；目前无结论 |
 
 ## 3. 投递
 
-**进容器：iApp 内置 FTP（实测可用）。** 出容器到手表：宿主 `adb install`（手表走 USB）。
+**进容器（官方下载版）：adb 整目录 push（主）。** `adb connect 127.0.0.1:5555` 后
+`python tools/push.py <项目ID> --serial 127.0.0.1:5555` ✅ 2026-11-19。
+iApp 内置 FTP 仍是备选（微软商店版没有 adb 时只能走它）。出容器到外接设备：宿主 `adb install`。
 
 | 项 | 值 |
 |---|---|
@@ -64,14 +66,15 @@ FTP 视角下工程在 `/ProjectApp/<项目ID>`；两者是同一份文件 ✅ �
 
 ## 5. 权限与 root
 
-全部 ❓。怎么验：无 adb 时大概率拿不到 shell，root 状态只能从产品界面/文档判断；
-有 shell 后跑 `appops get <包名> MANAGE_EXTERNAL_STORAGE` 与 `su -c id`。
+adb 可用后已有 `shell`（`uid=2000` 语义未单独抄）。root 状态 ❓，怎么验：
+`adb shell su -c id`（`su` 可能挂起，命令加超时）。存储权限：怎么验：
+`adb shell appops get com.iapp.app MANAGE_EXTERNAL_STORAGE`。
 
 ## 6. 已知坑
 
 | 现象 | 原因 | 处理 |
 |---|---|---|
-| `adb devices` 里没有设备 | 产品自带 adb 与 **Androws 容器**不连通（外接 USB 设备能正常出现） | 容器里的 iApp 只能走 FTP；外接真机（如手表）照常用 adb |
+| `adb devices` 里没有容器 | 容器 adb 需要先开开发者模式；**微软商店版无法开启** | 官方下载版：设置里连续点击「性能」Tab → 开开发者模式 → `adb connect 127.0.0.1:5555`；微软商店版只能走 FTP |
 | 雷电/MuMu 装不上 | 宿主必须开 Hyper-V | 换 VirtualBox 系容器不可行；用本产品 |
 | `.project` 在列表里看不到 | 服务端不列点开头文件 | 用 `SIZE` 探，不要按清单判断存在性 |
 | `STOR` 报 550 | 父目录不存在 | 先逐级 `MKD` |
@@ -84,7 +87,7 @@ FTP 视角下工程在 `/ProjectApp/<项目ID>`；两者是同一份文件 ✅ �
 
 | 项 | 级别 | 怎么验 |
 |---|---|---|
-| 容器是否有 adb 通道 | ❓ | 怎么验：`netstat` 见 `Androws.exe` 监听 `0.0.0.0:5555` 后，`adb connect 127.0.0.1:5555` |
+| 容器 adb 通道 | ✅ 2026-11-19 | 官方版开开发者模式后 `adb connect 127.0.0.1:5555` 成功；微软商店版不可用 |
 | 容器内 iApp 是否能打 32 位包 | ✅ 2026-10-28 | 设置 →【打包设定so库】全勾后可产出四架构 APK |
 | Android / API、屏幕、density | ❓ | 怎么验：模拟器内「设置 → 关于手机」，或容器内 `wm size` / `wm density` |
 | iApp 设置显示的工程根 | ❓ | 怎么验：打开容器内 iApp，抄设置页显示的路径 |

@@ -141,3 +141,32 @@ USB: Redmi Note 8 为 USB 2.0（480 Mbps 理论值）
 **回填**：`.claude/skills/iapp-development/references/debugging.md` §投屏预览、
 `docs/environments/tencent-appstore-pc.md` §9、`docs/environments/redmi-note-8.md` §已知坑、
 `tools/mirror.py`（本机薄包装）。
+
+---
+
+## 2026-11-19 R8-4 应用宝容器 adb（推翻「容器无 adb」）
+
+**背景**：用户告知应用宝电脑版分两种发行版——微软商店版无法开开发者模式/adb；腾讯官方下载版
+在设置里连续点击「性能」Tab 可开开发者模式。
+
+**读数**：
+
+```
+adb connect 127.0.0.1:5555
+127.0.0.1:5555  device  product:caas  model:AOSP_on_Intel_Platform  device:caas
+ro.build.version.sdk=33   ro.build.version.release=13   ro.product.cpu.abi=x86_64
+wm size: 320x480          wm density: 410
+iApp: versionCode=127 versionName=5.0.1013 targetSdk=37 uid=10078
+工程根: /sdcard/Android/data/com.iapp.app/files/iApp/ProjectApp
+push: com.jianyue.reader 31 files + .project/AndroidManifest.xml/icon.png，退出码 0
+```
+
+**结论**：
+
+| # | 结论 | 级别 |
+|---|---|---|
+| R8-4 | 腾讯官方下载版可开容器 adb（`127.0.0.1:5555`）；微软商店版不能 | ✅ 2026-11-19 |
+| R8-5 | 旧的「应用宝容器无 adb」只对微软商店版成立，已更正 | ✅ 2026-11-19 |
+
+**回填**：`docs/environments/tencent-appstore-pc.md` §1/§2/§3/§5/§6/§7、
+`docs/environments/README.md` 能力矩阵、SKILL `.claude/skills/iapp-development/references/environment-adaptation.md` §环境提示。

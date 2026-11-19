@@ -17,7 +17,7 @@ python docs/scripts/detect_env.py --json     # 机器可读
 | 编号 | 机器 | 状态 |
 |---|---|---|
 | M1 | Windows 10 Pro Education 19045，雷电 14 + 雷电 9 并存 | **主开发机** |
-| M2 | Windows 11 Pro 10.0.26300，Hyper-V，腾讯应用宝电脑版；容器无 adb，外接 USB 设备可 adb ✅ 2026-11-19 | 备用/协作机，可用 |
+| M2 | Windows 11 Pro 10.0.26300，Hyper-V，腾讯应用宝电脑版；官方下载版可开容器 adb，外接 USB 也可 adb ✅ 2026-11-19 | 备用/协作机，可用 |
 
 机器全称只在这里写一次，档案里只写 `M1` / `M2`。
 
@@ -41,7 +41,7 @@ python docs/scripts/detect_env.py --json     # 机器可读
 | 宿主虚拟化 | Hyper-V 未启用（`HypervisorPresent=False`）✅ 2026-10-28 | 同左 ✅ | 必须开 Hyper-V ⚠ 他机口述 |
 | 产品版本 | 雷电 14.0.32.1 ✅ 2026-10-28 | 雷电 9.5.42.0 ✅ 2026-10-26 | 应用宝电脑版 ❓ 怎么验：产品「关于」页或安装目录版本号 |
 | Android / API | 14 / 34 ✅ 2026-10-28 | 9 / 28 ✅ 2026-10-26 | ❓（>11 猜测，无读数）；怎么验：容器内「设置 → 关于手机」 |
-| adb | ✅ `emulator-5556`（或 `127.0.0.1:5557`） | ✅ 宿主端口 5555（未连接时 `adb devices` 为空） | ❌ 容器不可见；✅ 外接 USB 设备可见（手表 2026-10-28、红米 Note 8 2026-11-19） |
+| adb | ✅ `emulator-5556`（或 `127.0.0.1:5557`） | ✅ 宿主端口 5555（未连接时 `adb devices` 为空） | ✅ 容器 `127.0.0.1:5555`（官方版开发者模式）；外接 USB 也可见（手表 2026-10-28、红米 Note 8 2026-11-19） |
 | root | `su -c id` → uid=0 ✅ 2026-10-28 | `adb root` → uid=0 ✅ 2026-10-26 | ❓ 怎么验：容器内终端跑 `su -c id`，无 shell 时无法判断 |
 | 共享目录 | 2026-10-30 起停用（宿主 `android-sync/` 已移除，设备侧 `Pictures/ProjectApp` 已删） | 同左 | ❓ 怎么验：产品设置的「共享文件夹」类选项 |
 | iApp 工程根 | `Android/data/com.iapp.app/files/iApp/ProjectApp`（2026-10-30 起不再是软链）✅ | `/sdcard/iApp/ProjectApp`（可直接改）✅ | ❓ |
@@ -49,7 +49,7 @@ python docs/scripts/detect_env.py --json     # 机器可读
 | 存储权限 | `MANAGE_EXTERNAL_STORAGE=allow` ✅ 2026-10-28 | `READ/WRITE_EXTERNAL_STORAGE`（运行时）✅ 2026-10-26 | ❓ 怎么验：容器内 `appops get <包名> MANAGE_EXTERNAL_STORAGE` |
 | FTP（宿主→设备） | ❌ 直连不通；✅ 经 `adb forward`（含逐数据端口）2026-10-28 | ❓ | ✅ 直连匿名可登录、`MD5`/`STOR` 可用 ✅ 本机 2026-10-28 |
 | FTP（设备内→自身） | ❓ 待设备内终端探测 | ❓ | ❓ |
-| 推荐通道 | adb 整目录（FTP 兜底） | adb / FTP | FTP |
+| 推荐通道 | adb 整目录（FTP 兜底） | adb / FTP | adb（官方版；FTP 兜底） |
 | 版本定位 | **主开发**（API 34 优先） | 仅按需做低版本兼容 | 该机器的主环境 |
 
 ## 通道总览

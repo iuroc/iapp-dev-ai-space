@@ -53,8 +53,9 @@
 ## 本机变量（先探测再取）
 
 快照日期 2026-10-28，下表是 **M1（Win10 + 雷电）**的值。取值顺序：探测结果 → 下表已知值 → 常见默认。
-设备/端口不写死。**M2（Windows 11 + 应用宝）**没有雷电，adb 用产品自带 `adb.EXE`（已在 PATH），
-设备与工程根以 `detect_env.py` 输出和 `docs/environments/tencent-appstore-pc.md` 为准。
+设备/端口不写死。**M2（Windows 11 + 应用宝）**没有雷电，adb 用产品自带 `adb.EXE`（已在 PATH）；
+腾讯官方下载版可在设置里连续点击「性能」Tab 开容器 adb（`adb connect 127.0.0.1:5555`），
+微软商店版不能。设备与工程根以 `detect_env.py` 输出和 `docs/environments/tencent-appstore-pc.md` 为准。
 
 ```
 IAPP_PKG       = com.iapp.app

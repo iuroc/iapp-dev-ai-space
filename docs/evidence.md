@@ -154,6 +154,7 @@
 | 11-19 | R8-1 | 红米 Note 8 = API 30 / 无 root / iApp 5.0.1015；`push.py` 整目录推送简阅成功 | `environments/redmi-note-8.md` | 已提炼 |
 | 11-19 | R8-2 | MIUI 的 `heightPixels` 扣掉系统栏；底部安全区必须用 `getRealMetrics`，否则 Tab 栏下多 124px 空白 | `ui-kit.md` §安全区与分段、`environments/redmi-note-8.md` §已知坑 | 已提炼 |
 | 11-19 | R8-3 | scrcpy 默认 8M 致文字糊/色带；默认改 H.264 50M/60fps，另设轻量/像素级预设 | `debugging.md` §投屏预览、`tencent-appstore-pc.md` §9 | 已提炼 |
+| 11-19 | R8-4 | **更正**：应用宝官方下载版可开容器 adb（`127.0.0.1:5555`），微软商店版不能；旧「容器无 adb」只对商店版成立 | `tencent-appstore-pc.md` §1、`environment-adaptation.md` §环境提示 | 已提炼 |
 
 ## 未决读数
 

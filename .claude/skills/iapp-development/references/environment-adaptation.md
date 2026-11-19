@@ -125,7 +125,8 @@ FTP 存在的意义只是「没有 adb 的机器」。
 
 | 环境 | 在做 | 或许可以 | 级别 |
 |---|---|---|---|
-| 只装了 iApp、没有 adb 的容器（如应用宝电脑版这类） | 投递工程 | 评估 iApp 内置 FTP；宿主网络不通时先试 `adb forward`（若尚有 adb），否则在设备内终端验证协议 | ⚠/❓ |
+| 腾讯应用宝电脑版的容器 | 开 adb 直连 | **腾讯官方下载版**在设置里连续点击「性能」Tab 开启开发者模式，然后 `adb connect 127.0.0.1:5555`；**微软商店版无法开**开发者模式/adb | ✅（2026-11-19，AOSP on Intel Platform / API 33） |
+| 只装了 iApp、没有 adb 的容器（如微软商店版应用宝电脑版这类） | 投递工程 | 评估 iApp 内置 FTP；宿主网络不通时先试 `adb forward`（若尚有 adb），否则在设备内终端验证协议 | ⚠/❓ |
 | iApp 跑在 PC 容器里、验收目标却是外接真机 | 开发 → 打包 → 装机 | 容器内打包，`bin/<包名>.apk` 用 FTP `RETR` 取回宿主，再 `adb install -r`；打包前务必在【打包设定so库】勾齐目标 ABI | ✅（2026-10-28，应用宝容器 + OPPO Watch X2） |
 | 圆屏手表（如 466×466 / density 320） | 做界面 | 按 dp 画布（约 233dp）设计，内容收进内接正方形（直径 / √2）并居中；`layout_gravity` 别指望，用 mjava `LayoutParams` | ✅（API 30） |
 | 手表插 USB 调试 | 截图 / 测按键 | 先 `svc power stayon usb` 防息屏，再用侧键事件（如 `input keyevent 131`）让开充电全屏界面，`mCurrentFocus` 是目标窗口后再 `screencap` | ✅（OPPO Watch X2 / API 30，2026-10-29） |
